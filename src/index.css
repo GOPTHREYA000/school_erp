@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary: #0B1F3A;
+  --color-accent: #2563EB;
+  --color-neutral-white: #FFFFFF;
+  --color-neutral-light: #F5F7FA;
+  --color-text-charcoal: #1F2937;
+}
+
+body {
+  font-family: 'Inter', 'Poppins', sans-serif;
+  background-color: var(--color-neutral-light);
+  color: var(--color-text-charcoal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', 'Inter', sans-serif;
+  font-weight: 700;
+}
