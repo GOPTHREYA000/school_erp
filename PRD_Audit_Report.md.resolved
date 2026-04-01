@@ -1,0 +1,153 @@
+# ScoolERP PRD Audit: Brutally Honest Architectural & Product Review
+
+> **Date:** April 1, 2026  
+> **Target:** ScoolERP Production-Grade PRD (Parts 1-4)  
+> **Auditor:** Staff-Level SaaS Architect & ERP Domain Expert
+
+---
+
+## 1. FEATURE COMPLETENESS SCORE (Score: 7.5/10)
+
+| Module | Score | Missing Pieces / Real-World Gaps |
+|---|---|---|
+| **Admissions** | 8/10 | Missing fee collection *during* admission (application fee/prospectus fee). Missing sibling link lookup during application. |
+| **Student Management** | 8/10 | Missing document expiry tracking (e.g., student visa for intl, medical certs). Missing custom fields (every school wants custom fields). |
+| **Attendance** | 7/10 | Missing half-day handling in bulk UI. Missing biometric hardware sync schema (manual only right now). Missing leave request flow for students. |
+| **Homework / Academic Ops** | 6/10 | No grading/submission tracking. It’s a broadcast system right now. Teacher can't see who completed the homework. |
+| **Timetable** | 5/10 | Too basic. Missing substitution handling (what happens when a teacher is absent?). Hard constraint checks are missing from the schema. |
+| **Fees & Payments** | 9/10 | Strong. Razorpay + partial payments + offline workflow is solid. Missing wallet/deposit account (parents paying advance lumpsum). |
+| **Expense & Accounting** | 7/10 | Missing asset management (depreciation tracking). Cashbook is fine, but missing double-entry ledger capability for actual CA compliance. |
+| **Parent Engagement** | 8/10 | Solid PWA spec. Missing two-way communication (chat/helpdesk ticket). Parents can't reply to teachers or raise queries. |
+| **Staff Management** | 4/10 | Severely lacking in current MVP phase. Deferred to Phase 4, but schools need basic staff attendance from day 1 to run payroll. |
+| **Communication System** | 9/10 | Excellent channel fallback design and retry logic. Template variables are well defined. |
+| **Reporting & Analytics** | 7/10 | Missing custom report builder. Static reports won't survive long; schools will constantly ask for new column combinations. |
+| **Multi-tenancy** | 9/10 | `django-tenants` schema-per-tenant is robust. |
+| **SaaS Billing** | 6/10 | Basic. Missing usage tracking beyond SMS (e.g., storage limits, active student pricing tiers). |
+
+---
+
+## 2. EXECUTION CLARITY (AI-READINESS) (Score: 9/10)
+
+This is the strongest aspect of the PRD. The data contracts, API formats, and UI states are explicitly laid out.
+
+*   **Data Contracts:** Excellent. Enum choices, nullability, and relationships are explicit.
+*   **API Formats:** Standard envelope is enforced.
+*   **UI States:** The 5-state rule (loading, empty, error, denied, data) prevents frontend hallucination.
+*   **Where AI will fail or hallucinate:**
+    *   **Dashboard Visuals:** "KPI cards" and "Charts" are specified, but the exact aggregation queries (e.g., how to calculate "collection trend") are left to the AI, leading to inconsistent SQL/ORM generation.
+    *   **WeasyPrint CSS:** Generating PDFs with WeasyPrint requires strict HTML/CSS. The PRD lists contents but not the layout structure. The AI will hallucinate an ugly PDF layout.
+
+---
+
+## 3. SYSTEM DESIGN REVIEW
+
+### Critical Flaws
+*   **Job Broker (PostgreSQL vs Redis):** The PRD deliberately avoids Redis to save money, using `django-q2` with the ORM broker. This is fine for 5 schools. But for bulk invoice generation at 50 schools (e.g., 50,000 invoices on the 1st of the month), Postgres will suffer heavy row-locking contention acting as a queue broker alongside primary reads/writes.
+*   **Subdomain Routing Constraints:** Using `{tenant_slug}.scoolerp.in` requires wildcard DNS and wildcard SSL. For Railway.app, managing custom subdomains programmatically per tenant requires API calls to Cloudflare/Railway on tenant creation. The PRD skips this operational step.
+
+### Overengineering
+*   **Event-Driven Communication (Overkill):** The PRD mentions event-driven architecture but implements a monolithic Django app. The `NotificationLog` background job retry system is borderline over-engineered for an MVP. A simpler sync-send with async-fallback would suffice.
+
+### Underengineering
+*   **Audit Logging:** Firing a Django signal on *every* model save to write to `AuditLog` will bloat the database massively and slow down bulk imports. Bulk importing 500 students will fire 500 individual insert signals.
+
+---
+
+## 4. COST OPTIMIZATION REVIEW 💰
+
+Current Stack Cost Estimate (50 schools): ~$150-$200/mo. The claim of "$50/mo" in the PRD is overly optimistic.
+
+**Cost Drivers:**
+1.  **PostgreSQL DB Size:** Multi-tenant schema overhead + bloated AuditLogs + NotificationLogs = fast DB growth. Railway charges by RAM/CPU, but high I/O will mandate an upgrade.
+2.  **SMS (MSG91):** SMS is brutal. If 50 schools * 1000 students = 50k SMS/month. At ₹0.15/SMS = ₹7,500 ($90) just for SMS.
+
+**Cost Optimization Suggestions (Brutally Honest):**
+*   **DB Bloat:** Ditch the row-level Audit Logging in Postgres. Send audit events directly to an S3/R2 bucket as JSONL files via a background worker or use a NoSQL sink (MongoDB/DynamoDB) if queryable logs are needed.
+*   **Frontend Hosting:** Drop Railway for Next.js. Deploy Next.js to **Vercel (Free/Pro)** or **Cloudflare Pages**. It's cheaper, faster, and offloads compute from your backend bill.
+*   **SMS Cannibalization:** Push notifications and WhatsApp are cheaper/free. The PRD enables SMS by default. *Force* schools to push parents to the PWA to receive free Web Push notifications, falling back to SMS only if unread. Limit included SMS heavily in SaaS plans.
+
+---
+
+## 5. SCALABILITY & FAILURE ANALYSIS
+
+*   **At 1 School:** Works perfectly.
+*   **At 50 Schools:**
+    *   *Bottleneck:* `generate_monthly_invoices` running at 06:00 AM for all tenants simultaneously. The `schema_context` switching inside a tight loop will hammer Postgres CPU. **Fix:** Stagger the cron jobs. Assign tenants to different execution windows (e.g., 6:00, 6:15, 6:30).
+*   **At 500 Schools:**
+    *   *Bottleneck:* `django-tenants`. With 500 schools, you have 500 schemas. Postgres `search_path` parsing and connection pooling (PgBouncer) becomes a nightmare. Schema migrations across 500 schemas will take hours and lock tables.
+    *   *Fix:* You must graduate from schema-per-tenant to a sharded architecture or switch to row-level security (RLS) in a single schema before hitting 100+ schools. The PRD's claim that schema-per-tenant is "more manageable" is a lie at scale.
+
+---
+
+## 6. PRODUCT STRATEGY GAPS
+
+*   **The "Parent Trap":** The product assumes parents will install a PWA and check it daily. They won't. If the primary notification channel is a portal they don't open, the fee collection loop fails.
+    *   *Fix:* WhatsApp integration MUST be pulled forward to Phase 1/2. In India, WhatsApp is the OS. SMS is ignored as spam, and PWAs are forgotten. If you send the Razorpay link via a WhatsApp message, collection rates double.
+*   **Teacher Workflow Friction:** Marking attendance on a web app on a phone browser is clunky. Teachers need a blazing fast, offline-first mobile view. The PRD specifies a generic web UI. If attendance takes >2 minutes, teachers will hate the ERP, complain to the principal, and churn the school.
+*   **Onboarding Bottleneck:** The PRD assumes admins will upload CSVs smoothly. CSV uploads always fail due to user error (wrong date formats, misspelled headers).
+    *   *Fix:* Build a robust "Fix Errors in Browser" UI for the bulk import, or you will spend all your support time fixing spreadsheets.
+
+---
+
+## 7. RISK ANALYSIS
+
+**Technical Risks (Top 5):**
+1. Postgres OOM (Out of Memory) due to 500+ schemas loaded in search_paths.
+2. Background queue starvation on the 1st of the month (invoice generation blocks SMS sends).
+3. WeasyPrint CPU spikes crashing the web container when 100 parents download receipts concurrently.
+4. Wildcard SSL management failure causing tenant subdomains to show security warnings.
+5. Incomplete deletion (GDPR/DPDP compliance): Deleting a tenant cleanly across R2, schemas, and logs is not defined.
+
+**Product/Market Risks (Top 5):**
+1. **Teacher Mutiny:** If the UX for daily tasks (attendance, marks) is slower than paper, teachers will refuse to use it.
+2. **Missing WhatsApp:** Competitors (Teachmint, Classplus) have native WhatsApp alerting. Without it, you look outdated.
+3. **No Accountant Buy-In:** "Cashbook" is too basic. Accountants use Tally. If your ERP doesn't have an automated Tally Export XML generation, the accountant will veto your software.
+4. **Implementation Time:** SaaS ERPs churn during onboarding. If getting 1000 students setup takes 2 weeks, they will cancel.
+5. **Fee Settlement Anxiety:** Schools panic if Razorpay delays settlement. The dashboard must clearly show "Settled to Bank" vs "Collected Online".
+
+---
+
+## 8. FINAL SCORING
+
+*   **Overall PRD Score:** **82/100**
+    *   Features: 8/10
+    *   Architecture: 7/10
+    *   Clarity: 10/10
+    *   Cost efficiency: 8/10
+    *   Market readiness: 8/10
+
+**Conclusion:** The PRD is an excellent blueprint for an AI agent to build a *prototype*, but it contains architectural decisions (Schema-per-tenant + Postgres Queues + Synchronous PDF generation) that will cause a fiery crash under real-world multi-tenant load.
+
+---
+
+## 9. ACTIONABLE IMPROVEMENTS
+
+### A. MUST FIX BEFORE BUILDING (Blockers)
+1.  **Change PDF Generation:** Offload WeasyPrint to a separate serverless function (e.g., AWS Lambda or Vercel Edge function via API) or generate them async and store in R2. *Do not block the main Django process generating PDFs.*
+2.  **Add Tally Export:** The accounting module is useless to Indian schools without a button that says "Export Day Book for Tally". Add this to Phase 2.
+3.  **WhatsApp Integration:** Move WhatsApp Business API (WATI/Interakt) from Phase 4 to Phase 2. It is the only communication channel that guarantees engagement.
+
+### B. SHOULD IMPROVE (Mid Priority)
+1.  **Drop Schema-per-tenant for RLS:** If you intend to scale past 50 schools, switch from `django-tenants` (schemas) to `django-rls` or simple `tenant_id` foreign keys with a strict middleware filter. Schema management becomes an ops nightmare.
+2.  **Move Next.js to Vercel/Cloudflare Pages:** Reduce Railway DB/Backend costs by decoupling the frontend completely.
+3.  **Stagger Cron Jobs:** Ensure background tasks aren't all scheduled for "00:00".
+
+### C. NICE TO HAVE (Low Priority)
+1.  **Student Leave Requests:** Let parents apply for leave via the PWA, showing directly on the teacher's attendance screen.
+2.  **Wallet/Advance Accounts:** Allow parents to overpay or deposit a lump sum that auto-deducts monthly.
+
+---
+
+## 10. TECH STACK OPTIMIZATION
+
+**The "Bootstrapper MVP" Stack (Lowest Cost, Highest AI-Compatibility):**
+*   **Backend:** Supabase (PostgreSQL with built-in Auth, RLS, Storage, and Edge Functions) + Node.js/Express for complex webhooks.
+*   **Frontend:** Next.js hosted on Vercel (Free tier).
+*   **Why:** Supabase handles RLS multi-tenancy beautifully out of the box. You drop Django, drop complex server hosting, and pay $25/mo for the DB.
+
+**The PRD Stack (Django + Next.js + Railway):**
+*   **Tradeoff:** Development takes longer, ops are slightly harder, and schema-per-tenant will break at scale. *However*, Django's ORM and Admin panel are extremely powerful for the complex relational data required by an ERP.
+*   **Verdict:** Keep the Django stack, but **abandon schema-per-tenant for Row-Level Security (RLS)** or strict `tenant_id` filtering. The operational overhead of schema migrations across 100+ schemas will drown a solo dev.
+
+---
+**END OF AUDIT**
