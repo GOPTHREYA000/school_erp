@@ -11,16 +11,16 @@
 ## Waves
 
 ### Wave 1: Next.js Boilerplate
-- [ ] Run `create-next-app` to scaffold `frontend/`.
-- [ ] Install dependencies: `lucide-react`, `axios`, `zustand` (or context), `react-hook-form`, `zod`.
+- [x] Run `create-next-app` to scaffold `frontend/`.
+- [x] Install dependencies: `lucide-react`, `axios`, `zustand` (or context), `react-hook-form`, `zod`.
 
 ### Wave 2: Base UI Shell
-- [ ] Create the dashboard layout (`sidebar`, `topbar`).
-- [ ] Implement base generic pages covering the 5 states (loading, empty, error, permission denied, data).
+- [x] Create the dashboard layout (`sidebar`, `topbar`).
+- [x] Implement base generic pages covering the 5 states (loading, empty, error, permission denied, data).
 
 ### Wave 3: Login View
-- [ ] Build the authentication form (`/login`).
-- [ ] Wire login form to the Django backend using `axios` with `withCredentials: true`.
+- [x] Build the authentication form (`/login`).
+- [x] Wire login form to the Django backend using `axios` with `withCredentials: true`.
 
 ## Tasks
 

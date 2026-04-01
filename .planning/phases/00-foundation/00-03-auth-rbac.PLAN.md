@@ -11,16 +11,16 @@
 ## Waves
 
 ### Wave 1: User Model
-- [ ] Create `accounts` Django app.
-- [ ] Define `User(AbstractBaseUser)` matching PRD section 3.3.
+- [x] Create `accounts` Django app.
+- [x] Define `User(AbstractBaseUser)` matching PRD section 3.3.
 
 ### Wave 2: JWT & Auth Endpoints
-- [ ] Install `djangorestframework-simplejwt`.
-- [ ] Implement `LoginView`, `RefreshView`, and `LogoutView` to set/clear httpOnly cookies.
-- [ ] Implement `/api/auth/me/` endpoint.
+- [x] Install `djangorestframework-simplejwt`.
+- [x] Implement `LoginView`, `RefreshView`, and `LogoutView` to set/clear httpOnly cookies.
+- [x] Implement `/api/auth/me/` endpoint.
 
 ### Wave 3: RBAC Middlewares
-- [ ] Write DRF Permission classes mapping to `SUPER_ADMIN`, `TRUST_OWNER`, `SCHOOL_ADMIN`, `ACCOUNTANT`, `TEACHER`, `PARENT`.
+- [x] Write DRF Permission classes mapping to `SUPER_ADMIN`, `TRUST_OWNER`, `SCHOOL_ADMIN`, `ACCOUNTANT`, `TEACHER`, `PARENT`.
 
 ## Tasks
 

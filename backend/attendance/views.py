@@ -1,0 +1,127 @@
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Count, Q
+
+from accounts.permissions import IsTeacherOrAbove
+from students.models import ClassSection, Student
+from .models import AttendanceRecord
+from .serializers import (
+    AttendanceRecordSerializer, BulkAttendanceSerializer,
+    AttendanceSummarySerializer,
+)
+
+
+class AttendanceViewSet(viewsets.ModelViewSet):
+    serializer_class = AttendanceRecordSerializer
+    permission_classes = [IsAuthenticated, IsTeacherOrAbove]
+
+    def get_queryset(self):
+        qs = AttendanceRecord.objects.filter(
+            class_section__branch__tenant=self.request.user.tenant
+        ).select_related('student', 'class_section')
+        cs = self.request.query_params.get('class_section_id')
+        date = self.request.query_params.get('date')
+        student = self.request.query_params.get('student_id')
+        if cs:
+            qs = qs.filter(class_section_id=cs)
+        if date:
+            qs = qs.filter(date=date)
+        if student:
+            qs = qs.filter(student_id=student)
+        return qs
+
+    @action(detail=False, methods=['post'], url_path='bulk')
+    def bulk_mark(self, request):
+        serializer = BulkAttendanceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        class_section = ClassSection.objects.get(id=data['class_section_id'])
+        date = data['date']
+        saved = 0
+        errors = []
+
+        for record in data['records']:
+            try:
+                obj, created = AttendanceRecord.objects.update_or_create(
+                    student_id=record['student_id'],
+                    date=date,
+                    defaults={
+                        'tenant': request.user.tenant,
+                        'class_section': class_section,
+                        'status': record['status'],
+                        'remarks': record.get('remarks', ''),
+                        'marked_by': request.user,
+                    }
+                )
+                saved += 1
+            except Exception as e:
+                errors.append({'student_id': str(record['student_id']), 'error': str(e)})
+
+        return Response({
+            'success': True,
+            'data': {'saved': saved, 'errors': errors}
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request):
+        student_id = request.query_params.get('student_id')
+        month = request.query_params.get('month')  # YYYY-MM
+        if not student_id or not month:
+            return Response({'detail': 'student_id and month are required.'}, status=400)
+
+        year, m = month.split('-')
+        records = AttendanceRecord.objects.filter(
+            student_id=student_id,
+            date__year=int(year),
+            date__month=int(m),
+        )
+        total = records.count()
+        present = records.filter(status='PRESENT').count()
+        absent = records.filter(status='ABSENT').count()
+        late = records.filter(status='LATE').count()
+        half = records.filter(status='HALF_DAY').count()
+        pct = round((present + late + half * 0.5) / total * 100, 1) if total > 0 else 0
+
+        return Response({
+            'success': True,
+            'data': {
+                'total_days': total,
+                'present_days': present,
+                'absent_days': absent,
+                'late_days': late,
+                'half_days': half,
+                'attendance_percentage': pct,
+            }
+        })
+
+    @action(detail=False, methods=['get'], url_path='class-summary')
+    def class_summary(self, request):
+        cs_id = request.query_params.get('class_section_id')
+        month = request.query_params.get('month')
+        if not cs_id or not month:
+            return Response({'detail': 'class_section_id and month are required.'}, status=400)
+
+        year, m = month.split('-')
+        students = Student.objects.filter(class_section_id=cs_id, status='ACTIVE')
+        result = []
+        for s in students:
+            records = AttendanceRecord.objects.filter(
+                student=s, date__year=int(year), date__month=int(m)
+            )
+            total = records.count()
+            present = records.filter(status='PRESENT').count()
+            late = records.filter(status='LATE').count()
+            half = records.filter(status='HALF_DAY').count()
+            pct = round((present + late + half * 0.5) / total * 100, 1) if total > 0 else 0
+            result.append({
+                'student_id': str(s.id),
+                'student_name': f"{s.first_name} {s.last_name}",
+                'attendance_percentage': pct,
+                'total_days': total,
+                'present': present,
+            })
+
+        return Response({'success': True, 'data': result})

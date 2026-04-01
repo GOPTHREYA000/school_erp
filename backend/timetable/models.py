@@ -1,0 +1,59 @@
+import uuid
+from django.db import models
+from django.conf import settings
+
+
+PERIOD_TYPE_CHOICES = [
+    ("CLASS", "Class"), ("BREAK", "Break"), ("ASSEMBLY", "Assembly"), ("SPORTS", "Sports"),
+]
+DAY_CHOICES = [
+    ("MON", "Monday"), ("TUE", "Tuesday"), ("WED", "Wednesday"),
+    ("THU", "Thursday"), ("FRI", "Friday"), ("SAT", "Saturday"),
+]
+
+
+class Period(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='periods')
+    branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='periods')
+    name = models.CharField(max_length=50)
+    period_type = models.CharField(max_length=10, choices=PERIOD_TYPE_CHOICES, default='CLASS')
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.name} ({self.start_time}-{self.end_time})"
+
+
+class Subject(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='subjects')
+    branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='subjects')
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=10, blank=True)
+    grade_levels = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
+class TimetableSlot(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='timetable_slots')
+    class_section = models.ForeignKey('students.ClassSection', on_delete=models.CASCADE, related_name='timetable_slots')
+    period = models.ForeignKey(Period, on_delete=models.CASCADE, related_name='timetable_slots')
+    day_of_week = models.CharField(max_length=3, choices=DAY_CHOICES)
+    subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=True, related_name='timetable_slots')
+    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='timetable_slots')
+
+    class Meta:
+        unique_together = ['class_section', 'period', 'day_of_week']
+        ordering = ['day_of_week', 'period__order']
+
+    def __str__(self):
+        return f"{self.class_section} - {self.day_of_week} - {self.period.name}"

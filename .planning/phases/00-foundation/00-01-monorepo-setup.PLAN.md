@@ -11,11 +11,11 @@
 ## Waves
 
 ### Wave 1: Restructuring
-- [ ] Move existing Vite code to `marketing/`.
-- [ ] Create `backend/` and `frontend/` directories.
+- [x] Move existing Vite code to `marketing/`.
+- [x] Create `backend/` and `frontend/` directories.
 
 ### Wave 2: Containerization Placeholder
-- [ ] Create `docker-compose.yml` at the root with a `db` (PostgreSQL 16) and `mailhog` service.
+- [x] Create `docker-compose.yml` at the root with a `db` (PostgreSQL 16) and `mailhog` service.
 
 ## Tasks
 

@@ -11,18 +11,18 @@
 ## Waves
 
 ### Wave 1: Django Init
-- [ ] Initialize Python virtual environment.
-- [ ] Install `django`, `djangorestframework`, `psycopg2-binary`.
-- [ ] Create Django project internally inside `backend/`.
+- [x] Initialize Python virtual environment.
+- [x] Install `django`, `djangorestframework`, `psycopg2-binary`.
+- [x] Create Django project internally inside `backend/`.
 
 ### Wave 2: Tenant App
-- [ ] Create `tenants` app.
-- [ ] Define `Tenant`, `Domain`, and `Plan` models (per PRD section 2.4).
-- [ ] Define `Branch` and `AcademicYear` models (per PRD sections 5 & 6).
+- [x] Create `tenants` app.
+- [x] Define `Tenant`, `Domain`, and `Plan` models (per PRD section 2.4).
+- [x] Define `Branch` and `AcademicYear` models (per PRD sections 5 & 6).
 
 ### Wave 3: Configuration
-- [ ] Connect Django to local Postgres database.
-- [ ] Generate and apply first migrations.
+- [x] Connect Django to database (using SQLite locally as fallback).
+- [x] Generate and apply first migrations.
 
 ## Tasks
 
