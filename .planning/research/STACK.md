@@ -1,28 +1,30 @@
-# Project Research — Stack
+# Tech Stack Research
 
-**Domain:** School ERP (Modern, High-Performance)
-**Status:** Synthesized from provided PRD and Architectural Audit.
+## Backend (Django)
+- **Framework**: Django 5.x + Django REST Framework 3.15+
+- **Language**: Python 3.11+
+- **Database**: PostgreSQL 16 (Single Schema, Row-Level Security via `tenant_id`)
+- **Background Jobs**: Django-Q2 (Postgres broker)
+- **PDF Generation**: WeasyPrint
+- **Auth**: JWT via `djangorestframework-simplejwt`
 
-## Recommended Stack (2026)
+## Frontend / Parent Portal (Next.js)
+- **Framework**: Next.js 15.x (App Router)
+- **Language**: TypeScript 5.x
+- **Styling**: Tailwind CSS 4.x
+- **Forms**: React Hook Form + Zod
+- **Tables**: TanStack Table v8
+- **Charts**: Recharts
+- **PWA**: Custom service worker + manifest for Parent Portal
 
-| Layer | Technology | Rationale | Confidence |
-|-------|------------|-----------|------------|
-| **Frontend** | React 19 / Vite 8 | Cutting-edge performance, server components support, and fast HMR. | High |
-| **Styling** | Tailwind CSS 4 | Utility-first, zero-runtime CSS, seamless integration with Vite 8. | High |
-| **Backend/DB** | Supabase (Postgres) | Built-in Auth, Realtime, and Row-Level Security (RLS) for multi-tenancy. | High |
-| **State Mgmt** | React Context + TanStack Query | Lightweight for most ERP needs; high-performance data fetching. | High |
-| **Notifications** | WhatsApp API + Web Push | Highest engagement for parents/staff vs traditional email. | High |
-| **Testing** | Vitest + Playwright | Modern standard for Vite projects; fast unit/E2E testing. | High |
+## Marketing Site (Existing)
+- **Framework**: React 19 + Vite 8 (to be moved into `marketing/` folder in monorepo setup)
 
-## Rationale for Key Choices
-
-- **Vite 8**: Essential for handling the large number of modules (10+ sections) without slowing down the dev server.
-- **Supabase RLS**: Critical choice over schema-per-tenant to reduce infrastructure overhead and simplify cross-campus analytics.
-
-## What NOT to Use (and Why)
-
-- **Redux (Legacy)**: Too much boilerplate for the current SPA architecture. React Query is more efficient for server-state.
-- **Plain CSS/SASS**: Harder to maintain consistency across 10+ modules vs Tailwind.
-
----
-*Research synthesized: 2026-04-01*
+## Integrations & Infrastructure
+- **Storage**: Cloudflare R2 (S3 compatible API)
+- **Payments**: Razorpay
+- **Email**: Resend
+- **Messaging**: Firebase Web Push / WATI (WhatsApp) / MSG91 (SMS fallback)
+- **Hosting**: Backend on Railway, Frontend on Vercel
+- **CI/CD**: GitHub Actions
+- **Error Tracking**: Sentry
