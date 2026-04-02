@@ -12,7 +12,8 @@ class IsSchoolAdmin(permissions.BasePermission):
 class IsBranchAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         # Maps to the old SCHOOL_ADMIN logic (now BRANCH_ADMIN)
-        return bool(request.user and request.user.is_authenticated and request.user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN'])
+        # Grant permissions to Accountants as well (similar to Branch Admin)
+        return bool(request.user and request.user.is_authenticated and request.user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'])
 
 class IsAccountant(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -20,7 +21,7 @@ class IsAccountant(permissions.BasePermission):
 
 class IsTeacher(permissions.BasePermission):
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'TEACHER'])
+        return bool(request.user and request.user.is_authenticated and request.user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'TEACHER', 'ACCOUNTANT'])
 
 class IsParent(permissions.BasePermission):
     def has_permission(self, request, view):

@@ -8,5 +8,5 @@ router.register(r'academic-years', AcademicYearViewSet, basename='academic-year'
 router.register(r'', TenantViewSet, basename='tenant')
 
 urlpatterns = [
-    path('tenants/', include(router.urls)),
+    path('', include(router.urls)),
 ]

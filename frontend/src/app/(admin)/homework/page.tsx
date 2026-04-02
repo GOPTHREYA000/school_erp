@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
+import DateInput from '@/components/DateInput';
 import { Plus, BookOpen, Clock } from 'lucide-react';
 
 interface HomeworkItem {
@@ -54,9 +55,11 @@ export default function HomeworkPage() {
             onChange={e => setFormData({...formData, description: e.target.value})}
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm h-24" />
           <div className="grid grid-cols-2 gap-4">
-            <input type="date" required value={formData.due_date}
-              onChange={e => setFormData({...formData, due_date: e.target.value})}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm" />
+            <DateInput
+              required
+              value={formData.due_date}
+              onChange={val => setFormData({...formData, due_date: val})}
+            />
             <select value={formData.activity_type} onChange={e => setFormData({...formData, activity_type: e.target.value})}
               className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
               {['HOMEWORK','CLASSWORK','PROJECT','REVISION','READING'].map(t => <option key={t} value={t}>{t}</option>)}

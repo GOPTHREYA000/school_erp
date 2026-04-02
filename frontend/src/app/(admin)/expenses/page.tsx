@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
+import DateInput from '@/components/DateInput';
 import { Plus, Receipt, TrendingDown } from 'lucide-react';
 
 interface Expense {
@@ -62,9 +63,11 @@ export default function ExpensesPage() {
             <input type="number" placeholder="Amount (₹)" required value={formData.amount}
               onChange={e => setFormData({...formData, amount: e.target.value})}
               className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm" />
-            <input type="date" required value={formData.expense_date}
-              onChange={e => setFormData({...formData, expense_date: e.target.value})}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm" />
+            <DateInput
+              required
+              value={formData.expense_date}
+              onChange={val => setFormData({...formData, expense_date: val})}
+            />
           </div>
           <div className="flex gap-3">
             <button type="submit" disabled={saving}

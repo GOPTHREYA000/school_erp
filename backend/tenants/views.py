@@ -119,20 +119,11 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
         elif user.tenant:
             qs = AcademicYear.objects.filter(tenant=user.tenant)
             
-        branch_id = self.request.query_params.get('branch_id')
-        if branch_id:
-            qs = qs.filter(branch_id=branch_id)
-            
         return qs
 
     def perform_create(self, serializer):
         tenant = self.request.user.tenant
-        branch = serializer.validated_data.get('branch')
         
-        # Always prefer the branch's tenant for data consistency
-        if branch:
-            tenant = branch.tenant
-            
         if not tenant:
             # Fallback for manual creation or super admin
             tenant_id = self.request.data.get('tenant')

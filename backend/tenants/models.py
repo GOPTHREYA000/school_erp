@@ -74,14 +74,13 @@ class Branch(models.Model):
 class AcademicYear(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='academic_years')
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='academic_years')
     name = models.CharField(max_length=50) # e.g. "2024-2025"
     start_date = models.DateField()
     end_date = models.DateField()
     is_active = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ('branch', 'name')
+        unique_together = ('tenant', 'name')
 
     def __str__(self):
-        return f"{self.name} - {self.branch.name}"
+        return f"{self.name} ({self.tenant.name})"

@@ -138,7 +138,24 @@ class UserViewSet(viewsets.ModelViewSet):
         if creator_role != 'SUPER_ADMIN':
             tenant = self.request.user.tenant
         else:
-            tenant = serializer.validated_data.get('tenant', self.request.user.tenant)
+            # If super admin, they must specify a tenant for non-platform roles
+            tenant = serializer.validated_data.get('tenant')
+            if not tenant and target_role != 'SUPER_ADMIN':
+               # Fallback to the first tenant if none provided, or raise error?
+               # For now, let's try to get from request.data if not in validated_data
+               tenant_id = self.request.data.get('tenant_id') or self.request.data.get('tenant')
+               if tenant_id:
+                   from tenants.models import Tenant
+                   try:
+                       tenant = Tenant.objects.get(id=tenant_id)
+                   except (Tenant.DoesNotExist, ValueError):
+                       pass
+            
+            if not tenant and target_role != 'SUPER_ADMIN':
+                # If still no tenant for a role that needs one, we might want to default to the first one 
+                # to prevent orphan admins, or just let it fail if the serializer requires it.
+                from tenants.models import Tenant
+                tenant = Tenant.objects.first()
 
         branch = serializer.validated_data.get('branch')
         

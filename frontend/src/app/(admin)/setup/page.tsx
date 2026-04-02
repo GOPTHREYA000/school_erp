@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
+import DateInput from '@/components/DateInput';
 import { 
   Settings, Calendar, Building2, BookOpen, 
   Receipt, CheckCircle2, XCircle, Clock, AlertTriangle,
@@ -86,11 +87,11 @@ function SchoolSettings() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (tenant) {
+    if (tenant?.data) {
       setFormData({
-        name: tenant.name,
-        admission_no_format: tenant.admission_no_format || 'YEAR_BRANCH_SEQ',
-        admission_no_prefix: tenant.admission_no_prefix || ''
+        name: tenant.data.name,
+        admission_no_format: tenant.data.admission_no_format || 'YEAR_BRANCH_SEQ',
+        admission_no_prefix: tenant.data.admission_no_prefix || ''
       });
     }
   }, [tenant]);
@@ -223,7 +224,7 @@ function AcademicYearManager() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ 
-    name: '', start_date: '', end_date: '', is_active: true, branch: '' 
+    name: '', start_date: '', end_date: '', is_active: true
   });
   const [saving, setSaving] = useState(false);
 
@@ -232,8 +233,7 @@ function AcademicYearManager() {
       name: ay.name, 
       start_date: ay.start_date, 
       end_date: ay.end_date, 
-      is_active: ay.is_active,
-      branch: ay.branch
+      is_active: ay.is_active
     });
     setEditingId(ay.id);
     setShowForm(true);
@@ -258,7 +258,7 @@ function AcademicYearManager() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.start_date || !formData.end_date || !formData.branch) {
+    if (!formData.name || !formData.start_date || !formData.end_date) {
       alert("Please fill all required fields");
       return;
     }
@@ -271,7 +271,7 @@ function AcademicYearManager() {
       }
       setShowForm(false);
       setEditingId(null);
-      setFormData({ name: '', start_date: '', end_date: '', is_active: true, branch: '' });
+      setFormData({ name: '', start_date: '', end_date: '', is_active: true });
       refetch();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Error saving academic year');
@@ -285,7 +285,7 @@ function AcademicYearManager() {
       <div className="flex justify-end">
         <button onClick={() => {
           setShowForm(!showForm);
-          if (showForm) { setEditingId(null); setFormData({ name: '', start_date: '', end_date: '', is_active: true, branch: '' }); }
+          if (showForm) { setEditingId(null); setFormData({ name: '', start_date: '', end_date: '', is_active: true }); }
         }}
           className="bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors flex items-center gap-2">
           {showForm ? 'Cancel' : 'Add Academic Year'}
@@ -301,28 +301,20 @@ function AcademicYearManager() {
                 onChange={e => setFormData({...formData, name: e.target.value})}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 px-1">Start Date</label>
-              <input type="date" value={formData.start_date}
-                onChange={e => setFormData({...formData, start_date: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 px-1">End Date</label>
-              <input type="date" value={formData.end_date}
-                onChange={e => setFormData({...formData, end_date: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 px-1">Branch</label>
-              <select value={formData.branch}
-                onChange={e => setFormData({...formData, branch: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="">Select Branch</option>
-                {branches?.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            </div>
+            <DateInput
+              label="Start Date"
+              required
+              value={formData.start_date}
+              onChange={val => setFormData({...formData, start_date: val})}
+              className="space-y-1"
+            />
+            <DateInput
+              label="End Date"
+              required
+              value={formData.end_date}
+              onChange={val => setFormData({...formData, end_date: val})}
+              className="space-y-1"
+            />
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} />
@@ -345,7 +337,6 @@ function AcademicYearManager() {
               </span>
             </div>
             <div className="text-sm text-gray-500 space-y-1 font-medium mb-4">
-              <p className="text-blue-600 font-bold">{ay.branch_name}</p>
               <p>Period: {ay.start_date} to {ay.end_date}</p>
             </div>
             <div className="flex gap-2">
@@ -443,7 +434,7 @@ function ClassAndFeeSetup() {
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedAY, setSelectedAY] = useState('');
   const { data: branches } = useApi<any[]>('/tenants/branches/');
-  const { data: years, refetch: refetchYears } = useApi<any[]>(selectedBranch ? `/tenants/academic-years/?branch_id=${selectedBranch}` : null);
+  const { data: years, refetch: refetchYears } = useApi<any[]>('/tenants/academic-years/');
   const { data: categories, refetch: refetchCategories } = useApi<any[]>('/fees/categories/');
   
   const { data: classes, loading, refetch } = useApi<any[]>(

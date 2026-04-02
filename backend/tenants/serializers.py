@@ -20,9 +20,7 @@ class BranchSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'tenant']
 
 class AcademicYearSerializer(serializers.ModelSerializer):
-    branch_name = serializers.CharField(source='branch.name', read_only=True)
-
     class Meta:
         model = AcademicYear
-        fields = ['id', 'tenant', 'branch', 'branch_name', 'name', 'start_date', 'end_date', 'is_active']
+        fields = ['id', 'tenant', 'name', 'start_date', 'end_date', 'is_active']
         read_only_fields = ['id', 'tenant']

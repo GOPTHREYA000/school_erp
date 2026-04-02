@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
+import DateInput from '@/components/DateInput';
 import { Plus, Search, Users, Filter, Receipt, Building2 } from 'lucide-react';
 
 interface Student {
@@ -294,12 +295,13 @@ export default function StudentsPage() {
                       onChange={e => setFormData(prev => ({...prev, last_name: e.target.value}))}
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Date of Birth <span className="text-red-500">*</span></label>
-                    <input type="date" required value={formData.date_of_birth}
-                      onChange={e => setFormData(prev => ({...prev, date_of_birth: e.target.value}))}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
-                  </div>
+                  <DateInput 
+                    label="Date of Birth"
+                    required
+                    value={formData.date_of_birth}
+                    onChange={val => setFormData(prev => ({...prev, date_of_birth: val}))}
+                    className="space-y-1.5"
+                  />
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Gender <span className="text-red-500">*</span></label>
                     <select value={formData.gender} onChange={e => setFormData(prev => ({...prev, gender: e.target.value}))}

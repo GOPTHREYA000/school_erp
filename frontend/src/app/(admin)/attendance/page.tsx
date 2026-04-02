@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
+import DateInput from '@/components/DateInput';
 import { CheckCircle, XCircle, Clock, Users } from 'lucide-react';
 
 interface Student { id: string; first_name: string; last_name: string; }
@@ -69,11 +70,12 @@ export default function AttendancePage() {
             {classes?.map((c: ClassSection) => <option key={c.id} value={c.id}>{c.display_name}</option>)}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm" />
-        </div>
+        <DateInput
+          label="Date"
+          value={date}
+          onChange={val => setDate(val)}
+          className="max-w-[200px]"
+        />
       </div>
 
       {/* Result */}
