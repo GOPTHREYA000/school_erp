@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const [passStatus, setPassStatus] = useState({ loading: false, error: '', success: false });
 
   useEffect(() => {
-    api.get('/auth/me/')
+    api.get('auth/me/')
       .then(res => setUser(res.data.data))
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
@@ -28,7 +28,7 @@ export default function ProfilePage() {
 
     setPassStatus(p => ({ ...p, loading: true }));
     try {
-      await api.put('/auth/password/change/', {
+      await api.put('auth/password/change/', {
         old_password: passData.old_password,
         new_password: passData.new_password
       });

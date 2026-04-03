@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, BookOpen, ClipboardCheck, Calendar, Receipt, TrendingDown, PenTool, Megaphone, Shield, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, ClipboardCheck, Calendar, Receipt, TrendingDown, TrendingUp, PenTool, Megaphone, Shield, LogOut } from 'lucide-react';
 import api from '@/lib/axios';
 
 const allNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/users', label: 'Users', icon: Shield, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN'] },
+  { href: '/users', label: 'Users', icon: Shield, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
   { href: '/students', label: 'Students', icon: Users },
+  { href: '/teachers', label: 'Teachers', icon: Users, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
   { href: '/classes', label: 'Classes', icon: BookOpen },
   { href: '/attendance', label: 'Attendance', icon: ClipboardCheck },
   { href: '/timetable', label: 'Timetable', icon: Calendar },
@@ -17,6 +18,9 @@ const allNavItems = [
   { href: '/expenses', label: 'Expenses', icon: TrendingDown },
   { href: '/homework', label: 'Homework', icon: PenTool },
   { href: '/announcements', label: 'Announcements', icon: Megaphone },
+  { href: '/reports/financial', label: 'Financial Reports', icon: TrendingUp, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
+  { href: '/reports/fees', label: 'Fee Reports', icon: Receipt, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
+  { href: '/reports/attendance', label: 'Attendance Reports', icon: ClipboardCheck, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'TEACHER'] },
   { href: '/setup', label: 'Setup', icon: Shield, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN'] },
 ];
 
@@ -26,14 +30,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    api.get('/auth/me/')
+    api.get('auth/me/')
       .then(res => setUser(res.data.data))
       .catch(err => console.error("Failed to load user profile in layout", err));
   }, []);
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout/');
+      await api.post('auth/logout/');
       router.push('/login');
     } catch (err) {
       console.error("Logout failed", err);
@@ -53,8 +57,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex h-screen bg-gray-50 text-gray-900">
       {/* Sidebar */}
       <aside className="w-64 bg-slate-900 text-white flex-col hidden md:flex">
-        <div className="h-16 flex items-center justify-center border-b border-white/10">
-          <h1 className="text-xl font-bold font-sans tracking-tight">ScoolERP</h1>
+        <div className="h-16 flex items-center px-6 border-b border-white/10 overflow-hidden">
+          {user?.tenant_logo ? (
+            <div className="flex items-center justify-center w-full">
+              <img src={user.tenant_logo} alt="Logo" className="h-10 w-auto object-contain" />
+            </div>
+          ) : (
+            <h1 className="text-xl font-bold font-sans tracking-tight truncate">{user?.tenant_name || 'ScoolERP'}</h1>
+          )}
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-1">
           {navItems.map(({ href, label, icon: Icon }) => {

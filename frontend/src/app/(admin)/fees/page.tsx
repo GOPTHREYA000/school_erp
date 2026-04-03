@@ -84,7 +84,7 @@ export default function FeesPage() {
   const handlePay = async (invoiceId: string) => {
     setPaying(true);
     try {
-      await api.post('/payments/offline/', {
+      await api.post('payments/offline/', {
         invoice_id: invoiceId,
         amount: payAmount,
         payment_mode: payMode,

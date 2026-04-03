@@ -11,7 +11,7 @@ router.register(r'fees/late-rules', views.LateFeeRuleViewSet, basename='latefeer
 router.register(r'fees/invoices', views.FeeInvoiceViewSet, basename='feeinvoice')
 router.register(r'fees/student-fees', views.StudentFeeItemViewSet, basename='studentfeeitem')
 router.register(r'fees/approvals', views.FeeApprovalRequestViewSet, basename='feeapprovalrequest')
-router.register(r'payments', views.PaymentViewSet, basename='payment')
+router.register(r'fees/payments', views.PaymentViewSet, basename='payment')
 
 urlpatterns = [
     path('', include(router.urls)),

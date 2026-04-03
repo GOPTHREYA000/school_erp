@@ -10,34 +10,42 @@ import {
   Layers, Tag, IndianRupee, Plus as CustomPlus, Trash2, Edit2, Truck, CheckCircle2 as CheckCircle
 } from 'lucide-react';
 
-type TabType = 'school' | 'years' | 'branches' | 'classes' | 'approvals';
+type TabType = 'school' | 'years' | 'branches' | 'classes' | 'subjects' | 'approvals';
 
 export default function SetupPage() {
   const [activeTab, setActiveTab] = useState<TabType>('school');
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    api.get('/auth/me/').then(res => setUser(res.data.data));
+    api.get('auth/me/').then(res => setUser(res.data.data));
   }, []);
   
   const tabs = [
-    { id: 'school', label: 'School Settings', icon: Settings },
-    { id: 'years', label: 'Academic Years', icon: Calendar },
-    { id: 'branches', label: 'Branches', icon: Layers },
-    { id: 'classes', label: 'Class & Fees', icon: BookOpen },
-    { id: 'approvals', label: 'Approvals', icon: CheckCircle2 },
-  ];
+    { id: 'school', label: 'School Settings', icon: Settings, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN'] },
+    { id: 'years', label: 'Academic Years', icon: Calendar, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN'] },
+    { id: 'branches', label: 'Branches', icon: Layers, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN'] },
+    { id: 'subjects', label: 'Subjects', icon: Tag, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
+    { id: 'classes', label: 'Class & Fees', icon: BookOpen, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
+    { id: 'approvals', label: 'Approvals', icon: CheckCircle2, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
+  ].filter(t => user && t.roles.includes(user.role));
+
+  useEffect(() => {
+    // If current tab is not allowed for user role, switch to the first allowed tab
+    if (user && !tabs.find(t => t.id === activeTab)) {
+      setActiveTab(tabs[0]?.id as TabType || 'school');
+    }
+  }, [user, activeTab]);
 
   if (!user) return <div className="p-8">Loading profile...</div>;
 
-  if (user.role !== 'SUPER_ADMIN' && user.role !== 'SCHOOL_ADMIN') {
+  if (!['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'].includes(user.role)) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center">
         <div className="bg-red-50 p-4 rounded-full mb-4">
           <XCircle className="text-red-500" size={48} />
         </div>
         <h2 className="text-xl font-bold text-gray-900">Access Denied</h2>
-        <p className="text-gray-500 mt-2">Only School Admins and Super Admins can access setup.</p>
+        <p className="text-gray-500 mt-2">You do not have permission to access setup.</p>
       </div>
     );
   }
@@ -75,6 +83,7 @@ export default function SetupPage() {
         {activeTab === 'school' && <SchoolSettings />}
         {activeTab === 'years' && <AcademicYearManager />}
         {activeTab === 'branches' && <BranchManager />}
+        {activeTab === 'subjects' && <SubjectManager />}
         {activeTab === 'classes' && <ClassAndFeeSetup />}
         {activeTab === 'approvals' && <FeeApprovalManager />}
       </div>
@@ -90,6 +99,7 @@ function SchoolSettings() {
     if (tenant?.data) {
       setFormData({
         name: tenant.data.name,
+        logo_url: tenant.data.logo_url || '',
         admission_no_format: tenant.data.admission_no_format || 'YEAR_BRANCH_SEQ',
         admission_no_prefix: tenant.data.admission_no_prefix || ''
       });
@@ -117,8 +127,8 @@ function SchoolSettings() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { name, ...payload } = formData;
-      await api.patch('/tenants/me/', payload);
+      const { ...payload } = formData;
+      await api.patch('tenants/me/', payload);
       refetch();
       alert("Settings saved successfully");
     } catch (err) { alert("Error saving settings"); }
@@ -141,6 +151,27 @@ function SchoolSettings() {
           </div>
 
           <form onSubmit={handleSave} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">School Name</label>
+                <input 
+                  placeholder="e.g. Global Minds School" 
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  className="w-full px-5 py-3 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-4 focus:ring-blue-100 outline-none" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Logo URL</label>
+                <input 
+                  placeholder="https://example.com/logo.png" 
+                  value={formData.logo_url}
+                  onChange={e => setFormData({...formData, logo_url: e.target.value})}
+                  className="w-full px-5 py-3 bg-gray-50 border-none rounded-xl text-xs font-bold focus:ring-4 focus:ring-blue-100 outline-none" 
+                />
+              </div>
+            </div>
+
             <div className="space-y-3">
               <label className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] px-1">Enrollment Format</label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -267,7 +298,7 @@ function AcademicYearManager() {
       if (editingId) {
         await api.patch(`/tenants/academic-years/${editingId}/`, formData);
       } else {
-        await api.post('/tenants/academic-years/', formData);
+        await api.post('tenants/academic-years/', formData);
       }
       setShowForm(false);
       setEditingId(null);
@@ -368,7 +399,7 @@ function BranchManager() {
     if (!formData.name || !formData.branch_code) { alert("Name and Code are required"); return; }
     setSaving(true);
     try {
-      await api.post('/tenants/branches/', formData);
+      await api.post('tenants/branches/', formData);
       setShowForm(false);
       setFormData({ name: '', branch_code: '', address: '', is_active: true });
       refetch();
@@ -459,7 +490,7 @@ function ClassAndFeeSetup() {
     const grade = prompt("Enter Grade (e.g. 1, 2, NURSERY):", "1");
     if (!grade) return;
     try {
-      await api.post('/classes/', { grade, section: 'A', branch: selectedBranch, academic_year: selectedAY, max_capacity: 40 });
+      await api.post('classes/', { grade, section: 'A', branch: selectedBranch, academic_year: selectedAY, max_capacity: 40 });
       refetch();
     } catch (err) { alert("Error creating class"); }
   };
@@ -481,7 +512,7 @@ function ClassAndFeeSetup() {
         else if (catName.includes('10+')) code = 'TRANS_10_PLUS';
         else if (catName === 'Tuition') code = 'TUITION';
 
-        const newCatRes = await api.post('/fees/categories/', {
+        const newCatRes = await api.post('fees/categories/', {
           name: catName.includes('Transport') ? catName : (catName === 'Tuition' ? 'Tuition Fee' : catName),
           code: code,
           branch: selectedBranch,
@@ -496,7 +527,7 @@ function ClassAndFeeSetup() {
       let structureId = structRes.data[0]?.id;
 
       if (!structureId) {
-        const createRes = await api.post('/fees/structures/', {
+        const createRes = await api.post('fees/structures/', {
           branch: selectedBranch, academic_year: selectedAY, grade, name: `Fees for ${grade}`
         });
         structureId = createRes.data.id;
@@ -700,6 +731,125 @@ function FeeApprovalManager() {
           </div>
         ))
       )}
+    </div>
+  );
+}
+
+function SubjectManager() {
+  const { data: subjects, loading, refetch } = useApi<any[]>('/subjects/');
+  const { data: branches } = useApi<any[]>('/tenants/branches/');
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ name: '', code: '', branch: '' });
+  const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    api.get('auth/me/').then(res => {
+      const u = res.data.data;
+      setUser(u);
+      if (u.branch_id) setFormData(prev => ({ ...prev, branch: u.branch_id }));
+    });
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.code || !formData.branch) {
+      alert("All fields are required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post('subjects/', formData);
+      setShowForm(false);
+      setFormData({ name: '', code: '', branch: user?.branch_id || '' });
+      refetch();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Error creating subject');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this subject?")) return;
+    try {
+      await api.delete(`subjects/${id}/`);
+      refetch();
+    } catch (err) {
+      alert("Error deleting subject. It might be in use.");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button onClick={() => setShowForm(!showForm)}
+          className="bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors flex items-center gap-2">
+          {showForm ? 'Cancel' : <><CustomPlus size={16} /> Add New Subject</>}
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase px-1">Subject Name</label>
+              <input required placeholder="e.g. Robotics" value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
+                className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl text-sm focus:ring-4 focus:ring-blue-100 outline-none" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase px-1">Subject Code</label>
+              <input required placeholder="e.g. ROB" value={formData.code}
+                onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl text-sm focus:ring-4 focus:ring-blue-100 outline-none" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase px-1">Assign to Branch</label>
+              <select required value={formData.branch} disabled={!!user?.branch_id}
+                onChange={e => setFormData({...formData, branch: e.target.value})}
+                className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl text-sm focus:ring-4 focus:ring-blue-100 outline-none disabled:opacity-50">
+                <option value="">Select Branch</option>
+                {branches?.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <button type="submit" disabled={saving} className="bg-blue-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 disabled:opacity-50">
+            {saving ? 'Creating...' : 'Register Subject'}
+          </button>
+        </form>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {loading ? (
+           [1,2,3].map(i => <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />)
+        ) : subjects?.length === 0 ? (
+          <div className="col-span-full py-12 text-center text-gray-400 font-medium bg-white rounded-3xl border border-gray-100">
+            No subjects registered yet.
+          </div>
+        ) : (
+          subjects?.map((sub) => (
+            <div key={sub.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 font-black text-lg">
+                    {sub.code}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 leading-tight">{sub.name}</h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                      {branches?.find(b => b.id === sub.branch)?.name || 'Multiple Branches'}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => handleDelete(sub.id)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

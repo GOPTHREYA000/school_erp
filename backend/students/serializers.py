@@ -91,17 +91,21 @@ class ApplicationStatusSerializer(serializers.Serializer):
 
 class StudentSerializer(serializers.ModelSerializer):
     class_section_display = serializers.CharField(source='class_section.display_name', read_only=True, default=None)
+    academic_year_name = serializers.CharField(source='academic_year.name', read_only=True, default=None)
     
     # Extra fields for enrollment fee locking
     offered_total = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, write_only=True)
     standard_total = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, write_only=True)
     reason = serializers.CharField(required=False, write_only=True, allow_blank=True)
     proposed_fee = serializers.SerializerMethodField()
+    fee_stats = serializers.SerializerMethodField()
+    invoices = serializers.SerializerMethodField()
+    payments = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
         fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at', 'enrollment_date', 'tenant', 'proposed_fee']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'enrollment_date', 'tenant', 'proposed_fee', 'fee_stats', 'invoices', 'payments']
         extra_kwargs = {
             'admission_number': {'required': False, 'allow_blank': True}
         }
@@ -110,10 +114,48 @@ class StudentSerializer(serializers.ModelSerializer):
         from django.db.models import Sum
         return obj.fee_items.aggregate(total=Sum('amount'))['total'] or 0
 
+    def get_fee_stats(self, obj):
+        from fees.models import FeeInvoice, StudentFeeItem
+        from decimal import Decimal
+        from django.db.models import Sum
+        
+        # Get all invoices for this student and academic year
+        invoices = FeeInvoice.objects.filter(student=obj, academic_year=obj.academic_year)
+        total_fee_invoiced = invoices.aggregate(Sum('net_amount'))['net_amount__sum'] or Decimal('0.00')
+        total_paid = invoices.aggregate(Sum('paid_amount'))['paid_amount__sum'] or Decimal('0.00')
+        
+        # Fallback to promised fee items if no invoices generated yet
+        if total_fee_invoiced == 0:
+            total_fee = StudentFeeItem.objects.filter(
+                student=obj, 
+                academic_year=obj.academic_year
+            ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+        else:
+            total_fee = total_fee_invoiced
+            
+        return {
+            'total_fee': float(total_fee),
+            'total_paid': float(total_paid),
+            'balance': float(total_fee - total_paid)
+        }
+
+    def get_invoices(self, obj):
+        from fees.models import FeeInvoice
+        from fees.serializers import FeeInvoiceListSerializer
+        invoices = FeeInvoice.objects.filter(student=obj).order_by('-created_at')
+        return FeeInvoiceListSerializer(invoices, many=True).data
+
+    def get_payments(self, obj):
+        from fees.models import Payment
+        from fees.serializers import PaymentSerializer
+        payments = Payment.objects.filter(student=obj).order_by('-payment_date', '-created_at')
+        return PaymentSerializer(payments, many=True).data
+
 
 class StudentListSerializer(serializers.ModelSerializer):
     """Lighter serializer for list views"""
     class_section_display = serializers.CharField(source='class_section.display_name', read_only=True, default=None)
+    academic_year_name = serializers.CharField(source='academic_year.name', read_only=True, default=None)
     branch_name = serializers.CharField(source='branch.name', read_only=True, default=None)
     proposed_fee = serializers.SerializerMethodField()
 
@@ -123,6 +165,7 @@ class StudentListSerializer(serializers.ModelSerializer):
             'id', 'admission_number', 'first_name', 'last_name', 'gender',
             'date_of_birth', 'class_section', 'class_section_display',
             'branch_name', 'status', 'photo_url', 'roll_number', 'proposed_fee',
+            'academic_year_name',
         ]
 
     def get_proposed_fee(self, obj):

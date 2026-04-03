@@ -3,10 +3,15 @@ from .models import User
 
 class UserSerializer(serializers.ModelSerializer):
     branch_name = serializers.CharField(source='branch.name', read_only=True, default=None)
+    tenant_name = serializers.CharField(source='tenant.name', read_only=True, default=None)
+    tenant_logo = serializers.CharField(source='tenant.logo_url', read_only=True, default=None)
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'role', 'is_active', 'password', 'tenant', 'branch', 'branch_name']
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'phone', 'role', 'is_active', 
+            'password', 'tenant', 'branch', 'branch_name', 'tenant_name', 'tenant_logo'
+        ]
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
             'tenant': {'read_only': True}

@@ -27,7 +27,7 @@ export default function HomeworkPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/homework/', formData);
+      await api.post('homework/', formData);
       setShowForm(false); refetch();
     } catch { alert('Error creating homework'); }
     finally { setSaving(false); }

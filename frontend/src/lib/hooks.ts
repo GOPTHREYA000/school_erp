@@ -14,7 +14,10 @@ export function useApi<T>(url: string | null, deps: any[] = []) {
     setError(null);
     try {
       const res = await api.get(url);
-      setData(res.data);
+      // Backend wraps responses as { success: true, data: <payload> }
+      // Unwrap automatically; fall back to raw data for non-wrapped endpoints
+      const payload = res.data?.data !== undefined ? res.data.data : res.data;
+      setData(payload);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Something went wrong');
     } finally {

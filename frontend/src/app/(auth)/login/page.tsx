@@ -24,7 +24,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setServerError('');
     try {
-      await api.post('/auth/login/', data);
+      await api.post('auth/login/', data);
       router.push('/dashboard');
     } catch (err: any) {
       setServerError(err.response?.data?.detail || "Invalid credentials");

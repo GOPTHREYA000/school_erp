@@ -178,3 +178,10 @@ class FeeApprovalRequestSerializer(serializers.ModelSerializer):
         if obj.reviewed_by:
             return f"{obj.reviewed_by.first_name} {obj.reviewed_by.last_name}"
         return None
+class InitialPaymentSerializer(serializers.Serializer):
+    student_id = serializers.UUIDField()
+    admission_fee = serializers.DecimalField(max_digits=10, decimal_places=2)
+    tuition_payment = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_mode = serializers.ChoiceField(choices=['CASH', 'UPI'])
+    reference_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    payment_date = serializers.DateField()

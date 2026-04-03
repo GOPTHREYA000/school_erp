@@ -52,8 +52,8 @@ class FeeStructure(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='fee_structures')
     branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='fee_structures')
-    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='fee_structures')
-    grade = models.CharField(max_length=20)
+    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='fee_structures', db_index=True)
+    grade = models.CharField(max_length=20, db_index=True)
     name = models.CharField(max_length=200)
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_fee_structures')
@@ -154,8 +154,8 @@ class FeeInvoice(models.Model):
     invoice_number = models.CharField(max_length=30)
     student = models.ForeignKey('students.Student', on_delete=models.CASCADE, related_name='invoices')
     branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='invoices')
-    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='invoices')
-    month = models.CharField(max_length=7, blank=True, null=True)
+    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='invoices', db_index=True)
+    month = models.CharField(max_length=7, blank=True, null=True, db_index=True)
     # Amounts
     gross_amount = models.DecimalField(max_digits=10, decimal_places=2)
     concession_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -167,7 +167,7 @@ class FeeInvoice(models.Model):
     due_date = models.DateField()
     issued_date = models.DateField(auto_now_add=True)
     # Status
-    status = models.CharField(max_length=20, choices=INVOICE_STATUS, default='DRAFT')
+    status = models.CharField(max_length=20, choices=INVOICE_STATUS, default='DRAFT', db_index=True)
     # Admin
     generated_by = models.CharField(max_length=10, choices=GENERATED_BY, default='AUTO')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_invoices')
@@ -179,7 +179,11 @@ class FeeInvoice(models.Model):
     class Meta:
         unique_together = ['branch', 'invoice_number']
         ordering = ['-created_at']
-
+        indexes = [
+            models.Index(fields=['student', 'month']),
+            models.Index(fields=['branch', 'status', 'due_date']),
+            models.Index(fields=['tenant', 'status', 'outstanding_amount']),
+        ]
     def __str__(self):
         return f"{self.invoice_number} - {self.student}"
 
@@ -206,7 +210,7 @@ class Payment(models.Model):
     payment_date = models.DateField()
     # Online Payment
     razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
-    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
     razorpay_signature = models.CharField(max_length=255, blank=True, null=True)
     # Offline Payment
     reference_number = models.CharField(max_length=100, blank=True, null=True)
@@ -226,6 +230,17 @@ class Payment(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['invoice', 'status']),
+            models.Index(fields=['branch', 'payment_date']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['razorpay_payment_id'],
+                name='unique_razorpay_payment_id',
+                condition=models.Q(razorpay_payment_id__isnull=False),
+            ),
+        ]
 
     def __str__(self):
         return f"Payment {self.receipt_number}: ₹{self.amount} ({self.status})"

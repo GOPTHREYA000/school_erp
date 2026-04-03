@@ -30,6 +30,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             qs = qs.filter(date=date)
         if student:
             qs = qs.filter(student_id=student)
+            
+        # Teacher visibility restriction
+        if self.request.user.role == 'TEACHER':
+            qs = qs.filter(class_section__teacher_assignments__teacher__user=self.request.user, 
+                           class_section__teacher_assignments__is_class_teacher=True)
+            
         return qs
 
     @action(detail=False, methods=['post'], url_path='bulk')
@@ -39,6 +45,21 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
 
         class_section = ClassSection.objects.get(id=data['class_section_id'])
+        
+        # Primary Teacher Restriction
+        if request.user.role == 'TEACHER':
+            from staff.models import TeacherAssignment
+            is_primary = TeacherAssignment.objects.filter(
+                teacher__user=request.user,
+                class_section=class_section,
+                is_class_teacher=True
+            ).exists()
+            if not is_primary:
+                return Response({
+                    "success": False, 
+                    "error": "Only the Primary Class Teacher can mark attendance for this class."
+                }, status=status.HTTP_403_FORBIDDEN)
+
         date = data['date']
         saved = 0
         errors = []
@@ -105,23 +126,39 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'class_section_id and month are required.'}, status=400)
 
         year, m = month.split('-')
-        students = Student.objects.filter(class_section_id=cs_id, status='ACTIVE')
+
+        # H3: Single aggregated query instead of N+1 per-student loop
+        students = Student.objects.filter(
+            class_section_id=cs_id, status='ACTIVE'
+        ).annotate(
+            total_days=Count(
+                'attendance_records',
+                filter=Q(attendance_records__date__year=int(year), attendance_records__date__month=int(m))
+            ),
+            present=Count(
+                'attendance_records',
+                filter=Q(attendance_records__date__year=int(year), attendance_records__date__month=int(m), attendance_records__status='PRESENT')
+            ),
+            late=Count(
+                'attendance_records',
+                filter=Q(attendance_records__date__year=int(year), attendance_records__date__month=int(m), attendance_records__status='LATE')
+            ),
+            half=Count(
+                'attendance_records',
+                filter=Q(attendance_records__date__year=int(year), attendance_records__date__month=int(m), attendance_records__status='HALF_DAY')
+            ),
+        )
+
         result = []
         for s in students:
-            records = AttendanceRecord.objects.filter(
-                student=s, date__year=int(year), date__month=int(m)
-            )
-            total = records.count()
-            present = records.filter(status='PRESENT').count()
-            late = records.filter(status='LATE').count()
-            half = records.filter(status='HALF_DAY').count()
-            pct = round((present + late + half * 0.5) / total * 100, 1) if total > 0 else 0
+            pct = round((s.present + s.late + s.half * 0.5) / s.total_days * 100, 1) if s.total_days > 0 else 0
             result.append({
                 'student_id': str(s.id),
                 'student_name': f"{s.first_name} {s.last_name}",
                 'attendance_percentage': pct,
-                'total_days': total,
-                'present': present,
+                'total_days': s.total_days,
+                'present': s.present,
             })
 
         return Response({'success': True, 'data': result})
+

@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import DateInput from '@/components/DateInput';
-import { Plus, Receipt, TrendingDown } from 'lucide-react';
+import { Plus, Receipt, TrendingDown, Check, X } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface Expense {
   id: string;
@@ -26,16 +27,37 @@ export default function ExpensesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const { data, loading, error, refetch } = useApi<Expense[]>(`/expenses/?status=${statusFilter}`);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ title: '', amount: '', expense_date: '', payment_mode: 'CASH' });
+  const [formData, setFormData] = useState({ title: '', amount: '', payment_mode: 'CASH' });
   const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    api.get('auth/me/')
+      .then(res => setUser(res.data.data))
+      .catch(err => console.error("Failed to load user in expenses", err));
+  }, []);
+
+  const isAdmin = user?.role === 'SCHOOL_ADMIN' || user?.role === 'SUPER_ADMIN';
+
+  const handleUpdateStatus = async (id: string, s: string) => {
+    let reason = '';
+    if (s === 'REJECTED') {
+      reason = prompt('Enter rejection reason:') || '';
+      if (!reason) return;
+    }
+    try {
+      await api.patch(`expenses/${id}/status/`, { status: s, reason });
+      refetch();
+    } catch { alert('Failed to update status'); }
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/expenses/', formData);
+      await api.post('expenses/', formData);
       setShowForm(false);
-      setFormData({ title: '', amount: '', expense_date: '', payment_mode: 'CASH' });
+      setFormData({ title: '', amount: '', payment_mode: 'CASH' });
       refetch();
     } catch { alert('Error'); }
     finally { setSaving(false); }
@@ -63,11 +85,6 @@ export default function ExpensesPage() {
             <input type="number" placeholder="Amount (₹)" required value={formData.amount}
               onChange={e => setFormData({...formData, amount: e.target.value})}
               className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm" />
-            <DateInput
-              required
-              value={formData.expense_date}
-              onChange={val => setFormData({...formData, expense_date: val})}
-            />
           </div>
           <div className="flex gap-3">
             <button type="submit" disabled={saving}
@@ -106,6 +123,7 @@ export default function ExpensesPage() {
                 <th className="text-left px-6 py-3 font-medium text-gray-500">Amount</th>
                 <th className="text-left px-6 py-3 font-medium text-gray-500">Date</th>
                 <th className="text-left px-6 py-3 font-medium text-gray-500">Status</th>
+                {isAdmin && <th className="text-right px-6 py-3 font-medium text-gray-500">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -118,6 +136,24 @@ export default function ExpensesPage() {
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusStyles[e.status]}`}>{e.status}</span>
                   </td>
+                  {isAdmin && (
+                    <td className="px-6 py-4 text-right">
+                      {e.status === 'SUBMITTED' ? (
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => handleUpdateStatus(e.id, 'APPROVED')}
+                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Approve">
+                            <Check size={18} />
+                          </button>
+                          <button onClick={() => handleUpdateStatus(e.id, 'REJECTED')}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Reject">
+                            <X size={18} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300">-</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

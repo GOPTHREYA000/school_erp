@@ -53,7 +53,7 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get('/auth/me/')
+    api.get('auth/me/')
       .then(res => setCurrentUser(res.data.data))
       .catch(console.error);
   }, []);
@@ -67,7 +67,7 @@ export default function UsersPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/users/', formData);
+      await api.post('users/', formData);
       setShowForm(false);
       setFormData({ first_name: '', last_name: '', email: '', password: '', role: 'TEACHER', phone: '', branch: '' });
       refetch();

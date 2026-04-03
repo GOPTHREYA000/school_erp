@@ -1,9 +1,15 @@
+import logging
+
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+
+logger = logging.getLogger(__name__)
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import AnonRateThrottle
 from decimal import Decimal
 from django.utils import timezone
+from django.db import transaction, models
 from django.db.models import Q
 
 from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove
@@ -46,7 +52,7 @@ def create_student_fees(student, offered_total, standard_total_input, reason, re
             standard_total = structure.items.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     # Defensive: ensure offered is Decimal
-    if offered_total is not None:
+    if offered_total is not None and Decimal(str(offered_total)) > 0:
         offered_total = Decimal(str(offered_total))
     else:
         offered_total = standard_total
@@ -57,13 +63,45 @@ def create_student_fees(student, offered_total, standard_total_input, reason, re
         # Use the actual standard_total from DB for ratio
         ratio = offered_total / standard_total if standard_total > 0 else 1
         
+        # Generate Annual Academic Invoice
+        from fees.models import FeeInvoice, FeeInvoiceItem
+        from datetime import date
+        seq = FeeInvoice.objects.filter(branch=branch).count() + 1
+        invoice = FeeInvoice.objects.create(
+            tenant=tenant,
+            invoice_number=f"INV-{ay.start_date.year}-{seq:04d}",
+            student=student,
+            branch=branch,
+            academic_year=ay,
+            month="ANNUAL",
+            gross_amount=standard_total,
+            concession_amount=standard_total - offered_total if standard_total > offered_total else Decimal('0.00'),
+            net_amount=offered_total,
+            outstanding_amount=offered_total,
+            due_date=date.today(),
+            status='SENT',
+            generated_by='AUTO',
+            created_by=requested_by,
+        )
+        
+        invoice_items = []
         for item in structure.items.all():
+            final_amt = round(item.amount * ratio, 2)
             StudentFeeItem.objects.create(
                 student=student,
                 academic_year=ay,
                 category=item.category,
-                amount=round(item.amount * ratio, 2)
+                amount=final_amt
             )
+            invoice_items.append(FeeInvoiceItem(
+                invoice=invoice,
+                category=item.category,
+                original_amount=item.amount,
+                concession=item.amount - final_amt,
+                final_amount=final_amt
+            ))
+        
+        FeeInvoiceItem.objects.bulk_create(invoice_items)
 
     # 3. Trigger Approval if reduction detected compared to DB standard_total
     if offered_total < standard_total:
@@ -86,9 +124,14 @@ def create_student_fees(student, offered_total, standard_total_input, reason, re
 
 class ClassSectionViewSet(viewsets.ModelViewSet):
     serializer_class = ClassSectionSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsTeacherOrAbove]
     filter_backends = [filters.SearchFilter]
     search_fields = ['grade', 'section', 'display_name']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({'success': True, 'data': serializer.data})
 
     def get_queryset(self):
         user = self.request.user
@@ -107,6 +150,12 @@ class ClassSectionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(branch_id=branch)
         if ay:
             qs = qs.filter(academic_year_id=ay)
+            
+        # Filter for primary teacher only
+        teacher_only = self.request.query_params.get('teacher_only')
+        if teacher_only == 'true' and user.role == 'TEACHER':
+            qs = qs.filter(teacher_assignments__teacher__user=user, teacher_assignments__is_class_teacher=True)
+            
         return qs
 
     def perform_create(self, serializer):
@@ -131,6 +180,7 @@ class ClassSectionViewSet(viewsets.ModelViewSet):
 
 class AdmissionInquiryViewSet(viewsets.ModelViewSet):
     serializer_class = AdmissionInquirySerializer
+    throttle_classes = [AnonRateThrottle]
     filter_backends = [filters.SearchFilter]
     search_fields = ['student_first_name', 'student_last_name', 'parent_name', 'parent_phone']
 
@@ -210,114 +260,116 @@ class AdmissionApplicationViewSet(viewsets.ModelViewSet):
         application.save()
         return Response({'success': True, 'data': AdmissionApplicationSerializer(application).data})
 
+    @transaction.atomic
     @action(detail=True, methods=['post'])
     def enroll(self, request, pk=None):
-        application = self.get_object()
-        if application.status != 'APPROVED':
-            return Response(
-                {'detail': 'Only APPROVED applications can be enrolled.'},
-                status=status.HTTP_400_BAD_REQUEST,
+        try:
+            application = self.get_object()
+            if application.status != 'APPROVED':
+                return Response(
+                    {'detail': 'Only APPROVED applications can be enrolled.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Get params from request
+            class_section_id = request.data.get('class_section_id')
+            offered_total = request.data.get('offered_total')
+            standard_total = request.data.get('standard_total')
+            fee_reason = request.data.get('reason', '')
+
+            if not class_section_id:
+                return Response({'detail': 'Class Section is required for enrollment.'}, status=400)
+
+            # Fallback to Decimal
+            if offered_total is not None:
+                offered_total = Decimal(str(offered_total))
+            if standard_total is not None:
+                standard_total = Decimal(str(standard_total))
+
+            # Auto-generate admission number
+            branch = application.branch
+            ay = application.academic_year
+            admission_number = Student.generate_admission_number(branch, ay)
+
+            student = Student.objects.create(
+                tenant=application.tenant,
+                branch=branch,
+                academic_year=ay,
+                class_section_id=class_section_id,
+                admission_number=admission_number,
+                first_name=application.first_name,
+                last_name=application.last_name,
+                date_of_birth=application.date_of_birth,
+                gender=application.gender,
+                blood_group=application.blood_group,
+                nationality=application.nationality,
+                religion=application.religion,
+                caste_category=application.caste_category,
+                aadhar_number=application.aadhar_number,
+                mother_tongue=application.mother_tongue,
+                identification_mark_1=application.identification_mark_1,
+                identification_mark_2=application.identification_mark_2,
+                health_status=application.health_status,
+                previous_school_name=application.previous_school_name,
+                previous_class=application.previous_class,
+                previous_school_ay=application.previous_school_ay,
+                emergency_contact_name=application.emergency_contact_name,
+                emergency_contact_phone=application.emergency_contact_phone,
+                emergency_contact_relation=application.emergency_contact_relation,
+                # Documents
+                doc_tc_submitted=application.doc_tc_submitted,
+                doc_bonafide_submitted=application.doc_bonafide_submitted,
+                doc_birth_cert_submitted=application.doc_birth_cert_submitted,
+                doc_caste_cert_submitted=application.doc_caste_cert_submitted,
+                doc_aadhaar_submitted=application.doc_aadhaar_submitted,
+                # Link to application
+                application=application,
+                created_by=request.user,
             )
 
-        # Get params from request
-        class_section_id = request.data.get('class_section_id')
-        offered_total = request.data.get('offered_total')
-        standard_total = request.data.get('standard_total')
-        fee_reason = request.data.get('reason', '')
+            # 2. Create/Link Parents
+            from accounts.models import User
+            
+            parents_data = [
+                {'email': application.father_email, 'phone': application.father_phone, 'first_name': application.father_name, 'role': 'FATHER'},
+                {'email': application.mother_email, 'phone': application.mother_phone, 'first_name': application.mother_name, 'role': 'MOTHER'},
+            ]
 
-        if not class_section_id:
-            return Response({'detail': 'Class Section is required for enrollment.'}, status=400)
+            for p in parents_data:
+                if p['email']:
+                    parent_user, created = User.objects.get_or_create(
+                        email=p['email'],
+                        defaults={
+                            'first_name': p['first_name'],
+                            'last_name': '',
+                            'phone': p['phone'],
+                            'role': 'PARENT',
+                            'tenant': application.tenant,
+                            'branch': branch
+                        }
+                    )
+                    ParentStudentRelation.objects.get_or_create(
+                        parent=parent_user,
+                        student=student,
+                        defaults={'relation_type': p['role'], 'is_primary': (p['role'] == 'FATHER')}
+                    )
 
-        # Fallback to Decimal
-        if offered_total is not None:
-            offered_total = Decimal(str(offered_total))
-        if standard_total is not None:
-            standard_total = Decimal(str(standard_total))
+            # Handle Fees
+            create_student_fees(student, offered_total, standard_total, fee_reason, request.user)
 
-        # Auto-generate admission number
-        branch = application.branch
-        ay = application.academic_year
-        admission_number = Student.generate_admission_number(branch, ay)
+            # Mark application as ENROLLED
+            application.status = 'ENROLLED'
+            application.save()
 
-        student = Student.objects.create(
-            tenant=application.tenant,
-            branch=branch,
-            academic_year=ay,
-            class_section_id=class_section_id,
-            admission_number=admission_number,
-            first_name=application.first_name,
-            last_name=application.last_name,
-            date_of_birth=application.date_of_birth,
-            gender=application.gender,
-            blood_group=application.blood_group,
-            nationality=application.nationality,
-            religion=application.religion,
-            caste_category=application.caste_category,
-            aadhar_number=application.aadhar_number,
-            # Extra fields
-            mother_tongue=application.mother_tongue,
-            identification_mark_1=application.identification_mark_1,
-            identification_mark_2=application.identification_mark_2,
-            health_status=application.health_status,
-            # Father
-            father_name=application.father_name,
-            father_phone=application.father_phone,
-            father_email=application.father_email,
-            father_qualification=application.father_qualification,
-            father_occupation=application.father_occupation,
-            father_aadhaar=application.father_aadhaar,
-            # Mother
-            mother_name=application.mother_name,
-            mother_phone=application.mother_phone,
-            mother_email=application.mother_email,
-            mother_qualification=application.mother_qualification,
-            mother_occupation=application.mother_occupation,
-            mother_aadhaar=application.mother_aadhaar,
-            # Guardian
-            guardian_name=application.guardian_name,
-            guardian_phone=application.guardian_phone,
-            guardian_relation=application.guardian_relation,
-            # Address
-            address_line1=application.address_line1,
-            apartment_name=application.apartment_name,
-            address_line2=application.address_line2,
-            landmark=application.landmark,
-            city=application.city,
-            mandal=application.mandal,
-            district=application.district,
-            state=application.state,
-            pincode=application.pincode,
-            # Academic
-            previous_school_name=application.previous_school_name,
-            previous_class=application.previous_class,
-            previous_school_ay=application.previous_school_ay,
-            emergency_contact_name=application.emergency_contact_name,
-            emergency_contact_phone=application.emergency_contact_phone,
-            emergency_contact_relation=application.emergency_contact_relation,
-            # Documents
-            doc_tc_submitted=application.doc_tc_submitted,
-            doc_bonafide_submitted=application.doc_bonafide_submitted,
-            doc_birth_cert_submitted=application.doc_birth_cert_submitted,
-            doc_caste_cert_submitted=application.doc_caste_cert_submitted,
-            doc_aadhaar_submitted=application.doc_aadhaar_submitted,
-            # Other
-            application=application,
-            created_by=request.user,
-        )
-
-        # Handle Fees
-        create_student_fees(student, offered_total, standard_total, fee_reason, request.user)
-
-        # Mark application as ENROLLED
-        application.status = 'ENROLLED'
-        application.save()
-
-        return Response({
-            'success': True, 
-            'message': f"Student {student.admission_number} enrolled successfully.",
-            'student_id': str(student.id),
-            'data': StudentSerializer(student).data
-        })
+            return Response({
+                'success': True, 
+                'message': f"Student {student.admission_number} enrolled successfully.",
+                'student_id': str(student.id),
+                'data': StudentSerializer(student).data
+            })
+        except Exception as e:
+            logger.error(f"Enrollment fatal error: {str(e)}")
+            raise e
 
     @action(detail=True, methods=['get', 'post'], url_path='documents')
     def documents(self, request, pk=None):
@@ -343,7 +395,22 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Student.objects.filter(branch__tenant=user.tenant).select_related('class_section')
+        qs = Student.objects.filter(
+            branch__tenant=user.tenant
+        ).select_related(
+            'class_section', 'academic_year', 'branch'
+        ).prefetch_related(
+            'parent_relations__parent',
+            'fee_items',  # H1: eliminate N+1 for proposed_fee
+        )
+        
+        # For detail views, prefetch invoices and payments too
+        if self.action == 'retrieve':
+            qs = qs.prefetch_related(
+                'invoices',          # H1: eliminate N+1 for fee_stats/invoices
+                'invoices__payments', # H1: nested payment prefetch
+                'payments',          # H1: eliminate N+1 for payments
+            )
         
         # Branch Isolation
         if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
@@ -360,6 +427,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             qs = qs.filter(gender=gender)
         return qs
 
+    @transaction.atomic
     def perform_create(self, serializer):
         user = self.request.user
         branch = serializer.validated_data.get('branch')
@@ -372,11 +440,21 @@ class StudentViewSet(viewsets.ModelViewSet):
                 from rest_framework.exceptions import PermissionDenied
                 raise PermissionDenied("You can only assign students to branches within your school organization.")
                 
+            # ENFORCE BRANCH ISOLATION
+            if user.role == 'BRANCH_ADMIN' and user.branch:
+                branch = user.branch
+
         if not serializer.validated_data.get('admission_number'):
             ay = serializer.validated_data.get('academic_year')
             if branch and ay:
                 serializer.validated_data['admission_number'] = Student.generate_admission_number(branch, ay)
-                
+
+        if not serializer.validated_data.get('roll_number'):
+            class_section = serializer.validated_data.get('class_section')
+            if class_section:
+                max_roll = Student.objects.filter(class_section=class_section).aggregate(models.Max('roll_number'))['roll_number__max']
+                serializer.validated_data['roll_number'] = (max_roll or 0) + 1
+
         # Fee locking and approval logic
 
         offered_total = serializer.validated_data.pop('offered_total', None)
@@ -384,16 +462,22 @@ class StudentViewSet(viewsets.ModelViewSet):
         fee_reason = serializer.validated_data.pop('reason', '')
         
             
-        student = serializer.save(tenant=tenant, created_by=user)
-        
-        # Use shared fee creation logic
-        create_student_fees(student, offered_total, standard_total, fee_reason, user)
+        try:
+            student = serializer.save(tenant=tenant, branch=branch, created_by=user)
+            logger.info(f"Student created: {student.admission_number} for tenant {tenant}")
+            
+            # Use shared fee creation logic
+            create_student_fees(student, offered_total, standard_total, fee_reason, user)
+        except Exception as e:
+            logger.error(f"Error creating student: {str(e)}")
+            raise e
 
     def destroy(self, request, *args, **kwargs):
-        return Response(
-            {'detail': 'Deletion is not allowed. Use PATCH status=INACTIVE instead.'},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
-        )
+        """Soft-delete student by setting status to INACTIVE."""
+        student = self.get_object()
+        student.status = 'INACTIVE'
+        student.save()
+        return Response({'success': True, 'message': 'Student deactivated successfully.'}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['patch'], url_path='status')
     def update_status(self, request, pk=None):

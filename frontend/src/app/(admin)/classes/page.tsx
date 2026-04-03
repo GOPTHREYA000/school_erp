@@ -26,7 +26,7 @@ export default function ClassesPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/classes/', formData);
+      await api.post('classes/', formData);
       setShowForm(false);
       refetch();
     } catch (err: any) {

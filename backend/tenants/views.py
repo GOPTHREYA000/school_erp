@@ -53,6 +53,11 @@ class BranchViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsSchoolAdminOrAbove()]
         return [IsAuthenticated()]
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
     def get_queryset(self):
         user = self.request.user
         qs = Branch.objects.none()
@@ -61,13 +66,15 @@ class BranchViewSet(viewsets.ModelViewSet):
             qs = Branch.objects.all()
         elif user.role == 'SCHOOL_ADMIN' and user.tenant:
             qs = Branch.objects.filter(tenant=user.tenant)
-        elif user.role in ['BRANCH_ADMIN', 'TEACHER', 'ACCOUNTANT'] and user.tenant:
-            # Technically, they belong to a branch, but our User model only links Tenant.
-            # For now, allow them to view branches in their tenant, frontend will handle default.
-            qs = Branch.objects.filter(tenant=user.tenant)
+        elif user.role in ['BRANCH_ADMIN', 'TEACHER', 'ACCOUNTANT']:
+            if user.branch:
+                qs = Branch.objects.filter(id=user.branch.id)
+            elif user.tenant:
+                # Fallback if branch is not set but tenant is
+                qs = Branch.objects.filter(tenant=user.tenant)
             
         tenant_id = self.request.query_params.get('tenant_id')
-        if tenant_id:
+        if tenant_id and (user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] or not user.tenant):
             qs = qs.filter(tenant_id=tenant_id)
             
         return qs
@@ -110,6 +117,11 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsSchoolAdminOrAbove()]
         return [IsAuthenticated()]
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
     def get_queryset(self):
         user = self.request.user
         qs = AcademicYear.objects.none()
@@ -118,6 +130,11 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
             qs = AcademicYear.objects.all()
         elif user.tenant:
             qs = AcademicYear.objects.filter(tenant=user.tenant)
+        
+        # Additional filter by branch if provided, though years are tenant-wide
+        branch_id = self.request.query_params.get('branch_id')
+        if branch_id and user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN']:
+            qs = qs.filter(tenant__branches__id=branch_id).distinct()
             
         return qs
 
@@ -144,6 +161,9 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
         except AcademicYear.DoesNotExist:
             return Response({'error': 'Source academic year not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        # B11: Prevent cross-tenant cloning
+        if source_year.tenant != request.user.tenant:
+            return Response({'error': 'Cannot clone from a different tenant.'}, status=status.HTTP_403_FORBIDDEN)
         # 1. Clone ClassSections
         sections = ClassSection.objects.filter(academic_year=source_year)
         cloned_sections = 0

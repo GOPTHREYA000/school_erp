@@ -54,8 +54,8 @@ class ClassSection(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='class_sections')
     branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='class_sections')
-    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='class_sections')
-    grade = models.CharField(max_length=20, choices=GRADE_CHOICES)
+    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='class_sections', db_index=True)
+    grade = models.CharField(max_length=20, choices=GRADE_CHOICES, db_index=True)
     section = models.CharField(max_length=5)
     display_name = models.CharField(max_length=50, blank=True)
     class_teacher = models.ForeignKey(
@@ -226,8 +226,8 @@ class Student(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='students')
     branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='students')
-    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='students')
-    admission_number = models.CharField(max_length=20, blank=True, null=True)
+    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='students', db_index=True)
+    admission_number = models.CharField(max_length=20, blank=True, null=True, db_index=True)
     # Personal
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
@@ -242,35 +242,9 @@ class Student(models.Model):
     identification_mark_1 = models.CharField(max_length=255, blank=True, null=True)
     identification_mark_2 = models.CharField(max_length=255, blank=True, null=True)
     health_status = models.TextField(blank=True, null=True)
-    # Parent Details (Stored for Record)
-    father_name = models.CharField(max_length=200, blank=True, null=True)
-    father_phone = models.CharField(max_length=15, blank=True, null=True)
-    father_email = models.EmailField(blank=True, null=True)
-    father_qualification = models.CharField(max_length=200, blank=True, null=True)
-    father_occupation = models.CharField(max_length=200, blank=True, null=True)
-    father_aadhaar = models.CharField(max_length=12, blank=True, null=True)
-    mother_name = models.CharField(max_length=200, blank=True, null=True)
-    mother_phone = models.CharField(max_length=15, blank=True, null=True)
-    mother_email = models.EmailField(blank=True, null=True)
-    mother_qualification = models.CharField(max_length=200, blank=True, null=True)
-    mother_occupation = models.CharField(max_length=200, blank=True, null=True)
-    mother_aadhaar = models.CharField(max_length=12, blank=True, null=True)
-    # Guardian Info
-    guardian_name = models.CharField(max_length=200, blank=True, null=True)
-    guardian_phone = models.CharField(max_length=15, blank=True, null=True)
-    guardian_relation = models.CharField(max_length=100, blank=True, null=True)
-    # Address
-    address_line1 = models.CharField(max_length=255, blank=True, null=True)
-    apartment_name = models.CharField(max_length=255, blank=True, null=True)
-    address_line2 = models.CharField(max_length=255, blank=True, null=True)
-    landmark = models.CharField(max_length=255, blank=True, null=True)
-    city = models.CharField(max_length=100, blank=True, null=True)
-    mandal = models.CharField(max_length=100, blank=True, null=True)
-    district = models.CharField(max_length=100, blank=True, null=True)
-    state = models.CharField(max_length=100, blank=True, null=True)
-    pincode = models.CharField(max_length=6, blank=True, null=True)
-    # Previous School
+    # Previous School Details
     previous_school_name = models.CharField(max_length=200, blank=True, null=True)
+    previous_class = models.CharField(max_length=20, blank=True, null=True)
     previous_school_ay = models.CharField(max_length=20, blank=True, null=True)
     # Emergency Contact
     emergency_contact_name = models.CharField(max_length=200, blank=True, null=True)
@@ -282,16 +256,13 @@ class Student(models.Model):
     doc_birth_cert_submitted = models.BooleanField(default=False)
     doc_caste_cert_submitted = models.BooleanField(default=False)
     doc_aadhaar_submitted = models.BooleanField(default=False)
-    # Admission Staff
-    admission_staff_name = models.CharField(max_length=200, blank=True, null=True)
-    admission_staff_phone = models.CharField(max_length=15, blank=True, null=True)
-    # Audit
+    # Photo
     photo_url = models.URLField(blank=True, null=True)
     # Academic
     class_section = models.ForeignKey(ClassSection, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     roll_number = models.PositiveIntegerField(null=True, blank=True)
     # Status
-    status = models.CharField(max_length=20, choices=STUDENT_STATUS, default='ACTIVE')
+    status = models.CharField(max_length=20, choices=STUDENT_STATUS, default='ACTIVE', db_index=True)
     enrollment_date = models.DateField(auto_now_add=True)
     leaving_date = models.DateField(null=True, blank=True)
     leaving_reason = models.TextField(blank=True, null=True)
@@ -305,6 +276,10 @@ class Student(models.Model):
     class Meta:
         unique_together = ['branch', 'academic_year', 'admission_number']
         ordering = ['class_section', 'roll_number', 'first_name']
+        indexes = [
+            models.Index(fields=['tenant', 'branch', 'academic_year', 'status']),
+            models.Index(fields=['branch', 'class_section', 'status']),
+        ]
 
     @staticmethod
     def generate_admission_number(branch, academic_year):
@@ -343,6 +318,21 @@ class Student(models.Model):
 
     def __str__(self):
         return f"{self.admission_number} - {self.first_name} {self.last_name}"
+
+    @property
+    def primary_parent(self):
+        rel = self.parent_relations.filter(is_primary=True).first()
+        return rel.parent if rel else None
+
+    @property
+    def father(self):
+        rel = self.parent_relations.filter(relation_type='FATHER').first()
+        return rel.parent if rel else None
+
+    @property
+    def mother(self):
+        rel = self.parent_relations.filter(relation_type='MOTHER').first()
+        return rel.parent if rel else None
 
 
 # ─── ParentStudentRelation ──────────────────────────────────────

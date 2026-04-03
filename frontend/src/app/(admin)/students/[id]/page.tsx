@@ -1,0 +1,617 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useApi } from '@/lib/hooks';
+import api from '@/lib/axios';
+import { 
+  User, Mail, Phone, MapPin, Calendar, BookOpen, 
+  ChevronLeft, Edit2, LogOut, Shield, GraduationCap,
+  Building2, Hash, CreditCard, Activity, FileText,
+  AlertCircle, CheckCircle2, Clock, Trash2, Plus, ArrowRightLeft, History
+} from 'lucide-react';
+import StudentForm from '@/components/students/StudentForm';
+import PaymentModal from '@/components/students/PaymentModal';
+
+export default function StudentProfilePage() {
+  const { id } = useParams();
+  const router = useRouter();
+  const { data: student, loading, error, refetch } = useApi<any>(`/students/${id}/`);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawData, setWithdrawData] = useState({
+    leaving_date: new Date().toISOString().split('T')[0],
+    leaving_reason: ''
+  });
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+      <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
+      <p className="text-slate-400 font-medium animate-pulse uppercase tracking-widest text-xs">Loading Profile...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="bg-red-50 p-8 rounded-3xl border border-red-100 max-w-2xl mx-auto mt-20 text-center space-y-4">
+      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600">
+        <AlertCircle size={32} />
+      </div>
+      <h3 className="text-xl font-black text-red-900">Failed to load student profile</h3>
+      <p className="text-red-700 font-medium">{error || 'The student may have been deleted or you lack permission.'}</p>
+      <button onClick={() => router.back()} className="bg-red-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-red-700 transition-all">
+        Go Back
+      </button>
+    </div>
+  );
+
+  const handleUpdate = async (formData: any) => {
+    try {
+      // Clean up fields that shouldn't be sent back to the backend
+      const cleanData = { ...formData };
+      delete cleanData.class_section_display;
+      delete cleanData.branch_name;
+      delete cleanData.id;
+      delete cleanData.created_at;
+      delete cleanData.updated_at;
+      delete cleanData.proposed_fee;
+
+      await api.patch(`/students/${id}/`, cleanData);
+      setShowEditForm(false);
+      refetch();
+    } catch (err: any) {
+      console.error('Update failed:', err.response?.data);
+      const detail = err.response?.data?.detail;
+      const errors = err.response?.data;
+      let msg = 'Error updating student';
+      if (detail) msg = detail;
+      else if (errors && typeof errors === 'object') {
+        msg = Object.entries(errors).map(([f, m]) => `${f}: ${m}`).join('\n');
+      }
+      alert(msg);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!withdrawData.leaving_reason) {
+      alert("Please provide a reason for withdrawal.");
+      return;
+    }
+    setWithdrawing(true);
+    try {
+      await api.patch(`/students/${id}/status/`, {
+        status: 'TRANSFERRED',
+        ...withdrawData
+      });
+      setShowWithdrawModal(false);
+      refetch();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Error processing withdrawal');
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: User },
+    { id: 'academic', label: 'Academic', icon: GraduationCap },
+    { id: 'parents', label: 'Parents', icon: Shield },
+    { id: 'address', label: 'Address & Contact', icon: MapPin },
+    { id: 'fees', label: 'Fees & Finance', icon: CreditCard },
+  ];
+
+  const InfoTag = ({ label, value, icon: Icon }: any) => (
+    <div className="flex items-center gap-3 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 shadow-sm border border-slate-50">
+        <Icon size={16} />
+      </div>
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
+        <p className="text-sm font-bold text-slate-900 truncate">{value || '-'}</p>
+      </div>
+    </div>
+  );
+
+  const SectionHeader = ({ title, icon: Icon }: any) => (
+    <div className="flex items-center gap-3 mb-6">
+      <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-100">
+        <Icon size={20} />
+      </div>
+      <h4 className="text-lg font-black text-slate-900 tracking-tight">{title}</h4>
+    </div>
+  );
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Header Card */}
+      <div className="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/50 border border-slate-50 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8">
+           <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest ${
+             student.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100' :
+             student.status === 'PENDING_APPROVAL' ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100' :
+             'bg-slate-100 text-slate-600 shadow-sm'
+           }`}>
+             <span className={`w-2 h-2 rounded-full animate-pulse ${
+               student.status === 'ACTIVE' ? 'bg-emerald-500' :
+               student.status === 'PENDING_APPROVAL' ? 'bg-blue-500' :
+               'bg-slate-400'
+             }`} />
+             {student.status.replace('_', ' ')}
+           </span>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
+          <div className="w-32 h-32 bg-slate-100 rounded-[2rem] flex items-center justify-center border-4 border-white shadow-xl relative group">
+            {student.photo_url ? (
+              <img src={student.photo_url} className="w-full h-full object-cover rounded-[1.8rem]" alt="Student" />
+            ) : (
+              <User size={64} className="text-slate-300" />
+            )}
+            <div className="absolute -bottom-2 -right-2 bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200">
+              <Camera size={14} />
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-2">
+            <button onClick={() => router.back()} className="flex items-center gap-1 text-xs font-black text-slate-400 hover:text-blue-600 transition-colors uppercase tracking-widest mb-2">
+              <ChevronLeft size={14} /> Back to List
+            </button>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter">
+              {student.first_name} {student.last_name}
+            </h1>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
+                <Hash size={14} /> {student.admission_number}
+              </div>
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
+                <Building2 size={14} /> {student.branch_name}
+              </div>
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
+                <GraduationCap size={14} /> {student.class_section_display || 'Not Assigned'}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setShowEditForm(true)}
+              className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3.5 rounded-2xl text-sm font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 uppercase tracking-widest"
+            >
+              <Edit2 size={16} /> Edit Profile
+            </button>
+            {student.status === 'ACTIVE' && (
+              <button 
+                onClick={() => setShowWithdrawModal(true)}
+                className="flex items-center gap-2 bg-white text-rose-600 px-6 py-3.5 rounded-2xl text-sm font-black border-2 border-rose-50 hover:bg-rose-50 transition-all shadow-lg shadow-rose-100 uppercase tracking-widest"
+              >
+                <LogOut size={16} /> Mark Left
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Navigation Tabs */}
+        <div className="lg:col-span-1 space-y-2">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center gap-4 p-5 rounded-3xl transition-all duration-300 relative group ${
+                activeTab === tab.id 
+                  ? 'bg-blue-600 text-white shadow-xl shadow-blue-200 translate-x-2' 
+                  : 'bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600 shadow-sm border border-slate-50'
+              }`}
+            >
+              <tab.icon size={22} className={activeTab === tab.id ? 'animate-bounce' : 'group-hover:scale-110 transition-transform'} />
+              <span className="font-black uppercase tracking-widest text-xs">{tab.label}</span>
+              {activeTab === tab.id && (
+                <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-4 h-4 bg-blue-600 rotate-45" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Content Pane */}
+        <div className="lg:col-span-3 bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-50 p-8 min-h-[500px]">
+          {activeTab === 'overview' && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
+              <div>
+                <SectionHeader title="Personal Details" icon={User} />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <InfoTag label="Date of Birth" value={student.date_of_birth} icon={Calendar} />
+                  <InfoTag label="Gender" value={student.gender} icon={Activity} />
+                  <InfoTag label="Blood Group" value={student.blood_group} icon={Activity} />
+                  <InfoTag label="Nationality" value={student.nationality} icon={Shield} />
+                  <InfoTag label="Religion" value={student.religion} icon={Shield} />
+                  <InfoTag label="Caste Category" value={student.caste_category} icon={Shield} />
+                  <InfoTag label="Aadhaar Number" value={student.aadhar_number} icon={Hash} />
+                  <InfoTag label="Mother Tongue" value={student.mother_tongue} icon={BookOpen} />
+                </div>
+              </div>
+
+              {student.health_status && (
+                <div className="bg-rose-50 p-6 rounded-3xl border border-rose-100 flex gap-4">
+                  <div className="text-rose-500 mt-1"><Activity size={24} /></div>
+                  <div>
+                    <h5 className="font-black text-rose-900 mb-1">Health & Medical Info</h5>
+                    <p className="text-sm text-rose-700 font-medium leading-relaxed">{student.health_status}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'academic' && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
+              <div>
+                <SectionHeader title="Current Enrollment" icon={GraduationCap} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InfoTag label="Academic Year" value={student.academic_year_name} icon={Calendar} />
+                  <InfoTag label="Class & Section" value={student.class_section_display} icon={GraduationCap} />
+                  <InfoTag label="Roll Number" value={student.roll_number} icon={Hash} />
+                  <InfoTag label="Enrollment Date" value={student.enrollment_date} icon={Clock} />
+                </div>
+              </div>
+
+              <div>
+                <SectionHeader title="Previous Education" icon={BookOpen} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InfoTag label="Previous School" value={student.previous_school_name} icon={Building2} />
+                  <InfoTag label="Previous Class" value={student.previous_class} icon={GraduationCap} />
+                  <InfoTag label="Previous Academic Year" value={student.previous_school_ay} icon={Calendar} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'parents' && (
+            <div className="space-y-12 animate-in fade-in slide-in-from-right-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                  <h4 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full" /> Father's Information
+                  </h4>
+                  <div className="space-y-3">
+                    <InfoTag label="Full Name" value={student.father_name} icon={User} />
+                    <InfoTag label="Phone Number" value={student.father_phone} icon={Phone} />
+                    <InfoTag label="Occupation" value={student.father_occupation} icon={Building2} />
+                    <InfoTag label="Education" value={student.father_qualification} icon={GraduationCap} />
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h4 className="text-xs font-black text-pink-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-pink-600 rounded-full" /> Mother's Information
+                  </h4>
+                  <div className="space-y-3">
+                    <InfoTag label="Full Name" value={student.mother_name} icon={User} />
+                    <InfoTag label="Phone Number" value={student.mother_phone} icon={Phone} />
+                    <InfoTag label="Occupation" value={student.mother_occupation} icon={Building2} />
+                    <InfoTag label="Education" value={student.mother_qualification} icon={GraduationCap} />
+                  </div>
+                </div>
+              </div>
+
+              {student.guardian_name && (
+                <div className="pt-8 border-t border-slate-50">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Guardian Details</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <InfoTag label="Guardian Name" value={student.guardian_name} icon={User} />
+                    <InfoTag label="Relation" value={student.guardian_relation} icon={Shield} />
+                    <InfoTag label="Phone" value={student.guardian_phone} icon={Phone} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'address' && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
+              <div>
+                <SectionHeader title="Residential Address" icon={MapPin} />
+                <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 relative group overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <MapPin size={120} />
+                  </div>
+                  <p className="text-xl font-bold text-slate-800 leading-relaxed mb-6">
+                    {student.address_line1}, {student.apartment_name && `${student.apartment_name}, `}
+                    {student.address_line2}, {student.landmark && `Near ${student.landmark}, `}
+                    {student.city}, {student.mandal && `${student.mandal}, `}
+                    {student.district}, {student.state} - {student.pincode}
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white/50 p-4 rounded-2xl">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Pincode</p>
+                      <p className="text-sm font-black text-slate-900">{student.pincode}</p>
+                    </div>
+                    <div className="bg-white/50 p-4 rounded-2xl">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">City</p>
+                      <p className="text-sm font-black text-slate-900">{student.city}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <SectionHeader title="Emergency Contact" icon={Phone} />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <InfoTag label="Contact Person" value={student.emergency_contact_name} icon={User} />
+                  <InfoTag label="Relation" value={student.emergency_contact_relation} icon={Shield} />
+                  <InfoTag label="Phone Number" value={student.emergency_contact_phone} icon={Phone} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'fees' && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
+              {/* Fee Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
+                    <CreditCard size={80} />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Fee</p>
+                  <h3 className="text-4xl font-black italic">₹{student.fee_stats?.total_fee?.toLocaleString()}</h3>
+                  <p className="text-[10px] font-bold text-slate-500 mt-4 flex items-center gap-2">
+                    <CheckCircle2 size={12} className="text-emerald-500" /> Locked for {student.academic_year_name}
+                  </p>
+                </div>
+
+                <div className="bg-emerald-50 p-8 rounded-[2.5rem] border border-emerald-100 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform text-emerald-600">
+                    <CheckCircle2 size={80} />
+                  </div>
+                  <p className="text-[10px] font-black text-emerald-600/50 uppercase tracking-[0.2em] mb-2">Fees Paid</p>
+                  <h3 className="text-4xl font-black text-emerald-700">₹{student.fee_stats?.total_paid?.toLocaleString()}</h3>
+                  <p className="text-[10px] font-bold text-emerald-600/60 mt-4 uppercase tracking-widest">Total Collected</p>
+                </div>
+
+                <div className="bg-amber-50 p-8 rounded-[2.5rem] border border-amber-100 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform text-amber-600">
+                    <Clock size={80} />
+                  </div>
+                  <p className="text-[10px] font-black text-amber-600/50 uppercase tracking-[0.2em] mb-2">Balance Left</p>
+                  <h3 className="text-4xl font-black text-amber-700">₹{student.fee_stats?.balance?.toLocaleString()}</h3>
+                  <p className="text-[10px] font-bold text-amber-600/60 mt-4 uppercase tracking-widest text-destructive">Outstanding Dues</p>
+                </div>
+              </div>
+
+              {/* Transactions Ledger */}
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <SectionHeader title="Fee Ledger" icon={ArrowRightLeft} />
+                  <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+                    <button className="px-4 py-2 bg-white rounded-xl text-[10px] font-black uppercase text-slate-800 shadow-sm">All Activity</button>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-slate-50/50 border-b border-slate-100">
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Credit (₹)</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Debit (₹)</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {/* Combine and sort for ledger */}
+                      {[
+                        ...(student.invoices || []).map((inv: any) => ({ 
+                          date: inv.created_at, 
+                          desc: `Invoice: ${inv.invoice_number}`, 
+                          debit: inv.net_amount, 
+                          type: 'INVOICE',
+                          status: inv.status
+                        })),
+                        ...(student.payments || []).map((pay: any) => ({ 
+                          date: pay.payment_date, 
+                          desc: `Payment: ${pay.payment_mode} (${pay.receipt_number})`, 
+                          credit: pay.amount, 
+                          type: 'PAYMENT',
+                          status: pay.status
+                        }))
+                      ].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((item, i) => (
+                        <tr key={i} className="group hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <p className="text-xs font-bold text-slate-900">{new Date(item.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-xs font-black text-slate-700">{item.desc}</p>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {item.credit ? <p className="text-xs font-black text-emerald-600">+₹{item.credit.toLocaleString()}</p> : '-'}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {item.debit ? <p className="text-xs font-black text-rose-600">₹{item.debit.toLocaleString()}</p> : '-'}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                              item.status === 'PAID' || item.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' : 
+                              item.status === 'PARTIALLY_PAID' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {item.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Outstanding Invoices Section */}
+              <div className="space-y-6 pt-4">
+                <SectionHeader title="Outstanding Dues" icon={Plus} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {student.invoices?.filter((i: any) => i.status !== 'PAID').map((inv: any) => (
+                    <div key={inv.id} className="bg-white p-6 rounded-3xl border-2 border-slate-50 shadow-sm hover:border-blue-100 transition-all group overflow-hidden relative">
+                      <div className="flex justify-between items-start mb-6">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{inv.invoice_number}</p>
+                          <h4 className="text-lg font-black text-slate-900 line-clamp-1">{inv.title || 'Academic Fee Invoice'}</h4>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                          inv.status === 'PARTIALLY_PAID' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'
+                        }`}>
+                          {inv.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Amount</p>
+                          <p className="text-2xl font-black text-slate-900 italic tracking-tighter">₹{inv.outstanding_amount.toLocaleString()}</p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setSelectedInvoice({
+                              id: inv.id,
+                              invoice_number: inv.invoice_number,
+                              outstanding_amount: inv.outstanding_amount,
+                              student_name: `${student.first_name} ${student.last_name}`
+                            });
+                            setShowPaymentModal(true);
+                          }}
+                          className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all flex items-center gap-2 group-hover:-translate-y-1"
+                        >
+                          <CreditCard size={14} /> Record Payment
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {student.invoices?.filter((i: any) => i.status !== 'PAID').length === 0 && (
+                    <div className="md:col-span-2 p-12 bg-emerald-50/50 rounded-[2.5rem] border border-dashed border-emerald-200 text-center space-y-4">
+                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto text-emerald-500 shadow-sm border border-emerald-100">
+                        <CheckCircle2 size={32} />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-black text-emerald-900">All Fees Cleared!</h4>
+                        <p className="text-sm font-bold text-emerald-600/70 uppercase tracking-widest">No outstanding dues for this student.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Edit Form Modal */}
+      {showEditForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowEditForm(false)} />
+          <div className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto scrollbar-hide">
+            <StudentForm 
+              title={`Edit ${student.first_name}'s Profile`}
+              initialData={student}
+              submitLabel="Update Profile"
+              onSubmit={handleUpdate}
+              onCancel={() => setShowEditForm(false)}
+              isEdit={true}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Withdrawal Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => !withdrawing && setShowWithdrawModal(false)} />
+          
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg relative z-10 shadow-2xl p-8 animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500">
+                <LogOut size={28} />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Withdraw Student</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Process "Left" procedure</p>
+              </div>
+            </div>
+
+            <div className="space-y-6 mb-10">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Withdrawal Date</label>
+                <input 
+                  type="date"
+                  value={withdrawData.leaving_date}
+                  onChange={e => setWithdrawData({...withdrawData, leaving_date: e.target.value})}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Reason for Leaving</label>
+                <textarea 
+                  placeholder="Mention the reason (e.g., Relocation, Financial...)"
+                  value={withdrawData.leaving_reason}
+                  onChange={e => setWithdrawData({...withdrawData, leaving_reason: e.target.value})}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none min-h-[120px] transition-all"
+                />
+              </div>
+
+              <div className="bg-rose-50 p-4 rounded-2xl flex gap-3 text-rose-700">
+                <AlertCircle size={20} className="shrink-0" />
+                <p className="text-xs font-bold uppercase leading-relaxed tracking-tight">
+                  Warning: This will change student status to "TRANSFERRED". 
+                  The student will no longer appear in active class rolls.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowWithdrawModal(false)}
+                disabled={withdrawing}
+                className="flex-1 px-8 py-4 rounded-2xl text-sm font-black text-slate-400 hover:bg-slate-50 transition-all uppercase tracking-widest"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleWithdraw}
+                disabled={withdrawing}
+                className="flex-[2] bg-rose-600 text-white px-8 py-4 rounded-2xl text-sm font-black hover:bg-rose-700 shadow-xl shadow-rose-200 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+              >
+                {withdrawing ? (
+                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : 'Confirm Withdrawal'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedInvoice && (
+        <PaymentModal 
+          invoice={selectedInvoice}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedInvoice(null);
+          }}
+          onSuccess={() => {
+            refetch();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Helper icons missing or needed locally
+const Camera = ({ size, className }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+  </svg>
+);

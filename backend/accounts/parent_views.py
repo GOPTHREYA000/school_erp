@@ -1,11 +1,18 @@
 """Parent Portal — scoped API endpoints per PRD §17.
 All endpoints validate student belongs to authenticated parent via ParentStudentRelation."""
 
+from django.db import models
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+
+
+class IsParent(BasePermission):
+    """Only allow users with PARENT role."""
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'PARENT'
 
 from students.models import Student, ParentStudentRelation
 from students.serializers import StudentSerializer
@@ -27,7 +34,7 @@ def get_parent_student(user, student_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsParent])
 def parent_children(request):
     """GET /api/parent/children/ — list linked students"""
     relations = ParentStudentRelation.objects.filter(parent=request.user).select_related('student', 'student__class_section')
@@ -46,7 +53,7 @@ def parent_children(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsParent])
 def parent_child_profile(request, student_id):
     student = get_parent_student(request.user, student_id)
     if not student:
@@ -55,7 +62,7 @@ def parent_child_profile(request, student_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsParent])
 def parent_child_invoices(request, student_id):
     student = get_parent_student(request.user, student_id)
     if not student:
@@ -65,7 +72,7 @@ def parent_child_invoices(request, student_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsParent])
 def parent_child_attendance(request, student_id):
     student = get_parent_student(request.user, student_id)
     if not student:
@@ -80,7 +87,7 @@ def parent_child_attendance(request, student_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsParent])
 def parent_child_homework(request, student_id):
     student = get_parent_student(request.user, student_id)
     if not student:
@@ -92,7 +99,7 @@ def parent_child_homework(request, student_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsParent])
 def parent_child_timetable(request, student_id):
     student = get_parent_student(request.user, student_id)
     if not student:
@@ -113,7 +120,7 @@ def parent_child_timetable(request, student_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsParent])
 def parent_announcements(request):
     relations = ParentStudentRelation.objects.filter(parent=request.user).select_related('student', 'student__class_section')
     class_ids = set()

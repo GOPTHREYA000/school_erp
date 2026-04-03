@@ -45,21 +45,51 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(tenant=self.request.user.tenant, submitted_by=self.request.user)
+        user = self.request.user
+        branch = user.branch
+        if not branch:
+            from tenants.models import Branch
+            branch = Branch.objects.filter(tenant=user.tenant).first()
+            
+        expense_date = timezone.now().date()
+        
+        category_id = self.request.data.get('category')
+        if not category_id:
+            category, _ = ExpenseCategory.objects.get_or_create(
+                tenant=user.tenant, 
+                branch=branch, 
+                name='General',
+                defaults={'code': 'GEN'}
+            )
+        else:
+            category = ExpenseCategory.objects.get(id=category_id)
+
+        # Refined Workflow: Default to SUBMITTED for all expenses
+        status = 'SUBMITTED'
+        expense = serializer.save(
+            tenant=user.tenant,
+            branch=branch,
+            expense_date=expense_date,
+            category=category,
+            submitted_by=user,
+            status=status
+        )
 
     @action(detail=True, methods=['patch'], url_path='status')
     def update_status(self, request, pk=None):
         expense = self.get_object()
         new_status = request.data.get('status')
+        
+        # Only School Admin or Super Admin can approve
+        if new_status == 'APPROVED' and request.user.role not in ['SCHOOL_ADMIN', 'SUPER_ADMIN']:
+            return Response({'detail': 'Only School Admin or Super Admin can approve expenses'}, status=403)
+
         VALID = {'DRAFT': ['SUBMITTED'], 'SUBMITTED': ['APPROVED', 'REJECTED']}
         allowed = VALID.get(expense.status, [])
         if new_status not in allowed:
             return Response({'detail': f'Cannot transition from {expense.status} to {new_status}'}, status=400)
 
         expense.status = new_status
-        if new_status == 'SUBMITTED' and expense.amount < 5000:
-            expense.status = 'APPROVED'
-            expense.approved_at = timezone.now()
         if new_status == 'APPROVED':
             expense.approved_by = request.user
             expense.approved_at = timezone.now()

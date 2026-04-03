@@ -1,10 +1,15 @@
+from datetime import date, timedelta
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
-from django.db.models import Sum, Q
+from django.db import transaction, models
+from django.db.models import Sum, Q, F, ExpressionWrapper
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 from accounts.permissions import IsSchoolAdminOrAbove
 from students.models import Student, ClassSection
@@ -19,8 +24,9 @@ from .serializers import (
     FeeConcessionSerializer, StudentConcessionSerializer,
     LateFeeRuleSerializer, FeeInvoiceSerializer, FeeInvoiceListSerializer,
     PaymentSerializer, InvoiceGenerateSerializer, OfflinePaymentSerializer,
-    StudentFeeItemSerializer, FeeApprovalRequestSerializer,
+    StudentFeeItemSerializer, FeeApprovalRequestSerializer, InitialPaymentSerializer,
 )
+from .services import process_initial_payment
 
 
 class FeeCategoryViewSet(viewsets.ModelViewSet):
@@ -42,17 +48,30 @@ class FeeStructureViewSet(viewsets.ModelViewSet):
     serializer_class = FeeStructureSerializer
     permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({'success': True, 'data': serializer.data})
+
     def get_queryset(self):
-        qs = FeeStructure.objects.filter(branch__tenant=self.request.user.tenant).prefetch_related('items')
+        user = self.request.user
+        qs = FeeStructure.objects.filter(branch__tenant=user.tenant).prefetch_related('items')
+        
         grade = self.request.query_params.get('grade')
         ay = self.request.query_params.get('academic_year_id')
         branch = self.request.query_params.get('branch') or self.request.query_params.get('branch_id')
+        
+        # Branch Isolation for multi-tenant roles
+        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+            branch = user.branch.id
+
         if grade:
             qs = qs.filter(grade=grade)
         if ay:
             qs = qs.filter(academic_year_id=ay)
         if branch:
             qs = qs.filter(branch_id=branch)
+            
         return qs
 
     def perform_create(self, serializer):
@@ -88,7 +107,10 @@ class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
 
     def get_queryset(self):
-        return FeeApprovalRequest.objects.filter(tenant=self.request.user.tenant)
+        user = self.request.user
+        if user.role == 'SUPER_ADMIN':
+            return FeeApprovalRequest.objects.all()
+        return FeeApprovalRequest.objects.filter(tenant=user.tenant)
 
     def perform_create(self, serializer):
         serializer.save(
@@ -129,7 +151,10 @@ class FeeConcessionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
 
     def get_queryset(self):
-        return FeeConcession.objects.filter(branch__tenant=self.request.user.tenant)
+        user = self.request.user
+        if user.role == 'SUPER_ADMIN':
+            return FeeConcession.objects.all()
+        return FeeConcession.objects.filter(branch__tenant=user.tenant)
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.user.tenant)
@@ -140,7 +165,10 @@ class LateFeeRuleViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
 
     def get_queryset(self):
-        return LateFeeRule.objects.filter(branch__tenant=self.request.user.tenant)
+        user = self.request.user
+        if user.role == 'SUPER_ADMIN':
+            return LateFeeRule.objects.all()
+        return LateFeeRule.objects.filter(branch__tenant=user.tenant)
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.user.tenant)
@@ -155,7 +183,11 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         return FeeInvoiceSerializer
 
     def get_queryset(self):
-        qs = FeeInvoice.objects.filter(branch__tenant=self.request.user.tenant).select_related('student')
+        user = self.request.user
+        if user.role == 'SUPER_ADMIN':
+            qs = FeeInvoice.objects.all().select_related('student')
+        else:
+            qs = FeeInvoice.objects.filter(branch__tenant=user.tenant).select_related('student')
         status_filter = self.request.query_params.get('status')
         student = self.request.query_params.get('student_id')
         month = self.request.query_params.get('month')
@@ -173,89 +205,22 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        target = data['target']
-        month = data['month']
-        ay_id = data['academic_year_id']
-
-        # Get target students
-        if target == 'STUDENT':
-            students = Student.objects.filter(id=data['student_id'], status='ACTIVE')
-        elif target == 'CLASS':
-            students = Student.objects.filter(class_section_id=data['class_section_id'], status='ACTIVE')
-        else:  # BRANCH
-            students = Student.objects.filter(
-                branch__tenant=request.user.tenant, academic_year_id=ay_id, status='ACTIVE'
-            )
-
-        generated = 0
-        skipped = 0
-        errors = []
-
-        for student in students:
-            # Skip if invoice already exists for this student/month
-            if FeeInvoice.objects.filter(student=student, month=month).exists():
-                skipped += 1
-                continue
-
-            # Lookup fee structure for student's grade
-            grade = student.class_section.grade if student.class_section else None
-            if not grade:
-                errors.append({'student_id': str(student.id), 'error': 'No class assigned'})
-                continue
-
-            structure = FeeStructure.objects.filter(
-                branch=student.branch, academic_year_id=ay_id, grade=grade, is_active=True
-            ).first()
-            if not structure:
-                errors.append({'student_id': str(student.id), 'error': 'No fee structure found'})
-                continue
-
-            # Generate invoice
-            seq = FeeInvoice.objects.filter(branch=student.branch, month=month).count() + 1
-            invoice_number = f"INV-{month}-{seq:04d}"
-
-            gross = Decimal('0.00')
-            items = []
-            for item in structure.items.filter(is_optional=False):
-                if item.frequency == 'MONTHLY' or item.frequency == 'ONE_TIME':
-                    gross += item.amount
-                    items.append(FeeInvoiceItem(
-                        category=item.category,
-                        original_amount=item.amount,
-                        concession=Decimal('0.00'),
-                        final_amount=item.amount,
-                    ))
-
-            # Determine due date
-            year, m = month.split('-')
-            due_day = 10  # Default
-            from datetime import date
-            due_date = date(int(year), int(m), min(due_day, 28))
-
-            invoice = FeeInvoice.objects.create(
-                tenant=request.user.tenant,
-                invoice_number=invoice_number,
-                student=student,
-                branch=student.branch,
-                academic_year_id=ay_id,
-                month=month,
-                gross_amount=gross,
-                concession_amount=Decimal('0.00'),
-                net_amount=gross,
-                outstanding_amount=gross,
-                due_date=due_date,
-                status='SENT',
-                generated_by='AUTO',
-                created_by=request.user,
-            )
-            for item in items:
-                item.invoice = invoice
-            FeeInvoiceItem.objects.bulk_create(items)
-            generated += 1
+        from .services import generate_monthly_invoices
+        
+        result = generate_monthly_invoices(
+            tenant=request.user.tenant,
+            branch=request.user.branch, # Assumes user has a branch
+            academic_year_id=data['academic_year_id'],
+            month=data['month'],
+            target=data['target'],
+            class_section_id=data.get('class_section_id'),
+            student_id=data.get('student_id'),
+            user=request.user
+        )
 
         return Response({
             'success': True,
-            'data': {'generated': generated, 'skipped_already_exists': skipped, 'errors': errors}
+            'data': result
         })
 
     @action(detail=True, methods=['patch'], url_path='cancel')
@@ -264,6 +229,10 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         reason = request.data.get('reason', '')
         if not reason:
             return Response({'detail': 'Cancellation reason is required.'}, status=400)
+        if invoice.status in ['PAID', 'CANCELLED']:
+            return Response({'detail': f'Cannot cancel a {invoice.status} invoice.'}, status=400)
+        if invoice.paid_amount > 0:
+            return Response({'detail': 'Cannot cancel an invoice with recorded payments. Reverse payments first.'}, status=400)
         invoice.status = 'CANCELLED'
         invoice.cancelled_by = request.user
         invoice.cancellation_reason = reason
@@ -276,7 +245,10 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         reason = request.data.get('reason', '')
         if not reason:
             return Response({'detail': 'Waive reason is required.'}, status=400)
+        if invoice.status in ['PAID', 'CANCELLED', 'WAIVED']:
+            return Response({'detail': f'Cannot waive a {invoice.status} invoice.'}, status=400)
         invoice.status = 'WAIVED'
+        invoice.outstanding_amount = Decimal('0.00')
         invoice.cancellation_reason = reason
         invoice.save()
         return Response({'success': True, 'data': FeeInvoiceSerializer(invoice).data})
@@ -285,35 +257,36 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
     def defaulters(self, request):
         aging = request.query_params.get('aging', '30')
         today = timezone.now().date()
-        overdue_invoices = FeeInvoice.objects.filter(
-            branch__tenant=request.user.tenant,
-            status__in=['SENT', 'OVERDUE', 'PARTIALLY_PAID'],
-            due_date__lt=today,
-            outstanding_amount__gt=0,
-        ).select_related('student', 'student__class_section')
+        
+        # 1. Calculate Date Thresholds
+        filters = Q(branch__tenant=request.user.tenant) & Q(status__in=['SENT', 'OVERDUE', 'PARTIALLY_PAID']) & Q(outstanding_amount__gt=0)
+        
+        if aging == '30':
+            filters &= Q(due_date__gte=today - timedelta(days=30), due_date__lt=today)
+        elif aging == '60':
+            filters &= Q(due_date__gte=today - timedelta(days=60), due_date__lt=today - timedelta(days=30))
+        elif aging == '90':
+            filters &= Q(due_date__gte=today - timedelta(days=90), due_date__lt=today - timedelta(days=60))
+        elif aging == '90_plus':
+            filters &= Q(due_date__lt=today - timedelta(days=90))
+        else:
+            filters &= Q(due_date__lt=today) # Default: all overdue
+            
+        overdue_invoices = FeeInvoice.objects.filter(filters).select_related(
+            'student', 'student__class_section'
+        ).order_by('due_date')
 
-        records = []
-        for inv in overdue_invoices:
-            days = (today - inv.due_date).days
-            if aging == '30' and days > 30:
-                continue
-            elif aging == '60' and (days <= 30 or days > 60):
-                continue
-            elif aging == '90' and (days <= 60 or days > 90):
-                continue
-            elif aging == '90_plus' and days <= 90:
-                continue
-
-            records.append({
-                'student_id': str(inv.student.id),
-                'student_name': f"{inv.student.first_name} {inv.student.last_name}",
-                'admission_number': inv.student.admission_number,
-                'grade': inv.student.class_section.grade if inv.student.class_section else None,
-                'outstanding_amount': str(inv.outstanding_amount),
-                'overdue_since': str(inv.due_date),
-                'days_overdue': days,
-                'invoice_number': inv.invoice_number,
-            })
+        # 2. Map results (Very efficient as filtering happened in DB)
+        records = [{
+            'student_id': str(inv.student.id),
+            'student_name': f"{inv.student.first_name} {inv.student.last_name}",
+            'admission_number': inv.student.admission_number,
+            'grade': inv.student.class_section.grade if inv.student.class_section else None,
+            'outstanding_amount': str(inv.outstanding_amount),
+            'overdue_since': str(inv.due_date),
+            'days_overdue': (today - inv.due_date).days,
+            'invoice_number': inv.invoice_number,
+        } for inv in overdue_invoices]
 
         total_outstanding = sum(Decimal(r['outstanding_amount']) for r in records)
         return Response({
@@ -332,23 +305,39 @@ class PaymentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Payment.objects.filter(branch__tenant=self.request.user.tenant).select_related('student', 'invoice')
 
+    @transaction.atomic
     @action(detail=False, methods=['post'], url_path='offline')
     def record_offline(self, request):
         serializer = OfflinePaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        invoice = FeeInvoice.objects.get(id=data['invoice_id'])
+        # Lock the invoice row to prevent concurrent payment race conditions
+        try:
+            invoice = FeeInvoice.objects.select_for_update().get(id=data['invoice_id'])
+        except FeeInvoice.DoesNotExist:
+            return Response({'detail': 'Invoice not found.'}, status=404)
+
         amount = data['amount']
+
+        # Validate invoice is payable
+        if invoice.status in ['PAID', 'CANCELLED', 'WAIVED']:
+            return Response({
+                'detail': f'Cannot pay a {invoice.status} invoice.'
+            }, status=400)
+
+        # Validate amount doesn't exceed outstanding
+        if amount > invoice.outstanding_amount:
+            return Response({
+                'detail': f'Amount exceeds outstanding balance of ₹{invoice.outstanding_amount}'
+            }, status=400)
 
         # Create payment
         seq = Payment.objects.filter(branch=invoice.branch).count() + 1
         receipt_number = f"RCP-{timezone.now().strftime('%Y%m')}-{seq:04d}"
 
-        requires_approval = amount > 500 and data['payment_mode'] != 'ONLINE'
-
         payment = Payment.objects.create(
-            tenant=request.user.tenant,
+            tenant=invoice.tenant,
             invoice=invoice,
             student=invoice.student,
             branch=invoice.branch,
@@ -357,16 +346,16 @@ class PaymentViewSet(viewsets.ModelViewSet):
             payment_date=data['payment_date'],
             reference_number=data.get('reference_number'),
             bank_name=data.get('bank_name'),
-            status='COMPLETED' if not requires_approval else 'PENDING',
+            status='COMPLETED',
             collected_by=request.user,
-            requires_approval=requires_approval,
+            requires_approval=False,
             receipt_number=receipt_number,
         )
 
-        # Update invoice amounts
+        # Update invoice amounts — safe because row is locked
         if payment.status == 'COMPLETED':
             invoice.paid_amount += amount
-            invoice.outstanding_amount = invoice.net_amount - invoice.paid_amount
+            invoice.outstanding_amount = max(invoice.net_amount - invoice.paid_amount, Decimal('0.00'))
             if invoice.outstanding_amount <= 0:
                 invoice.status = 'PAID'
                 invoice.outstanding_amount = Decimal('0.00')
@@ -374,7 +363,45 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 invoice.status = 'PARTIALLY_PAID'
             invoice.save()
 
+            # Create TransactionLog INCOME entry
+            try:
+                from expenses.models import TransactionLog
+                TransactionLog.objects.create(
+                    tenant=invoice.tenant,
+                    branch=invoice.branch,
+                    transaction_type='INCOME',
+                    category='Fee Payment',
+                    reference_model='Payment',
+                    reference_id=payment.id,
+                    amount=amount,
+                    description=f"Payment for {invoice.invoice_number}",
+                    transaction_date=data['payment_date'],
+                )
+            except Exception as e:
+                logger.error(f"Failed to create TransactionLog for payment {payment.id}: {e}")
+
         return Response({
             'success': True,
             'data': PaymentSerializer(payment).data
         }, status=status.HTTP_201_CREATED)
+
+    @transaction.atomic
+    @action(detail=False, methods=['post'], url_path='initial-payment')
+    def initial_payment(self, request):
+        serializer = InitialPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        student = Student.objects.get(id=data['student_id'])
+        
+        result = process_initial_payment(
+            user=request.user,
+            student=student,
+            admission_fee=data['admission_fee'],
+            tuition_payment=data['tuition_payment'],
+            payment_mode=data['payment_mode'],
+            payment_date=data['payment_date'],
+            reference_number=data.get('reference_number')
+        )
+        
+        return Response({'success': True, 'data': result}, status=status.HTTP_201_CREATED)

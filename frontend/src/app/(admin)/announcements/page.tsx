@@ -25,7 +25,7 @@ export default function AnnouncementsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/announcements/', formData);
+      await api.post('announcements/', formData);
       setShowForm(false); refetch();
     } catch { alert('Error'); }
     finally { setSaving(false); }

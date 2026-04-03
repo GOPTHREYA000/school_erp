@@ -10,7 +10,7 @@ interface Student { id: string; first_name: string; last_name: string; }
 interface ClassSection { id: string; display_name: string; }
 
 export default function AttendancePage() {
-  const { data: classes } = useApi<ClassSection[]>('/classes/');
+  const { data: classes } = useApi<ClassSection[]>('/classes/?teacher_only=true');
   const [selectedClass, setSelectedClass] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -18,6 +18,13 @@ export default function AttendancePage() {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ saved: number } | null>(null);
+
+  // Auto-select if only one class is available (typical for teachers)
+  React.useEffect(() => {
+    if (classes && classes.length === 1 && !selectedClass) {
+      loadStudents(classes[0].id);
+    }
+  }, [classes]);
 
   const loadStudents = async (csId: string) => {
     setSelectedClass(csId);
@@ -42,7 +49,7 @@ export default function AttendancePage() {
         date,
         records: Object.entries(records).map(([student_id, status]) => ({ student_id, status })),
       };
-      const res = await api.post('/attendance/bulk/', payload);
+      const res = await api.post('attendance/bulk/', payload);
       setResult(res.data.data);
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Error submitting attendance');

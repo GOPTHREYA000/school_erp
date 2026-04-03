@@ -29,14 +29,22 @@ class SubjectViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
 
     def get_queryset(self):
-        qs = Subject.objects.filter(branch__tenant=self.request.user.tenant)
+        # Filter by tenant directly for better performance and reliability
+        qs = Subject.objects.filter(tenant=self.request.user.tenant)
         branch = self.request.query_params.get('branch_id')
         if branch:
             qs = qs.filter(branch_id=branch)
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(tenant=self.request.user.tenant)
+        user = self.request.user
+        branch = serializer.validated_data.get('branch')
+        
+        # If user is tied to a specific branch, force it
+        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+            branch = user.branch
+
+        serializer.save(tenant=user.tenant, branch=branch)
 
 
 class TimetableSlotViewSet(viewsets.ModelViewSet):
