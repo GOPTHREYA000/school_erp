@@ -11,7 +11,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 logger = logging.getLogger(__name__)
 
 class LoginView(TokenObtainPairView):
+    from .throttles import LoginRateThrottle
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
     def post(self, request, *args, **kwargs):
         logger.info(f"Login attempt: {request.data.get('email')}")
         serializer = self.get_serializer(data=request.data)
@@ -130,15 +132,33 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.role == 'SUPER_ADMIN':
-            return User.objects.all()
-        # Non-super admins only see users in their tenant
-        qs = User.objects.filter(tenant=user.tenant)
+            qs = User.objects.all()
+        else:
+            # Non-super admins only see users in their tenant
+            qs = User.objects.filter(tenant=user.tenant)
         
-        # Branch isolation: Branch Admin and lower roles only see users in their own branch
+        # Filtering by tenant (Super Admin only)
+        tenant_id = self.request.query_params.get('tenant_id')
+        if tenant_id and user.role == 'SUPER_ADMIN':
+            qs = qs.filter(tenant_id=tenant_id)
+
+        # Filtering by branch
+        branch_id = self.request.query_params.get('branch_id')
+        if branch_id:
+            # For non-super admins, we already have tenant isolation in the base queryset
+            # Super admins can filter by any branch
+            qs = qs.filter(branch_id=branch_id)
+        
+        # Branch isolation enforcement for lower roles
         if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
             qs = qs.filter(branch=user.branch)
+
+        # Filtering by role
+        role_filter = self.request.query_params.get('role')
+        if role_filter:
+            qs = qs.filter(role=role_filter)
             
-        return qs
+        return qs.order_by('first_name', 'last_name')
 
     def perform_create(self, serializer):
         creator_role = self.request.user.role
@@ -216,3 +236,67 @@ class UserViewSet(viewsets.ModelViewSet):
             
         instance.delete()
 
+from rest_framework import viewsets
+from .models import AuditLog
+from .serializers import AuditLogSerializer
+from .permissions import IsSuperAdmin
+
+class SuperAdminAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Dedicated viewset for SUPER_ADMIN to view all audit logs across all tenants.
+    """
+    queryset = AuditLog.objects.select_related('tenant', 'user').all().order_by('-created_at')
+    serializer_class = AuditLogSerializer
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+class ImpersonateView(APIView):
+    """
+    Allows SUPER_ADMIN to generate authentication tokens for ANY user, effectively logging in as them.
+    """
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def post(self, request):
+        target_user_id = request.data.get('user_id')
+        if not target_user_id:
+            return Response({"error": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            target_user = User.objects.get(id=target_user_id)
+        except User.DoesNotExist:
+            return Response({"error": "Target user not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        logger.info(f"SUPER_ADMIN {request.user.email} is impersonating {target_user.email}")
+        
+        refresh = RefreshToken.for_user(target_user)
+        access = refresh.access_token
+
+        is_secure = not settings.DEBUG
+        response = Response({
+            "success": True, 
+            "message": f"Successfully impersonating {target_user.email}",
+            "user": {
+                "id": str(target_user.id),
+                "email": target_user.email,
+                "role": target_user.role,
+                "first_name": target_user.first_name,
+                "last_name": target_user.last_name
+            }
+        }, status=status.HTTP_200_OK)
+        
+        response.set_cookie(
+            'access_token',
+            str(access),
+            max_age=3600,
+            httponly=True,
+            secure=is_secure,
+            samesite='Lax'
+        )
+        response.set_cookie(
+            'refresh_token',
+            str(refresh),
+            max_age=86400 * 7,
+            httponly=True,
+            secure=is_secure,
+            samesite='Lax'
+        )
+        return response

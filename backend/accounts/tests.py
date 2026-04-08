@@ -117,7 +117,7 @@ class SecurityAndIsolationTests(TestCase):
             'password': 'password123',
             'first_name': 'Some',
             'last_name': 'Admin',
-            'role': 'SCHOOL_ADMIN'
+            'role': 'BRANCH_ADMIN'
         }, format='json')
         # Expect either 403 or 400 since tenant is required
         self.assertIn(response.status_code, [400, 403])

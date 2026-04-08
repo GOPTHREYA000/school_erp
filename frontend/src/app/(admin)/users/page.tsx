@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
-import { Plus, Search, Shield, UserCog, Trash2, Mail, Lock, Phone, Building2, User } from 'lucide-react';
+import { Plus, Search, Shield, UserCog, Trash2, Mail, Lock, Phone, Building2, User, KeyRound } from 'lucide-react';
 
 interface User {
   id: string;
@@ -20,6 +20,7 @@ interface User {
 interface Branch {
   id: string;
   name: string;
+  tenant: string; // The tenant ID
 }
 
 const ROLE_RANKS: Record<string, number> = {
@@ -43,13 +44,33 @@ const ROLE_LABELS: Record<string, string> = {
 export default function UsersPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [search, setSearch] = useState('');
-  const { data, loading, error, refetch } = useApi<User[]>('/users/');
+  
+  // Filters
+  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [selectedTenant, setSelectedTenant] = useState('');
+
+  // Fetching Base Data
+  const { data: tenants } = useApi<any[]>('/tenants/');
+  const { data: allBranches } = useApi<Branch[]>('/tenants/branches/');
+  
+  // Build query for users
+  const usersUrl = React.useMemo(() => {
+    const params = new URLSearchParams();
+    if (selectedRole) params.append('role', selectedRole);
+    if (selectedBranch) params.append('branch_id', selectedBranch);
+    if (selectedTenant) params.append('tenant_id', selectedTenant);
+    const qs = params.toString();
+    return qs ? `/users/?${qs}` : '/users/';
+  }, [selectedRole, selectedBranch, selectedTenant]);
+
+  const { data, loading, error, refetch } = useApi<User[]>(usersUrl);
 
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '', last_name: '', email: '', password: '', role: 'TEACHER', phone: '', branch: ''
   });
-  const { data: branches } = useApi<Branch[]>('/tenants/branches/');
+  
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -57,6 +78,11 @@ export default function UsersPage() {
       .then(res => setCurrentUser(res.data.data))
       .catch(console.error);
   }, []);
+
+  // Reset branch when tenant changes
+  useEffect(() => {
+    setSelectedBranch('');
+  }, [selectedTenant]);
 
   const myRank = currentUser ? ROLE_RANKS[currentUser.role] : 99;
   const allowedRolesToCreate = Object.keys(ROLE_RANKS).filter(r => {
@@ -97,6 +123,16 @@ export default function UsersPage() {
       refetch();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Error deleting user. You may not have permission.');
+    }
+  };
+
+  const handleImpersonate = async (targetUser: User) => {
+    if (!confirm(`Are you sure you want to impersonate ${targetUser.email}?`)) return;
+    try {
+      await api.post('auth/impersonate/', { user_id: targetUser.id });
+      window.location.href = '/super-admin/all';
+    } catch (err) {
+      alert('Failed to impersonate user.');
     }
   };
 
@@ -217,7 +253,7 @@ export default function UsersPage() {
                   className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-2xl text-sm bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none appearance-none"
                 >
                   <option value="">Select Branch</option>
-                  {branches?.map(b => (
+                  {allBranches?.filter(b => !selectedTenant || b.tenant === selectedTenant).map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
                 </select>
@@ -259,15 +295,64 @@ export default function UsersPage() {
 
       {/* List */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-50 flex items-center justify-between">
-          <div className="relative w-72">
+        <div className="p-4 border-b border-gray-50 flex flex-wrap items-center gap-4">
+          <div className="relative w-64">
             <Search size={16} className="absolute left-3 top-3 text-gray-400" />
             <input
-              placeholder="Search users..."
+              placeholder="Search by name/email..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
             />
+          </div>
+
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Super Admin: School Filter */}
+            {currentUser?.role === 'SUPER_ADMIN' && (
+              <select
+                value={selectedTenant}
+                onChange={e => setSelectedTenant(e.target.value)}
+                className="pl-3 pr-8 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Schools</option>
+                {tenants?.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Branch Filter (Filtered by School if Super Admin) */}
+            {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SCHOOL_ADMIN') && (
+              <select
+                value={selectedBranch}
+                onChange={e => setSelectedBranch(e.target.value)}
+                className="pl-3 pr-8 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">All Branches</option>
+                {allBranches?.filter(b => !selectedTenant || b.tenant === selectedTenant).map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Role Filter */}
+            <select
+              value={selectedRole}
+              onChange={e => setSelectedRole(e.target.value)}
+              className="pl-3 pr-8 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="">All Roles</option>
+              {Object.entries(ROLE_LABELS).map(([val, label]) => (
+                <option key={val} value={val}>{label}</option>
+              ))}
+            </select>
+
+            <button 
+              onClick={() => { setSelectedRole(''); setSelectedBranch(''); setSelectedTenant(''); setSearch(''); }}
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 px-2 py-1"
+            >
+              Reset
+            </button>
           </div>
         </div>
 
@@ -332,7 +417,16 @@ export default function UsersPage() {
                         </span>
                       }
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                      {currentUser?.role === 'SUPER_ADMIN' && currentUser.id !== u.id && (
+                        <button 
+                          onClick={() => handleImpersonate(u)}
+                          className="text-gray-400 hover:text-blue-600 p-1.5 rounded bg-white hover:bg-blue-50 transition-colors"
+                          title="Impersonate User"
+                        >
+                          <KeyRound size={16} />
+                        </button>
+                      )}
                       {canDelete && (
                         <button 
                           onClick={() => handleDelete(u)}

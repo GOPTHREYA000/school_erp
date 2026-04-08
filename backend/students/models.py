@@ -283,6 +283,8 @@ class Student(models.Model):
 
     @staticmethod
     def generate_admission_number(branch, academic_year):
+        from django.db import transaction
+        
         tenant = branch.tenant
         fmt = tenant.admission_no_format
         prefix = tenant.admission_no_prefix or ""
@@ -300,19 +302,20 @@ class Student(models.Model):
         else:
             base = f"{year_str}-{branch.branch_code}-" # Fallback
 
-        # GLOBAL SEARCH: Filter only by tenant to get the global sequence
-        last_student = Student.objects.filter(
-            tenant=tenant,
-            admission_number__startswith=base
-        ).order_by('-admission_number').first()
-        
-        seq = 1
-        if last_student:
-            import re
-            # Extract sequence from the end
-            match = re.search(r'(\d+)$', last_student.admission_number)
-            if match:
-                seq = int(match.group(1)) + 1
+        # GLOBAL SEARCH with row-level lock to prevent duplicate admission numbers
+        with transaction.atomic():
+            last_student = Student.objects.select_for_update().filter(
+                tenant=tenant,
+                admission_number__startswith=base
+            ).order_by('-admission_number').first()
+            
+            seq = 1
+            if last_student:
+                import re
+                # Extract sequence from the end
+                match = re.search(r'(\d+)$', last_student.admission_number)
+                if match:
+                    seq = int(match.group(1)) + 1
         
         return f"{base}{seq:03d}"
 

@@ -84,3 +84,14 @@ class AcademicYear(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.tenant.name})"
+
+class GlobalSetting(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    key = models.CharField(max_length=100, unique=True)
+    value = models.TextField(blank=True) # Storing as text, frontend can parse as JSON if needed
+    description = models.TextField(blank=True)
+    is_public = models.BooleanField(default=False) # If true, endpoint returns this setting without auth
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.key

@@ -10,7 +10,15 @@ const api = axios.create({
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Automatically unwrap DRF global pagination to transparently return the array
+    if (response.data && typeof response.data === 'object') {
+      if (response.data.results !== undefined && response.data.count !== undefined) {
+        response.data = response.data.results;
+      }
+    }
+    return response;
+  },
   async (error) => {
     // If 401, we might want to trigger a refresh logic here or redirect to login.
     const originalRequest = error.config;

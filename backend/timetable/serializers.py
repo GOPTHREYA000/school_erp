@@ -10,6 +10,12 @@ class PeriodSerializer(serializers.ModelSerializer):
 
 
 class SubjectSerializer(serializers.ModelSerializer):
+    branch = serializers.PrimaryKeyRelatedField(
+        queryset=Subject._meta.get_field('branch').remote_field.model.objects.all(), 
+        required=False, 
+        allow_null=True
+    )
+
     class Meta:
         model = Subject
         fields = '__all__'

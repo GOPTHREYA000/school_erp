@@ -15,8 +15,16 @@ export function useApi<T>(url: string | null, deps: any[] = []) {
     try {
       const res = await api.get(url);
       // Backend wraps responses as { success: true, data: <payload> }
+      // Or paginated list { count: ..., next: ..., previous: ..., results: [...] }
       // Unwrap automatically; fall back to raw data for non-wrapped endpoints
-      const payload = res.data?.data !== undefined ? res.data.data : res.data;
+      let payload;
+      if (res.data?.data !== undefined) {
+        payload = res.data.data;
+      } else if (res.data?.results !== undefined) {
+        payload = res.data.results;
+      } else {
+        payload = res.data;
+      }
       setData(payload);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Something went wrong');

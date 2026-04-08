@@ -36,15 +36,42 @@ class SubjectViewSet(viewsets.ModelViewSet):
             qs = qs.filter(branch_id=branch)
         return qs
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        branch = serializer.validated_data.get('branch')
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         
-        # If user is tied to a specific branch, force it
-        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+        branch = serializer.validated_data.get('branch')
+        user = request.user
+        
+        # Determine if "All Branches" was requested
+        # (branch is null and user is School Admin or above)
+        if not branch and user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN']:
+            branches = user.tenant.branches.filter(is_active=True)
+            subjects = []
+            for b in branches:
+                subjects.append(Subject(
+                    tenant=user.tenant,
+                    branch=b,
+                    name=serializer.validated_data['name'],
+                    code=serializer.validated_data.get('code', ''),
+                    grade_levels=serializer.validated_data.get('grade_levels', []),
+                    is_active=serializer.validated_data.get('is_active', True)
+                ))
+            
+            if subjects:
+                Subject.objects.bulk_create(subjects)
+                return Response({
+                    "success": True, 
+                    "message": f"Subject created for {len(subjects)} branches.",
+                    "data": SubjectSerializer(subjects[0]).data # Return first as sample
+                }, status=201)
+        
+        # Default behavior: single branch
+        if not branch and user.branch:
             branch = user.branch
-
-        serializer.save(tenant=user.tenant, branch=branch)
+            
+        instance = serializer.save(tenant=user.tenant, branch=branch)
+        return Response({"success": True, "data": SubjectSerializer(instance).data}, status=201)
 
 
 class TimetableSlotViewSet(viewsets.ModelViewSet):

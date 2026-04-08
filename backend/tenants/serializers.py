@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from .models import Tenant, Branch, AcademicYear
+from .models import Tenant, Branch, AcademicYear, GlobalSetting
+
+class GlobalSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GlobalSetting
+        fields = ['id', 'key', 'value', 'description', 'is_public', 'updated_at']
+        read_only_fields = ['id', 'updated_at']
 
 class TenantSerializer(serializers.ModelSerializer):
     class Meta:

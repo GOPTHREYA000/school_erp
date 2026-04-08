@@ -1,16 +1,86 @@
-# React + Vite
+# School ERP SaaS Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, multi-tenant School ERP system built with **Django (Backend)** and **Next.js (Frontend)**.
 
-Currently, two official plugins are available:
+## 🚀 Quick Start (Zero-to-Hero)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+If you are a new developer, follow these steps to get the project running locally with pre-configured demo data.
 
-## React Compiler
+### 1. Prerequisite
+Ensure you have the following installed:
+- **Python 3.10+**
+- **Node.js 20+** (NPM)
+- **Git**
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 2. Automatic Setup (Recommended)
+Run the following script from the root directory. It will set up your virtual environment, install dependencies, run migrations, and seed the demo data.
 
-## Expanding the ESLint configuration
+```bash
+chmod +x dev-setup.sh
+./dev-setup.sh
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 3. Manual Startup
+After setup, you can start the servers in separate terminals:
+
+**Backend:**
+```bash
+cd backend
+source venv/bin/activate
+python manage.py runserver
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+
+---
+
+## 🔑 Demo Credentials
+
+Use these credentials to explore the platform after running the setup script.
+
+| Role | Email | Password | Scope |
+| :--- | :--- | :--- | :--- |
+| **School Admin**| `school_admin@demo.com`| `password123` | Multi-branch Management |
+| **Branch Admin**| `branch_admin@demo.com`| `password123` | Single Branch Operations |
+
+---
+
+## 🏗️ Tech Stack
+
+### Backend
+- **Framework**: Django 4.2 + Django Rest Framework (DRF)
+- **Auth**: JWT (SimpleJWT) via HTTP-only Cookies
+- **Database**: PostgreSQL (Prod) / SQLite (Dev)
+- **Multi-tenancy**: Custom middleware-based isolation
+
+### Frontend
+- **Framework**: Next.js 16.2 (App Router)
+- **Styling**: Tailwind CSS 4.0
+- **State**: Global `AuthProvider` (React Context)
+- **Icons**: Lucide React
+- **Animations**: Framer Motion
+
+---
+
+## 📂 Project Structure
+
+- `backend/`: Django project files, apps, and logic.
+- `frontend/`: Next.js application, components, and assets.
+- `docs/`: Technical documentation and PRDs.
+- `dev-setup.sh`: One-click environment preparation script.
+
+---
+
+## 🛠️ Contribution
+1. Create a feature branch.
+2. Ensure `npm run build` passes before submitting a PR.
+3. Update migrations if you change models.
+
+---
+
+## 📞 Support
+For internal developer support, please contact the product owner directly.

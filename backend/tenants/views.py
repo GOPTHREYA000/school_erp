@@ -1,9 +1,10 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from accounts.permissions import IsSchoolAdminOrAbove, IsSuperAdmin
-from .models import Tenant, Branch, AcademicYear
+from .models import Tenant, Branch, AcademicYear, GlobalSetting
+from .serializers import TenantSerializer, BranchSerializer, AcademicYearSerializer, GlobalSettingSerializer
 from .serializers import TenantSerializer, BranchSerializer, AcademicYearSerializer
 from fees.models import FeeCategory, FeeStructure, FeeStructureItem
 from students.models import ClassSection
@@ -217,3 +218,38 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
             'sections_cloned': cloned_sections,
             'structures_cloned': cloned_structures
         })
+
+class SuperAdminTenantViewSet(viewsets.ModelViewSet):
+    """
+    Dedicated viewset for SUPER_ADMIN to manage all tenants.
+    """
+    serializer_class = TenantSerializer
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    queryset = Tenant.objects.all()
+
+    @action(detail=True, methods=['patch'], url_path='toggle-status')
+    def toggle_status(self, request, pk=None):
+        tenant = self.get_object()
+        tenant.is_active = not tenant.is_active
+        tenant.save()
+        return Response({'success': True, 'is_active': tenant.is_active})
+
+class GlobalSettingViewSet(viewsets.ModelViewSet):
+    """
+    Manage global system settings.
+    GET is public if the setting is_public.
+    POST/PATCH requires SUPER_ADMIN.
+    """
+    serializer_class = GlobalSettingSerializer
+    queryset = GlobalSetting.objects.all()
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAuthenticated(), IsSuperAdmin()]
+        
+    def get_queryset(self):
+        if self.request.user.is_authenticated and getattr(self.request.user, 'role', '') == 'SUPER_ADMIN':
+            return GlobalSetting.objects.all()
+        return GlobalSetting.objects.filter(is_public=True)
+

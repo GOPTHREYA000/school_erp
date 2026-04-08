@@ -1,14 +1,17 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import LoginView, RefreshView, LogoutView, MeView, UserViewSet, ChangePasswordView
+from .views import LoginView, RefreshView, LogoutView, MeView, UserViewSet, ChangePasswordView, SuperAdminAuditLogViewSet, ImpersonateView
 from . import parent_views
+from . import teacher_views
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
+router.register(r'super-admin/audit-logs', SuperAdminAuditLogViewSet, basename='super-admin-audit-logs')
 
 urlpatterns = [
     path('', include(router.urls)),
     path('auth/login/', LoginView.as_view(), name='auth_login'),
+    path('auth/impersonate/', ImpersonateView.as_view(), name='auth_impersonate'),
     path('auth/refresh/', RefreshView.as_view(), name='auth_refresh'),
     path('auth/logout/', LogoutView.as_view(), name='auth_logout'),
     path('auth/me/', MeView.as_view(), name='auth_me'),
@@ -21,4 +24,6 @@ urlpatterns = [
     path('parent/children/<uuid:student_id>/homework/', parent_views.parent_child_homework, name='parent_child_homework'),
     path('parent/children/<uuid:student_id>/timetable/', parent_views.parent_child_timetable, name='parent_child_timetable'),
     path('parent/announcements/', parent_views.parent_announcements, name='parent_announcements'),
+    # Teacher Portal
+    path('teacher/dashboard/', teacher_views.teacher_dashboard, name='teacher_dashboard'),
 ]

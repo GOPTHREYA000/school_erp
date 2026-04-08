@@ -12,6 +12,7 @@ from decimal import Decimal
 logger = logging.getLogger(__name__)
 
 from accounts.permissions import IsSchoolAdminOrAbove
+from accounts.utils import get_validated_branch_id, get_active_academic_year, log_audit_action
 from students.models import Student, ClassSection
 from .models import (
     FeeCategory, FeeStructure, FeeStructureItem, StudentWallet,
@@ -35,9 +36,9 @@ class FeeCategoryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = FeeCategory.objects.filter(branch__tenant=self.request.user.tenant)
-        branch = self.request.query_params.get('branch') or self.request.query_params.get('branch_id')
-        if branch:
-            qs = qs.filter(branch_id=branch)
+        branch_id = get_validated_branch_id(self.request.user, self.request.query_params.get('branch') or self.request.query_params.get('branch_id'))
+        if branch_id:
+            qs = qs.filter(branch_id=branch_id)
         return qs
 
     def perform_create(self, serializer):
@@ -108,9 +109,14 @@ class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'SUPER_ADMIN':
-            return FeeApprovalRequest.objects.all()
-        return FeeApprovalRequest.objects.filter(tenant=user.tenant)
+        qs = FeeApprovalRequest.objects.filter(tenant=user.tenant)
+        branch_id = get_validated_branch_id(user, self.request.query_params.get('branch_id'))
+        if branch_id:
+            qs = qs.filter(branch_id=branch_id)
+        stat = self.request.query_params.get('status')
+        if stat:
+            qs = qs.filter(status=stat)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(
@@ -184,10 +190,11 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'SUPER_ADMIN':
-            qs = FeeInvoice.objects.all().select_related('student')
-        else:
-            qs = FeeInvoice.objects.filter(branch__tenant=user.tenant).select_related('student')
+        qs = FeeInvoice.objects.filter(branch__tenant=user.tenant).select_related('student')
+        # Branch isolation
+        branch_id = get_validated_branch_id(user, self.request.query_params.get('branch_id'))
+        if branch_id:
+            qs = qs.filter(branch_id=branch_id)
         status_filter = self.request.query_params.get('status')
         student = self.request.query_params.get('student_id')
         month = self.request.query_params.get('month')
@@ -253,6 +260,33 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         invoice.save()
         return Response({'success': True, 'data': FeeInvoiceSerializer(invoice).data})
 
+    @action(detail=False, methods=['post'], url_path='bulk-remind')
+    def bulk_remind(self, request):
+        """Send fee reminders to selected invoices."""
+        invoice_ids = request.data.get('invoice_ids', [])
+        if not invoice_ids:
+            return Response({'detail': 'No invoices selected.'}, status=400)
+
+        invoices = FeeInvoice.objects.filter(
+            id__in=invoice_ids,
+            branch__tenant=request.user.tenant,
+            status__in=['SENT', 'OVERDUE', 'PARTIALLY_PAID']
+        ).select_related('student')
+
+        reminded = 0
+        for inv in invoices:
+            # TODO: Integrate with notification system (SMS/WhatsApp/Email)
+            reminded += 1
+            logger.info(f"Fee reminder queued for {inv.student.first_name} {inv.student.last_name} - Invoice {inv.invoice_number}")
+
+        return Response({
+            'success': True,
+            'data': {
+                'reminded': reminded,
+                'message': f'{reminded} reminder(s) queued successfully.'
+            }
+        })
+
     @action(detail=False, methods=['get'], url_path='defaulters')
     def defaulters(self, request):
         aging = request.query_params.get('aging', '30')
@@ -272,20 +306,27 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         else:
             filters &= Q(due_date__lt=today) # Default: all overdue
             
-        overdue_invoices = FeeInvoice.objects.filter(filters).select_related(
-            'student', 'student__class_section'
-        ).order_by('due_date')
+        overdue_invoices = list(FeeInvoice.objects.filter(filters).values(
+            'student__id',
+            'student__first_name',
+            'student__last_name',
+            'student__admission_number',
+            'student__class_section__grade',
+            'outstanding_amount',
+            'due_date',
+            'invoice_number'
+        ).order_by('due_date'))
 
-        # 2. Map results (Very efficient as filtering happened in DB)
+        # 2. Map results (Highly efficient without object instantiation)
         records = [{
-            'student_id': str(inv.student.id),
-            'student_name': f"{inv.student.first_name} {inv.student.last_name}",
-            'admission_number': inv.student.admission_number,
-            'grade': inv.student.class_section.grade if inv.student.class_section else None,
-            'outstanding_amount': str(inv.outstanding_amount),
-            'overdue_since': str(inv.due_date),
-            'days_overdue': (today - inv.due_date).days,
-            'invoice_number': inv.invoice_number,
+            'student_id': str(inv['student__id']),
+            'student_name': f"{inv['student__first_name']} {inv['student__last_name']}",
+            'admission_number': inv['student__admission_number'],
+            'grade': inv['student__class_section__grade'],
+            'outstanding_amount': str(inv['outstanding_amount']),
+            'overdue_since': str(inv['due_date']),
+            'days_overdue': (today - inv['due_date']).days,
+            'invoice_number': inv['invoice_number'],
         } for inv in overdue_invoices]
 
         total_outstanding = sum(Decimal(r['outstanding_amount']) for r in records)
@@ -303,7 +344,11 @@ class PaymentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
 
     def get_queryset(self):
-        return Payment.objects.filter(branch__tenant=self.request.user.tenant).select_related('student', 'invoice')
+        qs = Payment.objects.filter(branch__tenant=self.request.user.tenant).select_related('student', 'invoice')
+        branch_id = get_validated_branch_id(self.request.user, self.request.query_params.get('branch_id'))
+        if branch_id:
+            qs = qs.filter(branch_id=branch_id)
+        return qs
 
     @transaction.atomic
     @action(detail=False, methods=['post'], url_path='offline')
@@ -332,9 +377,13 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 'detail': f'Amount exceeds outstanding balance of ₹{invoice.outstanding_amount}'
             }, status=400)
 
-        # Create payment
-        seq = Payment.objects.filter(branch=invoice.branch).count() + 1
-        receipt_number = f"RCP-{timezone.now().strftime('%Y%m')}-{seq:04d}"
+        # Create payment safely
+        from .models import DocumentSequence
+        receipt_number = DocumentSequence.get_next_sequence(
+            branch=invoice.branch,
+            document_type='RECEIPT',
+            prefix=f"RCP-{timezone.now().strftime('%Y%m')}"
+        )
 
         payment = Payment.objects.create(
             tenant=invoice.tenant,
@@ -363,22 +412,33 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 invoice.status = 'PARTIALLY_PAID'
             invoice.save()
 
-            # Create TransactionLog INCOME entry
-            try:
-                from expenses.models import TransactionLog
-                TransactionLog.objects.create(
-                    tenant=invoice.tenant,
-                    branch=invoice.branch,
-                    transaction_type='INCOME',
-                    category='Fee Payment',
-                    reference_model='Payment',
-                    reference_id=payment.id,
-                    amount=amount,
-                    description=f"Payment for {invoice.invoice_number}",
-                    transaction_date=data['payment_date'],
-                )
-            except Exception as e:
-                logger.error(f"Failed to create TransactionLog for payment {payment.id}: {e}")
+            # Create TransactionLog INCOME entry — NO try/except!
+            # If this fails, @transaction.atomic rolls back the payment too,
+            # guaranteeing ledger consistency.
+            from expenses.models import TransactionLog
+            TransactionLog.objects.create(
+                tenant=invoice.tenant,
+                branch=invoice.branch,
+                transaction_type='INCOME',
+                category='Fee Payment',
+                reference_model='Payment',
+                reference_id=payment.id,
+                amount=amount,
+                description=f"Payment for {invoice.invoice_number}",
+                transaction_date=data['payment_date'],
+            )
+
+            log_audit_action(
+                user=request.user,
+                action='CREATE_OFFLINE_PAYMENT',
+                model_name='Payment',
+                record_id=payment.id,
+                details={
+                    'invoice_number': invoice.invoice_number,
+                    'amount': float(amount),
+                    'receipt_number': receipt_number
+                }
+            )
 
         return Response({
             'success': True,
@@ -405,3 +465,69 @@ class PaymentViewSet(viewsets.ModelViewSet):
         )
         
         return Response({'success': True, 'data': result}, status=status.HTTP_201_CREATED)
+
+    @transaction.atomic
+    @action(detail=True, methods=['post'], url_path='reverse')
+    def reverse_payment(self, request, pk=None):
+        """Reverse a completed payment — updates invoice and creates negative ledger entry."""
+        reason = request.data.get('reason', '')
+        if not reason:
+            return Response({'detail': 'Reversal reason is required.'}, status=400)
+
+        try:
+            payment = Payment.objects.select_for_update().get(id=pk)
+        except Payment.DoesNotExist:
+            return Response({'detail': 'Payment not found.'}, status=404)
+
+        if payment.status != 'COMPLETED':
+            return Response({'detail': f'Only completed payments can be reversed. Current status: {payment.status}'}, status=400)
+
+        # Lock and update the invoice
+        invoice = FeeInvoice.objects.select_for_update().get(id=payment.invoice_id)
+
+        invoice.paid_amount = max(invoice.paid_amount - payment.amount, Decimal('0.00'))
+        invoice.outstanding_amount = invoice.net_amount - invoice.paid_amount
+        if invoice.paid_amount > 0:
+            invoice.status = 'PARTIALLY_PAID'
+        else:
+            invoice.status = 'SENT'
+        invoice.save()
+
+        # Mark payment as refunded
+        payment.status = 'REFUNDED'
+        payment.save()
+
+        # Create a negative ledger entry for the reversal
+        from expenses.models import TransactionLog
+        TransactionLog.objects.create(
+            tenant=payment.tenant,
+            branch=payment.branch,
+            transaction_type='INCOME',
+            category='Fee Reversal',
+            reference_model='Payment',
+            reference_id=payment.id,
+            amount=-payment.amount,  # Negative entry
+            description=f"Reversal: {reason} (Receipt: {payment.receipt_number})",
+            transaction_date=timezone.now().date(),
+        )
+
+        log_audit_action(
+            user=request.user,
+            action='REVERSE_PAYMENT',
+            model_name='Payment',
+            record_id=payment.id,
+            details={
+                'reason': reason,
+                'amount': float(payment.amount),
+                'receipt_number': payment.receipt_number,
+                'invoice_number': invoice.invoice_number
+            }
+        )
+
+        logger.info(f"Payment {payment.receipt_number} reversed by {request.user.email}. Reason: {reason}")
+
+        return Response({
+            'success': True, 
+            'message': f'Payment {payment.receipt_number} reversed successfully.',
+            'data': PaymentSerializer(payment).data
+        })

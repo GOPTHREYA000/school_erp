@@ -15,6 +15,9 @@ class StaffViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.role == 'SUPER_ADMIN':
+            # Scope to tenant if one is assigned, otherwise show all
+            if user.tenant:
+                return TeacherProfile.objects.filter(tenant=user.tenant)
             return TeacherProfile.objects.all()
         # Non-super admins only see teachers in their tenant
         qs = TeacherProfile.objects.filter(tenant=user.tenant)

@@ -27,6 +27,49 @@ GENERATED_BY = [("AUTO", "Auto"), ("MANUAL", "Manual")]
 WALLET_TX_TYPE = [("CREDIT", "Credit"), ("DEBIT", "Debit")]
 
 
+# ─── DocumentSequence (Safe Number Generation) ─────────────────
+class DocumentSequence(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE)
+    branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE)
+    document_type = models.CharField(max_length=20) # 'RECEIPT', 'INVOICE'
+    prefix = models.CharField(max_length=20) # e.g., 'RCP-202403'
+    last_sequence = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['branch', 'document_type', 'prefix']
+
+    @classmethod
+    def get_next_sequence(cls, branch, document_type, prefix):
+        """Generates a safe sequence with atomic row lock."""
+        from django.db import transaction
+        with transaction.atomic():
+            seq, created = cls.objects.select_for_update().get_or_create(
+                tenant=branch.tenant,
+                branch=branch,
+                document_type=document_type,
+                prefix=prefix,
+                defaults={'last_sequence': 0}
+            )
+            
+            if created:
+                # If newly created, attempt to synchronize with existing highest number
+                # by looking at existing payments/invoices to prevent constraint errors
+                if document_type == 'RECEIPT':
+                    from .models import Payment
+                    count = Payment.objects.filter(branch=branch, receipt_number__startswith=prefix).count()
+                    seq.last_sequence = count
+                elif document_type == 'INVOICE':
+                    from .models import FeeInvoice
+                    count = FeeInvoice.objects.filter(branch=branch, invoice_number__startswith=prefix).count()
+                    seq.last_sequence = count
+
+            seq.last_sequence += 1
+            seq.save()
+            return f"{prefix}-{seq.last_sequence:04d}"
+
+
 # ─── FeeCategory ────────────────────────────────────────────────
 class FeeCategory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -228,12 +271,17 @@ class Payment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Preventing Double Processing
+    idempotency_key = models.CharField(max_length=255, blank=True, null=True, help_text="Ensures exactly-once payment processing.")
+
     class Meta:
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['invoice', 'status']),
             models.Index(fields=['branch', 'payment_date']),
+            models.Index(fields=['idempotency_key']),
         ]
+        unique_together = [['tenant', 'idempotency_key']]
         constraints = [
             models.UniqueConstraint(
                 fields=['razorpay_payment_id'],

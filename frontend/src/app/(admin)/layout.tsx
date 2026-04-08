@@ -1,39 +1,154 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, BookOpen, ClipboardCheck, Calendar, Receipt, TrendingDown, TrendingUp, PenTool, Megaphone, Shield, LogOut } from 'lucide-react';
 import api from '@/lib/axios';
+import { AuthProvider, useAuth } from '@/components/common/AuthProvider';
+import { BranchProvider } from '@/components/common/BranchContext';
+import GlobalBranchSelector from '@/components/common/GlobalBranchSelector';
+import CommandPalette from '@/components/common/CommandPalette';
+import ErrorBoundary from '@/components/common/ErrorBoundary';
+import NotificationBell from '@/components/common/NotificationBell';
+import { 
+  LayoutDashboard, Users, BookOpen, ClipboardCheck, 
+  Calendar, Receipt, TrendingDown, TrendingUp, PenTool, 
+  Megaphone, Shield, LogOut, Settings, Building2, Search,
+  Menu, X, Bell
+} from 'lucide-react';
 
-const allNavItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/users', label: 'Users', icon: Shield, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
-  { href: '/students', label: 'Students', icon: Users },
-  { href: '/teachers', label: 'Teachers', icon: Users, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
-  { href: '/classes', label: 'Classes', icon: BookOpen },
-  { href: '/attendance', label: 'Attendance', icon: ClipboardCheck },
-  { href: '/timetable', label: 'Timetable', icon: Calendar },
-  { href: '/fees', label: 'Fees', icon: Receipt },
-  { href: '/expenses', label: 'Expenses', icon: TrendingDown },
-  { href: '/homework', label: 'Homework', icon: PenTool },
-  { href: '/announcements', label: 'Announcements', icon: Megaphone },
-  { href: '/reports/financial', label: 'Financial Reports', icon: TrendingUp, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
-  { href: '/reports/fees', label: 'Fee Reports', icon: Receipt, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
-  { href: '/reports/attendance', label: 'Attendance Reports', icon: ClipboardCheck, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN', 'TEACHER'] },
-  { href: '/setup', label: 'Setup', icon: Shield, roles: ['SUPER_ADMIN', 'SCHOOL_ADMIN'] },
-];
+const getNavGroups = (role: string) => {
+  switch (role) {
+    case 'SUPER_ADMIN':
+      return [
+        {
+          group: 'Platform',
+          items: [
+            { href: '/dashboard', label: 'Global Overview', icon: LayoutDashboard },
+            { href: '/tenants', label: 'Tenant Control', icon: Shield },
+            { href: '/users', label: 'Global Users', icon: Users },
+            { href: '/audit-logs', label: 'System Ledger', icon: ClipboardCheck },
+            { href: '/system-settings', label: 'System Settings', icon: Settings },
+          ]
+        }
+      ];
+    case 'SCHOOL_ADMIN':
+      return [
+        {
+          group: 'Analytics',
+          items: [
+            { href: '/dashboard', label: 'School Analytics', icon: LayoutDashboard },
+            { href: '/reports/financial', label: 'Financial Analytics', icon: TrendingUp },
+          ]
+        },
+        {
+          group: 'Directories',
+          items: [
+            { href: '/users', label: 'Global Staff', icon: Shield },
+            { href: '/teachers', label: 'All Teachers', icon: Users },
+            { href: '/students', label: 'All Students', icon: Users },
+          ]
+        },
+        {
+          group: 'Configuration',
+          items: [
+            { href: '/setup', label: 'School Settings', icon: Settings },
+          ]
+        },
+        {
+          group: 'Communicate',
+          items: [
+            { href: '/notifications/send', label: 'Push Notifications', icon: Bell },
+          ]
+        }
+      ];
+    case 'BRANCH_ADMIN':
+    case 'ACCOUNTANT':
+      return [
+        {
+          group: 'Overview',
+          items: [
+            { href: '/dashboard', label: 'Branch Dashboard', icon: LayoutDashboard },
+          ]
+        },
+        {
+          group: 'Operations',
+          items: [
+            { href: '/students', label: 'Students', icon: Users },
+            { href: '/teachers', label: 'Staff Directory', icon: Users },
+          ]
+        },
+        {
+          group: 'Finance',
+          items: [
+            { href: '/fees', label: 'Fee Collection', icon: Receipt },
+            { href: '/expenses', label: 'Expenses & Approvals', icon: TrendingDown },
+          ]
+        },
+        {
+          group: 'Academics',
+          items: [
+            { href: '/classes', label: 'Classes', icon: BookOpen },
+            { href: '/attendance', label: 'Attendance Overview', icon: ClipboardCheck },
+            { href: '/timetable', label: 'Timetable', icon: Calendar },
+          ]
+        },
+        {
+          group: 'Communicate',
+          items: [
+            { href: '/announcements', label: 'Announcements', icon: Megaphone },
+            { href: '/notifications/send', label: 'Push Notifications', icon: Bell },
+          ]
+        }
+      ];
+    case 'TEACHER':
+      return [
+        {
+          group: 'Overview',
+          items: [
+            { href: '/dashboard', label: 'My Dashboard', icon: LayoutDashboard },
+          ]
+        },
+        {
+          group: 'Classroom',
+          items: [
+            { href: '/attendance', label: 'My Classes', icon: BookOpen },
+            { href: '/homework', label: 'Homework', icon: PenTool },
+            { href: '/timetable', label: 'My Timetable', icon: Calendar },
+          ]
+        },
+        {
+          group: 'Communicate',
+          items: [
+            { href: '/announcements', label: 'Notices', icon: Megaphone },
+          ]
+        }
+      ];
+    case 'PARENT':
+      return [
+        {
+          group: 'My Children',
+          items: [
+            { href: '/dashboard', label: 'Family Dashboard', icon: LayoutDashboard },
+          ]
+        },
+        {
+          group: 'Communicate',
+          items: [
+            { href: '/announcements', label: 'Notices', icon: Megaphone },
+          ]
+        }
+      ];
+    default:
+      return [];
+  }
+};
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    api.get('auth/me/')
-      .then(res => setUser(res.data.data))
-      .catch(err => console.error("Failed to load user profile in layout", err));
-  }, []);
+  const { user, loading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -41,79 +156,184 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.push('/login');
     } catch (err) {
       console.error("Logout failed", err);
-      // Force redirect anyway
       router.push('/login');
     }
   };
 
-  const navItems = allNavItems.filter(item => {
-    if (item.roles) {
-      return item.roles.includes(user?.role);
-    }
-    return true;
-  });
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-slate-500 font-medium animate-pulse">Initializing Portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const navGroups = user?.role ? getNavGroups(user.role) : [];
 
   return (
-    <div className="flex h-screen bg-gray-50 text-gray-900">
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white flex-col hidden md:flex">
-        <div className="h-16 flex items-center px-6 border-b border-white/10 overflow-hidden">
-          {user?.tenant_logo ? (
-            <div className="flex items-center justify-center w-full">
-              <img src={user.tenant_logo} alt="Logo" className="h-10 w-auto object-contain" />
-            </div>
-          ) : (
-            <h1 className="text-xl font-bold font-sans tracking-tight truncate">{user?.tenant_name || 'ScoolERP'}</h1>
-          )}
-        </div>
-        <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-1">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
-            return (
-              <Link key={href} href={href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  active ? 'bg-white/15 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                }`}>
-                <Icon size={18} />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="p-4 border-t border-white/10 space-y-3">
-          <div className="flex items-center gap-3 px-3">
-            <Link href="/profile" className="flex items-center gap-3 flex-1 min-w-0 group hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-sm font-bold group-hover:ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-900 transition-all">
-                {user?.first_name?.charAt(0) || 'U'}
+    <BranchProvider>
+      <CommandPalette />
+      <div className="flex h-screen bg-gray-50 text-gray-900">
+        {/* Mobile Sidebar Overlay */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-40 md:hidden">
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+            <aside className="fixed inset-y-0 left-0 w-72 bg-slate-900 text-white flex flex-col z-50 shadow-2xl animate-in slide-in-from-left duration-300">
+              <div className="h-16 flex items-center justify-between px-6 border-b border-white/10 flex-shrink-0">
+                <h1 className="text-xl font-bold font-sans tracking-tight truncate">{user?.tenant_name || 'ScoolERP'}</h1>
+                <button onClick={() => setSidebarOpen(false)} className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors">
+                  <X size={20} />
+                </button>
               </div>
-              <div className="flex-1 min-w-0 text-sm truncate">
-                <p className="font-medium text-white truncate">{user?.first_name} {user?.last_name}</p>
-                <p className="text-slate-400 text-xs truncate">{user?.role?.replace('_', ' ') || 'Loading...'}</p>
+              <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6 scrollbar-hide">
+                {navGroups.map((group, groupIndex) => (
+                  <div key={groupIndex} className="space-y-1">
+                    <h3 className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">{group.group}</h3>
+                    {group.items.map(({ href, label, icon: Icon }) => {
+                      const active = pathname === href || pathname.startsWith(`${href}/`);
+                      return (
+                        <Link key={href} href={href} onClick={() => setSidebarOpen(false)}
+                          className={`flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                            active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                          }`}>
+                          <Icon size={18} />{label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ))}
+              </nav>
+              <div className="p-4 border-t border-white/10 flex-shrink-0">
+                <div className="flex items-center gap-3 px-3">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-sm font-bold shadow-inner">
+                    {user?.first_name?.charAt(0) || 'U'}
+                  </div>
+                  <div className="flex-1 min-w-0 text-sm">
+                    <p className="font-medium text-white truncate">{user?.first_name} {user?.last_name}</p>
+                    <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider truncate">{user?.role?.replace('_', ' ')}</p>
+                  </div>
+                  <button onClick={handleLogout} className="p-1.5 text-slate-400 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-colors" title="Log out">
+                    <LogOut size={16} />
+                  </button>
+                </div>
               </div>
-            </Link>
-            <button 
-              onClick={handleLogout}
-              className="p-1.5 text-slate-400 hover:bg-white/10 hover:text-white rounded-lg transition-colors ml-auto"
-              title="Log out"
-            >
-              <LogOut size={16} />
-            </button>
+            </aside>
           </div>
-        </div>
-      </aside>
+        )}
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-white border-b flex items-center px-6 justify-between flex-shrink-0">
-          <div className="font-semibold text-lg capitalize">
-            {pathname.replace('/', '').replace('-', ' ') || 'Dashboard'}
+        {/* Desktop Sidebar */}
+        <aside className="w-64 bg-slate-900 text-white flex-col hidden md:flex overflow-hidden">
+          <div className="h-16 flex items-center px-6 border-b border-white/10 flex-shrink-0">
+            {user?.tenant_logo ? (
+              <div className="flex items-center justify-center w-full">
+                <img src={user.tenant_logo} alt="Logo" className="h-10 w-auto object-contain" />
+              </div>
+            ) : (
+              <h1 className="text-xl font-bold font-sans tracking-tight truncate">{user?.tenant_name || 'ScoolERP'}</h1>
+            )}
           </div>
-        </header>
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
-        </main>
+          
+          <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6 scrollbar-hide">
+            {navGroups.map((group, groupIndex) => (
+              <div key={groupIndex} className="space-y-1">
+                <h3 className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  {group.group}
+                </h3>
+                {group.items.map(({ href, label, icon: Icon }) => {
+                  const active = pathname === href || pathname.startsWith(`${href}/`);
+                  return (
+                    <Link key={href} href={href}
+                      className={`flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                        active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                      }`}>
+                      <Icon size={18} />
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+
+          <div className="p-4 border-t border-white/10 space-y-3 flex-shrink-0">
+            <div className="flex items-center gap-3 px-3">
+              <Link href="/profile" className="flex items-center gap-3 flex-1 min-w-0 group hover:opacity-80 transition-opacity">
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-sm font-bold group-hover:ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-900 transition-all shadow-inner">
+                  {user?.first_name?.charAt(0) || 'U'}
+                </div>
+                <div className="flex-1 min-w-0 text-sm truncate">
+                  <p className="font-medium text-white truncate">{user?.first_name} {user?.last_name}</p>
+                  <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider truncate">{user?.role?.replace('_', ' ') || 'Loading...'}</p>
+                </div>
+              </Link>
+              <button 
+                onClick={handleLogout}
+                className="p-1.5 text-slate-400 hover:bg-red-500/20 hover:text-red-400 rounded-lg transition-colors ml-auto"
+                title="Log out"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <header className="h-16 bg-white border-b flex items-center px-6 justify-between flex-shrink-0">
+            <div className="flex items-center gap-4">
+              {/* Mobile hamburger */}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors md:hidden"
+                aria-label="Open menu"
+              >
+                <Menu size={20} />
+              </button>
+              <div className="font-semibold text-lg capitalize text-gray-800">
+                {pathname.split('/')[1]?.replace('-', ' ') || 'Dashboard'}
+              </div>
+              <GlobalBranchSelector user={user} />
+            </div>
+            <div className="flex items-center gap-4">
+               {/* Search Trigger */}
+               <div 
+                 onClick={() => {
+                   const e = new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true });
+                   window.dispatchEvent(e);
+                 }}
+                 className="flex items-center gap-3 bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 cursor-pointer hover:bg-slate-100 transition-all group"
+               >
+                  <Search size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                  <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-600 transition-colors hidden sm:block">Quick Search...</span>
+                  <div className="hidden lg:flex items-center gap-1 opacity-40 ml-2">
+                     <span className="text-[10px] font-black border rounded px-1">⌘</span>
+                     <span className="text-[10px] font-black border rounded px-1">K</span>
+                  </div>
+               </div>
+               {/* Universal Notification Bell */}
+               <NotificationBell />
+            </div>
+          </header>
+          <main className="flex-1 overflow-y-auto p-6 bg-slate-50">
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </main>
+        </div>
       </div>
-    </div>
+    </BranchProvider>
   );
 }
 
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <AdminLayoutContent>
+        {children}
+      </AdminLayoutContent>
+    </AuthProvider>
+  );
+}

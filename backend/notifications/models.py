@@ -7,9 +7,9 @@ NOTIFICATION_EVENTS = [
     ("PAYMENT_OVERDUE", "Payment Overdue"), ("ABSENCE_ALERT", "Absence Alert"),
     ("ANNOUNCEMENT_PUBLISHED", "Announcement Published"), ("HOMEWORK_POSTED", "Homework Posted"),
     ("PASSWORD_RESET", "Password Reset"), ("WELCOME_ENROLLMENT", "Welcome Enrollment"),
-    ("FEE_REMINDER_3DAYS", "Fee Reminder 3 Days"),
+    ("FEE_REMINDER_3DAYS", "Fee Reminder 3 Days"), ("CUSTOM_ANNOUNCEMENT", "Custom Announcement"),
 ]
-CHANNEL_CHOICES = [("SMS", "SMS"), ("EMAIL", "Email"), ("PUSH", "Push"), ("WHATSAPP", "WhatsApp")]
+CHANNEL_CHOICES = [("SMS", "SMS"), ("EMAIL", "Email"), ("PUSH", "Push"), ("WHATSAPP", "WhatsApp"), ("IN_APP", "In-App")]
 LOG_STATUS = [("QUEUED", "Queued"), ("SENT", "Sent"), ("DELIVERED", "Delivered"), ("FAILED", "Failed")]
 
 
@@ -53,6 +53,7 @@ class NotificationLog(models.Model):
     attempts = models.PositiveIntegerField(default=0)
     sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['-created_at']

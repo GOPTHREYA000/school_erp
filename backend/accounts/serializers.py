@@ -1,5 +1,15 @@
 from rest_framework import serializers
-from .models import User
+from rest_framework import serializers
+from .models import User, AuditLog
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    user_email = serializers.CharField(source='user.email', read_only=True, default=None)
+    tenant_name = serializers.CharField(source='tenant.name', read_only=True, default=None)
+
+    class Meta:
+        model = AuditLog
+        fields = ['id', 'tenant', 'tenant_name', 'user', 'user_email', 'action', 'model_name', 'record_id', 'details', 'ip_address', 'created_at']
+
 
 class UserSerializer(serializers.ModelSerializer):
     branch_name = serializers.CharField(source='branch.name', read_only=True, default=None)

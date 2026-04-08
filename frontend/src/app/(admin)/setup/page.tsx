@@ -96,12 +96,12 @@ function SchoolSettings() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (tenant?.data) {
+    if (tenant) {
       setFormData({
-        name: tenant.data.name,
-        logo_url: tenant.data.logo_url || '',
-        admission_no_format: tenant.data.admission_no_format || 'YEAR_BRANCH_SEQ',
-        admission_no_prefix: tenant.data.admission_no_prefix || ''
+        name: tenant.name,
+        logo_url: tenant.logo_url || '',
+        admission_no_format: tenant.admission_no_format || 'YEAR_BRANCH_SEQ',
+        admission_no_prefix: tenant.admission_no_prefix || ''
       });
     }
   }, [tenant]);
@@ -753,13 +753,18 @@ function SubjectManager() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.code || !formData.branch) {
-      alert("All fields are required");
+    if (!formData.name || !formData.code) {
+      alert("Name and Code are required");
       return;
     }
     setSaving(true);
     try {
-      await api.post('subjects/', formData);
+      // If branch is "ALL", it means "All Branches" which the backend handles as null
+      const payload = { 
+        ...formData, 
+        branch: formData.branch === "ALL" ? null : formData.branch 
+      };
+      await api.post('subjects/', payload);
       setShowForm(false);
       setFormData({ name: '', code: '', branch: user?.branch_id || '' });
       refetch();
@@ -810,6 +815,7 @@ function SubjectManager() {
                 onChange={e => setFormData({...formData, branch: e.target.value})}
                 className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl text-sm focus:ring-4 focus:ring-blue-100 outline-none disabled:opacity-50">
                 <option value="">Select Branch</option>
+                {['SUPER_ADMIN', 'SCHOOL_ADMIN'].includes(user?.role) && <option value="ALL">--- All Branches ---</option>}
                 {branches?.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
