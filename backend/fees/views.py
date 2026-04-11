@@ -214,9 +214,21 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
 
         from .services import generate_monthly_invoices
         
+        # SCHOOL_ADMIN has branch=None; accept branch_id from request data
+        branch = request.user.branch
+        if not branch and data.get('branch_id'):
+            from tenants.models import Branch
+            try:
+                branch = Branch.objects.get(id=data['branch_id'], tenant=request.user.tenant)
+            except Branch.DoesNotExist:
+                return Response({'detail': 'Invalid branch_id.'}, status=400)
+        
+        if not branch:
+            return Response({'detail': 'branch_id is required for school-level admins.'}, status=400)
+
         result = generate_monthly_invoices(
             tenant=request.user.tenant,
-            branch=request.user.branch, # Assumes user has a branch
+            branch=branch,
             academic_year_id=data['academic_year_id'],
             month=data['month'],
             target=data['target'],

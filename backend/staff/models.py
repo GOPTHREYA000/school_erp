@@ -21,9 +21,8 @@ class TeacherProfile(models.Model):
             # Format: [Branch Code]-STAFF_[Counter] (e.g. KGS-STAFF_001)
             prefix = f"{self.branch.branch_code}-STAFF_"
             
-            # Count existing teachers for this branch to generate a sequence
+            # Count existing teachers with this prefix across all branches to guarantee sequence uniqueness
             last_staff = TeacherProfile.objects.filter(
-                branch=self.branch,
                 employee_id__startswith=prefix
             ).order_by('-employee_id').first()
             

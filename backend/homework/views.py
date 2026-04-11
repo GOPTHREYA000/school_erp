@@ -18,7 +18,40 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == 'TEACHER':
+            from staff.models import TeacherAssignment
+            cls_sec = serializer.validated_data.get('class_section')
+            subj = serializer.validated_data.get('subject')
+            if cls_sec and subj:
+                exists = TeacherAssignment.objects.filter(
+                    teacher__user=user, 
+                    class_section=cls_sec, 
+                    subject=subj
+                ).exists()
+                if not exists:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied('You are not assigned to teach this subject in this class.')
+                    
         serializer.save(tenant=self.request.user.tenant, posted_by=self.request.user)
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if user.role == 'TEACHER':
+            from staff.models import TeacherAssignment
+            # For update, fallback to existing instance values if not provided in request
+            cls_sec = serializer.validated_data.get('class_section', getattr(serializer.instance, 'class_section', None))
+            subj = serializer.validated_data.get('subject', getattr(serializer.instance, 'subject', None))
+            if cls_sec and subj:
+                exists = TeacherAssignment.objects.filter(
+                    teacher__user=user, 
+                    class_section=cls_sec, 
+                    subject=subj
+                ).exists()
+                if not exists:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied('You are not assigned to teach this subject in this class.')
+        serializer.save()
 
     @action(detail=True, methods=['get', 'post'], url_path='attachments')
     def attachments(self, request, pk=None):

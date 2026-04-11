@@ -76,7 +76,7 @@ def teacher_dashboard(request):
     try:
         from timetable.models import TimetableSlot, Period
         slots = TimetableSlot.objects.filter(
-            teacher=teacher_profile, day_of_week=day_of_week
+            teacher=user, day_of_week=day_of_week
         ).select_related('period', 'subject', 'class_section').order_by('period__order')
 
         for slot in slots:
@@ -95,7 +95,7 @@ def teacher_dashboard(request):
     try:
         from homework.models import Homework
         pending_homework = Homework.objects.filter(
-            created_by=user, due_date__gte=today
+            posted_by=user, due_date__gte=today
         ).count()
     except Exception as e:
         logger.warning(f"Homework query failed: {e}")

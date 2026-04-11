@@ -17,8 +17,9 @@ class IsParent(BasePermission):
 from students.models import Student, ParentStudentRelation
 from students.serializers import StudentSerializer
 from attendance.models import AttendanceRecord
-from fees.models import FeeInvoice
+from fees.models import FeeInvoice, StudentFeeItem, FeeApprovalRequest
 from fees.serializers import FeeInvoiceListSerializer
+from django.db.models import Sum
 from homework.models import Homework
 from homework.serializers import HomeworkSerializer
 from announcements.models import Announcement
@@ -37,15 +38,27 @@ def get_parent_student(user, student_id):
 @permission_classes([IsAuthenticated, IsParent])
 def parent_children(request):
     """GET /api/parent/children/ — list linked students"""
-    relations = ParentStudentRelation.objects.filter(parent=request.user).select_related('student', 'student__class_section')
+    relations = ParentStudentRelation.objects.filter(parent=request.user).select_related(
+        'student', 'student__class_section', 'student__branch'
+    )
     data = []
     for r in relations:
         s = r.student
+        
+        # Calculate Committed Fee (Proposed/Locked)
+        total = StudentFeeItem.objects.filter(student=s, academic_year=s.academic_year).aggregate(total=Sum('amount'))['total']
+        if not total or total <= 0:
+             pending = FeeApprovalRequest.objects.filter(student=s, status='PENDING').first()
+             total = pending.offered_total if pending else 0
+             
         data.append({
             'id': str(s.id),
             'first_name': s.first_name,
             'last_name': s.last_name,
             'class_section': s.class_section.display_name if s.class_section else None,
+            'branch_name': s.branch.name if s.branch else None,
+            'enroll_no': s.admission_number,
+            'committed_fee': float(total or 0),
             'photo_url': s.photo_url,
             'relation_type': r.relation_type,
         })

@@ -171,6 +171,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Redirect to login if session expired or not authenticated
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
+
   const navGroups = user?.role ? getNavGroups(user.role) : [];
 
   return (

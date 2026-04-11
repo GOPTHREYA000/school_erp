@@ -14,15 +14,18 @@ interface Child {
   admission_number: string;
   class_section: string;
   photo_url?: string;
+  branch_name?: string;
+  enroll_no?: string;
+  committed_fee?: number;
 }
 
 interface Invoice {
   id: string;
   invoice_number: string;
   month: string;
-  total_amount: number;
+  net_amount: number;
   paid_amount: number;
-  balance: number;
+  outstanding_amount: number;
   status: string;
 }
 
@@ -36,7 +39,7 @@ interface HomeworkItem {
   title: string;
   subject: string;
   due_date: string;
-  status: string;
+  is_published: boolean;
 }
 
 export default function ParentDashboard({ user }: { user: any }) {
@@ -93,11 +96,11 @@ export default function ParentDashboard({ user }: { user: any }) {
   }, [selectedChild, activeTab]);
 
   const currentChild = children.find(c => c.id === selectedChild);
-  const totalDue = invoices.reduce((sum, inv) => sum + (inv.balance || 0), 0);
+  const totalDue = invoices.reduce((sum, inv) => sum + (Number(inv.outstanding_amount) || 0), 0);
   const attendanceRate = attendance.length > 0 
     ? Math.round((attendance.filter(a => a.status === 'PRESENT').length / attendance.length) * 100) 
     : 0;
-  const pendingHw = homework.filter(h => h.status !== 'SUBMITTED').length;
+  const pendingHw = homework.filter(h => !h.is_published).length;
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Users },
@@ -168,7 +171,12 @@ export default function ParentDashboard({ user }: { user: any }) {
                     </div>
                     <div>
                       <p className="font-bold text-sm text-slate-900">{child.first_name} {child.last_name}</p>
-                      <p className="text-xs text-slate-400">{child.class_section} • {child.admission_number}</p>
+                      <p className="text-xs text-slate-400">
+                        {child.class_section} • {child.branch_name || 'Main'}
+                      </p>
+                      <p className="text-[10px] text-slate-300 font-mono mt-0.5">
+                        {child.enroll_no || child.admission_number}
+                      </p>
                     </div>
                   </button>
                 ))}
@@ -180,15 +188,27 @@ export default function ParentDashboard({ user }: { user: any }) {
 
       {/* Child Info Card */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-blue-200">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/20">
-            <User className="text-white" size={24} />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/20">
+              <User className="text-white" size={32} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black tracking-tight">{currentChild?.first_name} {currentChild?.last_name}</h2>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-blue-100 text-sm font-medium">
+                <span>{currentChild?.class_section}</span>
+                <span className="w-1 h-1 bg-blue-300 rounded-full" />
+                <span>{currentChild?.branch_name}</span>
+                <span className="w-1 h-1 bg-blue-300 rounded-full" />
+                <span className="text-blue-200 font-mono">#{currentChild?.enroll_no || currentChild?.admission_number}</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold">{currentChild?.first_name} {currentChild?.last_name}</h2>
-            <p className="text-blue-100 text-sm mt-0.5">
-              {currentChild?.class_section} • Adm #{currentChild?.admission_number}
-            </p>
+          
+          {/* Committed Fee Highlight */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 min-w-[200px] flex flex-col justify-center">
+            <p className="text-blue-200 text-[10px] font-black uppercase tracking-widest mb-1">Committed Fee</p>
+            <p className="text-3xl font-black tracking-tighter">₹{currentChild?.committed_fee?.toLocaleString() || '0'}</p>
           </div>
         </div>
       </div>
@@ -223,7 +243,7 @@ export default function ParentDashboard({ user }: { user: any }) {
                 </div>
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fee Due</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">₹{totalDue.toLocaleString()}</p>
+              <p className="text-2xl font-black text-slate-900">₹{totalDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
@@ -260,7 +280,7 @@ export default function ParentDashboard({ user }: { user: any }) {
                       <p className="text-xs text-slate-400">{inv.month}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-slate-900">₹{(inv.total_amount || 0).toLocaleString()}</p>
+                      <p className="font-bold text-slate-900">₹{Number(inv.net_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                         inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' :
                         inv.status === 'PARTIAL' ? 'bg-amber-50 text-amber-700' :
@@ -291,9 +311,9 @@ export default function ParentDashboard({ user }: { user: any }) {
                     <p className="text-xs text-slate-400 mt-0.5">{inv.month}</p>
                   </div>
                   <div className="text-right space-y-1">
-                    <p className="font-bold text-slate-900">₹{(inv.total_amount || 0).toLocaleString()}</p>
-                    {inv.balance > 0 && (
-                      <p className="text-xs text-rose-500 font-bold">Balance: ₹{inv.balance.toLocaleString()}</p>
+                    <p className="font-bold text-slate-900">₹{Number(inv.net_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    {Number(inv.outstanding_amount) > 0 && (
+                      <p className="text-xs text-rose-500 font-bold">Balance: ₹{Number(inv.outstanding_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     )}
                     <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                       inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' :
@@ -360,10 +380,10 @@ export default function ParentDashboard({ user }: { user: any }) {
                     <p className="text-xs text-slate-400 mt-0.5">{hw.subject} • Due {hw.due_date}</p>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
-                    hw.status === 'SUBMITTED' ? 'bg-emerald-50 text-emerald-700' :
+                    hw.is_published ? 'bg-emerald-50 text-emerald-700' :
                     'bg-amber-50 text-amber-700'
                   }`}>
-                    {hw.status || 'Pending'}
+                    {hw.is_published ? 'Published' : 'Draft'}
                   </span>
                 </div>
               ))}

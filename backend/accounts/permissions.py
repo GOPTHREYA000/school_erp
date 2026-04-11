@@ -43,7 +43,9 @@ class IsParent(permissions.BasePermission):
         return has_min_role(request.user, 'PARENT')
 
 # Aliases (backward-compatible — existing imports still work)
-IsSchoolAdminOrAbove = IsAccountant  # Accountant and above can access fee views
+# IsSchoolAdminOrAbove: Despite the name, this checks for ACCOUNTANT+ (rank 55+).
+# This is intentional — fee/report views need Accountant access, not School Admin.
+IsSchoolAdminOrAbove = IsAccountant
 IsBranchAdminOrAbove = IsBranchAdmin
 IsTeacherOrAbove = IsTeacher
 IsAccountantOrAbove = IsAccountant

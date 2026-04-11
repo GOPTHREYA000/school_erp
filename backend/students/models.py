@@ -256,6 +256,37 @@ class Student(models.Model):
     doc_birth_cert_submitted = models.BooleanField(default=False)
     doc_caste_cert_submitted = models.BooleanField(default=False)
     doc_aadhaar_submitted = models.BooleanField(default=False)
+    # Father Info
+    father_name = models.CharField(max_length=200, blank=True, null=True)
+    father_phone = models.CharField(max_length=15, blank=True, null=True)
+    father_email = models.EmailField(blank=True, null=True)
+    father_qualification = models.CharField(max_length=200, blank=True, null=True)
+    father_occupation = models.CharField(max_length=200, blank=True, null=True)
+    father_aadhaar = models.CharField(max_length=12, blank=True, null=True)
+    # Mother Info
+    mother_name = models.CharField(max_length=200, blank=True, null=True)
+    mother_phone = models.CharField(max_length=15, blank=True, null=True)
+    mother_email = models.EmailField(blank=True, null=True)
+    mother_qualification = models.CharField(max_length=200, blank=True, null=True)
+    mother_occupation = models.CharField(max_length=200, blank=True, null=True)
+    mother_aadhaar = models.CharField(max_length=12, blank=True, null=True)
+    # Guardian Info
+    guardian_name = models.CharField(max_length=200, blank=True, null=True)
+    guardian_phone = models.CharField(max_length=15, blank=True, null=True)
+    guardian_relation = models.CharField(max_length=100, blank=True, null=True)
+    # Address
+    address_line1 = models.CharField(max_length=255, blank=True, null=True)
+    apartment_name = models.CharField(max_length=255, blank=True, null=True)
+    address_line2 = models.CharField(max_length=255, blank=True, null=True)
+    landmark = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    mandal = models.CharField(max_length=100, blank=True, null=True)
+    district = models.CharField(max_length=100, blank=True, null=True)
+    state = models.CharField(max_length=100, blank=True, null=True)
+    pincode = models.CharField(max_length=6, blank=True, null=True)
+    # Admin Staff
+    admission_staff_name = models.CharField(max_length=200, blank=True, null=True)
+    admission_staff_phone = models.CharField(max_length=15, blank=True, null=True)
     # Photo
     photo_url = models.URLField(blank=True, null=True)
     # Academic

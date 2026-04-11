@@ -687,7 +687,7 @@ export default function StudentForm({
                     </div>
                     <div className="mt-8 pt-6 border-t-2 border-dashed border-slate-100 flex justify-between items-end">
                       <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Grand Total</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Standard Total</p>
                         <p className="text-3xl font-black text-slate-900 tracking-tighter">₹{formData.standard_total.toLocaleString()}</p>
                       </div>
                     </div>

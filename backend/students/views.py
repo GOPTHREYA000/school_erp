@@ -118,8 +118,45 @@ def create_student_fees(student, offered_total, standard_total_input, reason, re
             offered_total=offered_total,
             reason=reason
         )
-        return True
     return False
+
+
+def link_parent_accounts_to_student(student, father_info, mother_info, tenant, branch):
+    """Shared logic for creating parent users and student relations"""
+    from accounts.models import User
+    from .models import ParentStudentRelation
+    
+    parents_data = [
+        {'phone': father_info.get('phone'), 'email': father_info.get('email'), 'first_name': father_info.get('name') or '', 'role_type': 'FATHER'},
+        {'phone': mother_info.get('phone'), 'email': mother_info.get('email'), 'first_name': mother_info.get('name') or '', 'role_type': 'MOTHER'},
+    ]
+
+    for p in parents_data:
+        if not p['phone'] and not p['email']:
+            continue
+        
+        parent_email = p['email'] if p['email'] else f"{p['phone']}@parent.local"
+        
+        parent_user, created = User.objects.get_or_create(
+            email=parent_email,
+            defaults={
+                'first_name': p['first_name'],
+                'last_name': '',
+                'phone': p['phone'] or '',
+                'role': 'PARENT',
+                'tenant': tenant,
+                'branch': branch
+            }
+        )
+        if created:
+            parent_user.set_password('password123')
+            parent_user.save()
+        
+        ParentStudentRelation.objects.get_or_create(
+            parent=parent_user,
+            student=student,
+            defaults={'relation_type': p['role_type'], 'is_primary': (p['role_type'] == 'FATHER')}
+        )
 
 
 class ClassSectionViewSet(viewsets.ModelViewSet):
@@ -151,10 +188,15 @@ class ClassSectionViewSet(viewsets.ModelViewSet):
         if ay:
             qs = qs.filter(academic_year_id=ay)
             
-        # Filter for primary teacher only
+        # Filter for primary teacher only (used by Attendance)
         teacher_only = self.request.query_params.get('teacher_only')
         if teacher_only == 'true' and user.role == 'TEACHER':
-            qs = qs.filter(teacher_assignments__teacher__user=user, teacher_assignments__is_class_teacher=True)
+            qs = qs.filter(teacher_assignments__teacher__user=user, teacher_assignments__is_class_teacher=True).distinct()
+            
+        # Filter for any assigned teacher (used by Homework)
+        assigned_only = self.request.query_params.get('assigned_only')
+        if assigned_only == 'true' and user.role == 'TEACHER':
+            qs = qs.filter(teacher_assignments__teacher__user=user).distinct()
             
         return qs
 
@@ -322,37 +364,46 @@ class AdmissionApplicationViewSet(viewsets.ModelViewSet):
                 doc_birth_cert_submitted=application.doc_birth_cert_submitted,
                 doc_caste_cert_submitted=application.doc_caste_cert_submitted,
                 doc_aadhaar_submitted=application.doc_aadhaar_submitted,
+                # Father Info
+                father_name=application.father_name,
+                father_phone=application.father_phone,
+                father_email=application.father_email,
+                father_qualification=application.father_qualification,
+                father_occupation=application.father_occupation,
+                father_aadhaar=getattr(application, 'father_aadhaar', None),
+                # Mother Info
+                mother_name=application.mother_name,
+                mother_phone=application.mother_phone,
+                mother_email=application.mother_email,
+                mother_qualification=application.mother_qualification,
+                mother_occupation=application.mother_occupation,
+                mother_aadhaar=getattr(application, 'mother_aadhaar', None),
+                # Guardian Info
+                guardian_name=application.guardian_name,
+                guardian_phone=application.guardian_phone,
+                guardian_relation=application.guardian_relation,
+                # Address
+                address_line1=application.address_line1,
+                apartment_name=application.apartment_name,
+                address_line2=application.address_line2,
+                landmark=application.landmark,
+                city=application.city,
+                mandal=application.mandal,
+                district=application.district,
+                state=application.state,
+                pincode=application.pincode,
+                # Admin Staff
+                admission_staff_name=application.admission_staff_name,
+                admission_staff_phone=application.admission_staff_phone,
                 # Link to application
                 application=application,
                 created_by=request.user,
             )
 
-            # 2. Create/Link Parents
-            from accounts.models import User
-            
-            parents_data = [
-                {'email': application.father_email, 'phone': application.father_phone, 'first_name': application.father_name, 'role': 'FATHER'},
-                {'email': application.mother_email, 'phone': application.mother_phone, 'first_name': application.mother_name, 'role': 'MOTHER'},
-            ]
-
-            for p in parents_data:
-                if p['email']:
-                    parent_user, created = User.objects.get_or_create(
-                        email=p['email'],
-                        defaults={
-                            'first_name': p['first_name'],
-                            'last_name': '',
-                            'phone': p['phone'],
-                            'role': 'PARENT',
-                            'tenant': application.tenant,
-                            'branch': branch
-                        }
-                    )
-                    ParentStudentRelation.objects.get_or_create(
-                        parent=parent_user,
-                        student=student,
-                        defaults={'relation_type': p['role'], 'is_primary': (p['role'] == 'FATHER')}
-                    )
+            # 2. Create/Link Parent accounts
+            father_info = {'phone': application.father_phone, 'email': application.father_email, 'name': application.father_name}
+            mother_info = {'phone': application.mother_phone, 'email': application.mother_email, 'name': application.mother_name}
+            link_parent_accounts_to_student(student, father_info, mother_info, application.tenant, branch)
 
             # Handle Fees
             create_student_fees(student, offered_total, standard_total, fee_reason, request.user)
@@ -468,6 +519,11 @@ class StudentViewSet(viewsets.ModelViewSet):
             
             # Use shared fee creation logic
             create_student_fees(student, offered_total, standard_total, fee_reason, user)
+
+            # Create/Link parent accounts
+            father_info = {'phone': student.father_phone, 'email': student.father_email, 'name': student.father_name}
+            mother_info = {'phone': student.mother_phone, 'email': student.mother_email, 'name': student.mother_name}
+            link_parent_accounts_to_student(student, father_info, mother_info, tenant, branch)
         except Exception as e:
             logger.error(f"Error creating student: {str(e)}")
             raise e

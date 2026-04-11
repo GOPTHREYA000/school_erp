@@ -26,14 +26,24 @@ class PeriodViewSet(viewsets.ModelViewSet):
 
 class SubjectViewSet(viewsets.ModelViewSet):
     serializer_class = SubjectSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsTeacherOrAbove]
 
     def get_queryset(self):
         # Filter by tenant directly for better performance and reliability
         qs = Subject.objects.filter(tenant=self.request.user.tenant)
         branch = self.request.query_params.get('branch_id')
-        if branch:
+        user = self.request.user
+        
+        if user.role == 'BRANCH_ADMIN' and user.branch:
+            qs = qs.filter(branch=user.branch)
+        elif branch:
             qs = qs.filter(branch_id=branch)
+            
+        # Teachers should only see their assigned subjects if requested
+        assigned_only = self.request.query_params.get('assigned_only')
+        if assigned_only == 'true' and user.role == 'TEACHER':
+            qs = qs.filter(teacher_assignments__teacher__user=user).distinct()
+            
         return qs
 
     def create(self, request, *args, **kwargs):

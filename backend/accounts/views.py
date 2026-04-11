@@ -10,7 +10,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 logger = logging.getLogger(__name__)
 
+from .serializers import CustomTokenObtainPairSerializer
+
 class LoginView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
     from .throttles import LoginRateThrottle
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle]

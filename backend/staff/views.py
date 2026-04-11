@@ -36,7 +36,12 @@ class StaffViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             logger.warning(f"StaffViewSet validation errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        return super().create(request, *args, **kwargs)
+        try:
+            self.perform_create(serializer)
+        except Exception as e:
+            logger.error(f"Error creating teacher: {str(e)}")
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
         user = self.request.user

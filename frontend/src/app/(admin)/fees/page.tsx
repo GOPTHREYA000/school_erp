@@ -54,7 +54,7 @@ export default function FeesPage() {
   );
 
   const { data: approvals, loading: appLoading, refetch: refetchApprovals } = useApi<FeeApprovalRequest[]>(
-    `/fees/approvals/?status=PENDING&branch_id=${selectedBranch}`
+    `/fees/approval-requests/?status=PENDING&branch_id=${selectedBranch}`
   );
 
   const [showPayForm, setShowPayForm] = useState<string | null>(null);
@@ -66,7 +66,7 @@ export default function FeesPage() {
   const handleApprove = async (id: string) => {
     setProcessingApproval(id);
     try {
-      await api.post(`/fees/approvals/${id}/approve/`);
+      await api.post(`/fees/approval-requests/${id}/approve/`);
       refetchApprovals();
       refetchInvoices();
     } catch (err: any) {
@@ -79,7 +79,7 @@ export default function FeesPage() {
     if (remarks === null) return;
     setProcessingApproval(id);
     try {
-      await api.post(`/fees/approvals/${id}/reject/`, { remarks });
+      await api.post(`/fees/approval-requests/${id}/reject/`, { remarks });
       refetchApprovals();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Rejection failed');

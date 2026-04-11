@@ -49,6 +49,10 @@ export default function StudentsPage() {
       const payload = { ...formData };
       delete payload.branch_name;
       delete payload.class_section_display;
+      // Clean integer fields — DRF IntegerField rejects '' (needs null or a number)
+      if (payload.roll_number === '' || payload.roll_number === undefined) {
+        payload.roll_number = null;
+      }
       await api.post('/students/', payload);
       setShowDrawer(false);
       refetch();

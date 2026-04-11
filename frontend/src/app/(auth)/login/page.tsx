@@ -8,7 +8,7 @@ import api from '@/lib/axios';
 import { useRouter } from 'next/navigation';
 
 const loginSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
+  email: z.string().min(1, { message: "Email or Mobile number is required" }),
   password: z.string().min(1, { message: "Password is required" }),
 });
 
@@ -25,7 +25,7 @@ export default function LoginPage() {
     setServerError('');
     try {
       await api.post('auth/login/', data);
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setServerError(err.response?.data?.detail || "Invalid credentials");
     }
@@ -53,13 +53,13 @@ export default function LoginPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">Email address</label>
+              <label className="block text-sm font-medium text-slate-700">Email or Mobile Number</label>
               <div className="mt-2">
                 <input
-                  type="email"
+                  type="text"
                   {...register('email')}
                   className="appearance-none block w-full px-4 py-3 border border-slate-200 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-all"
-                  placeholder="admin@school.com"
+                  placeholder="admin@school.com or 9988776655"
                 />
                 {errors.email && <p className="mt-1 text-sm text-red-600 font-medium">{errors.email.message}</p>}
               </div>

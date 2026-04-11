@@ -58,6 +58,13 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
             else:
                 self.fields['branch'].queryset = Branch.objects.filter(tenant=request.user.tenant)
 
+    def validate_email(self, value):
+        from accounts.models import User
+        email = User.objects.normalize_email(value)
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return email
+
     def create(self, validated_data):
         email = validated_data.pop('email', None)
         first_name = validated_data.pop('first_name', '')

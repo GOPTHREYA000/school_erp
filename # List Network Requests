@@ -1,0 +1,20 @@
+# List Network Requests
+
+| reqid | method | url | status |
+|---|---|---|---|
+| 256 | GET | http://localhost:8000/api/students/?status=ACTIVE&search=&branch_id= | success - 200 |
+| 257 | GET | http://localhost:8000/api/auth/me/ | success - 200 |
+| 258 | GET | http://localhost:8000/api/auth/me/ | success - 200 |
+| 259 | GET | http://localhost:8000/api/tenants/branches/?tenant_id=e6548291-0861-4050-8496-3a1442a6b13b | success - 200 |
+| 260 | GET | http://localhost:8000/api/tenants/academic-years/?branch_id=8013b84f-80a8-41a9-b954-fbe061ab6aa7 | success - 200 |
+| 261 | GET | http://localhost:8000/api/classes/?branch_id=8013b84f-80a8-41a9-b954-fbe061ab6aa7&academic_year_id=4e7d8e53-96ca-4331-bbc1-5e2d05b6bf68 | success - 200 |
+| 263 | GET | http://localhost:8000/api/students/?status=PENDING_APPROVAL&search=&branch_id= | failed - 401 |
+| 264 | POST | http://localhost:8000/api/auth/refresh/ | success - 200 |
+| 266 | GET | http://localhost:8000/api/students/?status=PENDING_APPROVAL&search=&branch_id= | success - 200 |
+| 267 | GET | http://localhost:8000/api/tenants/academic-years/?branch_id=85322b63-6227-4d4d-b158-5adcde0b4b89 | success - 200 |
+| 268 | GET | http://localhost:8000/api/classes/?branch_id=85322b63-6227-4d4d-b158-5adcde0b4b89&academic_year_id=4e7d8e53-96ca-4331-bbc1-5e2d05b6bf68 | success - 200 |
+| 269 | GET | http://localhost:8000/api/classes/?branch_id=85322b63-6227-4d4d-b158-5adcde0b4b89&academic_year_id=66510e34-fc50-43e0-888e-a8f643198f35 | success - 200 |
+| 270 | GET | http://localhost:8000/api/tenants/academic-years/?branch_id=8013b84f-80a8-41a9-b954-fbe061ab6aa7 | success - 200 |
+| 271 | GET | http://localhost:8000/api/classes/?branch_id=8013b84f-80a8-41a9-b954-fbe061ab6aa7&academic_year_id=4e7d8e53-96ca-4331-bbc1-5e2d05b6bf68 | success - 200 |
+| 272 | GET | http://localhost:8000/api/fees/structures/?branch_id=8013b84f-80a8-41a9-b954-fbe061ab6aa7&academic_year_id=4e7d8e53-96ca-4331-bbc1-5e2d05b6bf68&grade=1 | success - 200 |
+| 273 | POST | http://localhost:8000/api/students/ | failed - 400 |

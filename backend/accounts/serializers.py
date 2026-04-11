@@ -1,6 +1,25 @@
 from rest_framework import serializers
 from rest_framework import serializers
 from .models import User, AuditLog
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        # We accept either email or phone number in the 'email' payload field
+        credentials = attrs.get(User.USERNAME_FIELD) or attrs.get('email')
+        
+        if credentials:
+            # 1. Try resolving an exact 'email' match natively
+            user = User.objects.filter(email=credentials).first()
+            if not user:
+                # 2. Try resolving via phone number fallback
+                user = User.objects.filter(phone=credentials).first()
+            
+            if user:
+                # Spoof the validated payload structure prior to authentication
+                attrs[User.USERNAME_FIELD] = user.email
+                
+        return super().validate(attrs)
 
 class AuditLogSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True, default=None)

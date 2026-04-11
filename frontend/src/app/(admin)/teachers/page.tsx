@@ -79,7 +79,7 @@ export default function TeachersPage() {
           errorMsg = data;
         }
       }
-      setError(errorMsg);
+      alert(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -584,7 +584,7 @@ export default function TeachersPage() {
                             onChange={e => setNewTeacher({...newTeacher, specialization: e.target.value})}
                             className="w-full px-5 py-3 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-4 focus:ring-blue-100 outline-none">
                              <option value="">Select Specialization</option>
-                             {subjects?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                             {subjects?.filter(s => !newTeacher.branch || s.branch === newTeacher.branch).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                           </select>
                         )}
                      </div>
@@ -703,7 +703,11 @@ export default function TeachersPage() {
                                  <span className="text-[10px] font-bold text-gray-400">{assignment.class_assignments[classId].length} Selected</span>
                                </div>
                                <div className="flex flex-wrap gap-2">
-                                 {subjects?.map(s => (
+                                 {subjects?.filter((s: any) => {
+                                      const assignTeacher = staff?.find((t: any) => t.id === showAssignModal);
+                                      const teacherBranch = assignTeacher?.user_details?.branch || assignTeacher?.branch;
+                                      return !teacherBranch || s.branch === teacherBranch;
+                                 }).map((s: any) => (
                                    <button
                                      key={s.id}
                                      type="button"

@@ -1,0 +1,41 @@
+# get_network_request response
+# Open dialog
+alert: Please select Branch, Academic Year, and Class Section..
+Call handle_dialog to handle it before continuing.
+## Request http://localhost:8000/api/students/
+Status:  [failed - 400]
+### Request Headers
+- sec-ch-ua-platform:"macOS"
+- referer:http://localhost:3000/
+- user-agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36
+- accept:application/json
+- sec-ch-ua:"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"
+- content-type:application/json
+- sec-ch-ua-mobile:?0
+- accept-encoding:gzip, deflate, br, zstd
+- accept-language:en-GB,en-US;q=0.9,en;q=0.8
+- connection:keep-alive
+- content-length:1374
+- cookie:csrftoken=bxsmTTKwPeVTYt6scHUqeYOjYwlX7Js5; __next_hmr_refresh_hash__=19; refresh_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc3NTY4MTE0MSwiaWF0IjoxNzc1MDc2MzQxLCJqdGkiOiI1MmM0ZTBkOGNmNTQ0YWUwYTllZDBkZmJmZjQwMmM1ZCIsInVzZXJfaWQiOiJiOTM3OTBhYS0zYTg0LTQzZGItOTZlYS1kNDQzMzU4ZWIwYzIifQ.py858jrOXZVklyUoltXInDDFJkQCxc2_7erwtFUf24k; access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc1MDgzNzQ5LCJpYXQiOjE3NzUwODAxNDksImp0aSI6ImViMThlMzE5MDc2NDRhOWY4M2I4MjFmMTU3YWM0YjQyIiwidXNlcl9pZCI6ImI5Mzc5MGFhLTNhODQtNDNkYi05NmVhLWQ0NDMzNThlYjBjMiJ9.PHcBjV2OjstjOWkyGikhwTR0_jb4KqZGjEr0xFwfkQ8
+- host:localhost:8000
+- origin:http://localhost:3000
+- sec-fetch-dest:empty
+- sec-fetch-mode:cors
+- sec-fetch-site:same-site
+### Request Body
+{"first_name":"John","last_name":"Doe","date_of_birth":"","gender":"MALE","blood_group":"UNKNOWN","nationality":"Indian","religion":"","caste_category":"OC","aadhar_number":"","mother_tongue":"","identification_mark_1":"","identification_mark_2":"","health_status":"","tenant":"e6548291-0861-4050-8496-3a1442a6b13b","branch":"8013b84f-80a8-41a9-b954-fbe061ab6aa7","academic_year":"4e7d8e53-96ca-4331-bbc1-5e2d05b6bf68","class_section":"78527725-589b-43ef-b79e-738d708d3710","admission_number":"","father_name":"Jane Doe Dad","father_phone":"9876543210","father_email":"","father_qualification":"","father_occupation":"","father_aadhaar":"","mother_name":"Jane Doe Mom","mother_phone":"","mother_qualification":"","mother_occupation":"","mother_aadhaar":"","guardian_name":"","guardian_phone":"","guardian_relation":"","address_line1":"123","apartment_name":"","address_line2":"Sunny Hills","landmark":"","city":"Hyderabad","mandal":"","district":"","state":"Telangana","pincode":"500001","previous_school_name":"Previous Public School","previous_class":"1st Grade","previous_school_ay":"2023-24","source":"WALK_IN","doc_tc_submitted":true,"doc_bonafide_submitted":true,"doc_birth_cert_submitted":true,"doc_caste_cert_submitted":false,"doc_aadhaar_submitted":false,"admission_staff_name":"","admission_staff_phone":"","offered_total":25000,"standard_total":25000,"reason":""}
+### Response Headers
+- allow:GET, POST, HEAD, OPTIONS
+- content-length:90
+- content-type:application/json
+- cross-origin-opener-policy:same-origin
+- date:Wed, 01 Apr 2026 21:53:28 GMT
+- referrer-policy:same-origin
+- server:WSGIServer/0.2 CPython/3.9.6
+- vary:Accept, origin
+- x-content-type-options:nosniff
+- x-frame-options:DENY
+- access-control-allow-credentials:true
+- access-control-allow-origin:http://localhost:3000
+### Response Body
+{"date_of_birth":["Date has wrong format. Use one of these formats instead: YYYY-MM-DD."]}

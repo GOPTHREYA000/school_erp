@@ -20,25 +20,53 @@ export default function AttendancePage() {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ saved: number } | null>(null);
+  const [hasExistingRecords, setHasExistingRecords] = useState(false);
 
   // Auto-select if only one class is available (typical for teachers)
   useEffect(() => {
     if (classes && classes.length === 1 && !selectedClass) {
-      loadStudents(classes[0].id);
+      fetchData(classes[0].id, date);
     }
   }, [classes]);
 
-  const loadStudents = async (csId: string) => {
+  // Refetch when date changes (if a class is already selected)
+  useEffect(() => {
+    if (selectedClass) {
+      fetchData(selectedClass, date);
+    }
+  }, [date]);
+
+  const fetchData = async (csId: string, targetDate: string) => {
     setSelectedClass(csId);
+    if (!csId) {
+        setStudents([]);
+        return;
+    }
     setLoadingStudents(true);
     setResult(null);
+    setHasExistingRecords(false);
+    
     try {
       const res = await api.get(`/classes/${csId}/students/`);
       const s = res.data.data || res.data;
       setStudents(s);
-      const defaults: Record<string, string> = {};
-      s.forEach((st: Student) => { defaults[st.id] = 'PRESENT'; });
-      setRecords(defaults);
+      
+      // Fetch existing records
+      const attRes = await api.get(`/attendance/?class_section_id=${csId}&date=${targetDate}`);
+      const existing = attRes.data?.data ?? attRes.data?.results ?? attRes.data ?? [];
+      
+      const newRecords: Record<string, string> = {};
+      if (existing.length > 0) {
+          setHasExistingRecords(true);
+          existing.forEach((r: any) => {
+              newRecords[r.student] = r.status;
+          });
+      }
+      
+      s.forEach((st: Student) => { 
+        if (!newRecords[st.id]) newRecords[st.id] = 'PRESENT'; 
+      });
+      setRecords(newRecords);
     } catch { setStudents([]); }
     finally { setLoadingStudents(false); }
   };
@@ -59,6 +87,7 @@ export default function AttendancePage() {
       };
       const res = await api.post('attendance/bulk/', payload);
       setResult(res.data.data);
+      setHasExistingRecords(true);
       // Success animation/feedback would go here
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Error submitting attendance');
@@ -93,7 +122,7 @@ export default function AttendancePage() {
         <div className="flex gap-4 items-end bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex-1 min-w-[160px]">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Select Class</label>
-            <select value={selectedClass} onChange={e => loadStudents(e.target.value)}
+            <select value={selectedClass} onChange={e => fetchData(e.target.value, date)}
               className="w-full px-4 py-2 border-none bg-slate-50 rounded-xl text-sm font-bold focus:ring-2 ring-blue-500 transition-all">
               <option value="">Select class...</option>
               {classes?.map((c: ClassSection) => <option key={c.id} value={c.id}>{c.display_name}</option>)}
@@ -145,12 +174,12 @@ export default function AttendancePage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center bg-slate-900 text-white p-4 rounded-2xl shadow-xl shadow-slate-200">
               <div className="flex items-center gap-2">
-                 <Zap size={16} className="text-amber-400" />
-                 <span className="text-sm font-bold">Quick Toggles</span>
+                 <Zap size={14} className="text-amber-400" />
+                 <span className="text-xs font-semibold">Quick Actions</span>
               </div>
               <div className="flex gap-2">
-                 <button onClick={() => markAll('PRESENT')} className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-xs font-black uppercase tracking-widest rounded-xl transition-all">All Present</button>
-                 <button onClick={() => markAll('ABSENT')} className="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-xs font-black uppercase tracking-widest rounded-xl transition-all">All Absent</button>
+                 <button onClick={() => markAll('PRESENT')} className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-[10px] font-bold uppercase tracking-wider rounded text-white transition-all">Mark All Present</button>
+                 <button onClick={() => markAll('ABSENT')} className="px-3 py-1 bg-rose-500 hover:bg-rose-600 text-[10px] font-bold uppercase tracking-wider rounded text-white transition-all">Mark All Absent</button>
               </div>
           </div>
 
@@ -162,16 +191,15 @@ export default function AttendancePage() {
                     <span className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{s.first_name} {s.last_name}</span>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">adm: {s.admission_no}</span>
                   </div>
-                  
-                  <div className="flex gap-1.5 mt-3 md:mt-0">
+                  <div className="flex gap-1 mt-2 md:mt-0">
                     {['PRESENT', 'ABSENT', 'LATE', 'HALF_DAY'].map(st => (
                       <button 
                         key={st} 
                         onClick={() => setRecords({...records, [s.id]: st})}
-                        className={`flex-1 md:flex-none px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide transition-all ${
                           records[s.id] === st
-                            ? `${statusColors[st]} text-white shadow-lg shadow-${statusColors[st].replace('bg-', '')}/40 scale-105`
-                            : 'bg-white border border-gray-100 text-slate-400 hover:border-slate-200 hover:text-slate-600'
+                            ? `${statusColors[st]} text-white shadow-sm ring-1 ring-offset-1 ring-${statusColors[st].replace('bg-', '')}`
+                            : 'bg-white border border-gray-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700'
                         }`}
                       >
                         {st.replace('_', ' ')}
@@ -181,13 +209,13 @@ export default function AttendancePage() {
                 </div>
               ))}
             </div>
-            <div className="p-6 border-t border-gray-100 bg-slate-50/50">
+            <div className="px-4 py-3 border-t border-gray-100 bg-slate-50/50 flex justify-end">
               <button 
                 onClick={handleSubmit} 
                 disabled={submitting}
-                className="w-full bg-blue-600 text-white py-4 rounded-2xl text-sm font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 active:scale-[0.98] transition-all"
+                className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm transition-all text-white ${hasExistingRecords ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-50`}
               >
-                {submitting ? 'Authenticating & Saving...' : `Finalize & Submit (${students.length} Records)`}
+                {submitting ? 'Authenticating & Saving...' : (hasExistingRecords ? `Update Attendance (${students.length})` : `Finalize & Submit (${students.length})`)}
               </button>
             </div>
           </div>

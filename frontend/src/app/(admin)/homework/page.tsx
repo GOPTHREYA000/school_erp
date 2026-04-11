@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import DateInput from '@/components/DateInput';
@@ -17,18 +17,54 @@ interface HomeworkItem {
   is_published: boolean;
 }
 
+interface ClassSection {
+  id: string;
+  display_name: string;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+}
+
 export default function HomeworkPage() {
   const { data, loading, refetch } = useApi<HomeworkItem[]>('/homework/');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ title: '', description: '', due_date: '', activity_type: 'HOMEWORK' });
+  const [formData, setFormData] = useState({ 
+    title: '', description: '', due_date: '', activity_type: 'HOMEWORK',
+    class_section: '', subject: ''
+  });
   const [saving, setSaving] = useState(false);
+  const [classes, setClasses] = useState<ClassSection[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+
+  // Load classes and subjects when form opens
+  useEffect(() => {
+    if (showForm) {
+      api.get('/classes/?assigned_only=true').then(res => {
+        const arr = res.data?.data ?? res.data?.results ?? res.data;
+        setClasses(Array.isArray(arr) ? arr : []);
+      }).catch(() => setClasses([]));
+      
+      api.get('/subjects/?assigned_only=true').then(res => {
+        const arr = res.data?.data ?? res.data?.results ?? res.data;
+        setSubjects(Array.isArray(arr) ? arr : []);
+      }).catch(() => setSubjects([]));
+    }
+  }, [showForm]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.class_section || !formData.subject) {
+      alert('Please select a class and subject');
+      return;
+    }
     setSaving(true);
     try {
       await api.post('homework/', formData);
-      setShowForm(false); refetch();
+      setShowForm(false); 
+      setFormData({ title: '', description: '', due_date: '', activity_type: 'HOMEWORK', class_section: '', subject: '' });
+      refetch();
     } catch { alert('Error creating homework'); }
     finally { setSaving(false); }
   };
@@ -48,6 +84,24 @@ export default function HomeworkPage() {
 
       {showForm && (
         <form onSubmit={handleAdd} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Class / Section <span className="text-red-500">*</span></label>
+              <select required value={formData.class_section} onChange={e => setFormData({...formData, class_section: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+                <option value="">Select Class</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Subject <span className="text-red-500">*</span></label>
+              <select required value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+                <option value="">Select Subject</option>
+                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
           <input placeholder="Title" required value={formData.title}
             onChange={e => setFormData({...formData, title: e.target.value})}
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm" />
