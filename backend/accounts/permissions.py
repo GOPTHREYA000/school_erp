@@ -22,31 +22,23 @@ class IsSuperAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         return has_min_role(request.user, 'SUPER_ADMIN')
 
-class IsSchoolAdmin(permissions.BasePermission):
+class IsSchoolAdminOrAbove(permissions.BasePermission):
     def has_permission(self, request, view):
         return has_min_role(request.user, 'SCHOOL_ADMIN')
 
-class IsBranchAdmin(permissions.BasePermission):
+class IsBranchAdminOrAbove(permissions.BasePermission):
     def has_permission(self, request, view):
         return has_min_role(request.user, 'BRANCH_ADMIN')
 
-class IsAccountant(permissions.BasePermission):
+class IsAccountantOrAbove(permissions.BasePermission):
     def has_permission(self, request, view):
         return has_min_role(request.user, 'ACCOUNTANT')
 
-class IsTeacher(permissions.BasePermission):
+class IsTeacherOrAbove(permissions.BasePermission):
     def has_permission(self, request, view):
         return has_min_role(request.user, 'TEACHER')
 
-class IsParent(permissions.BasePermission):
+class IsParentOrAbove(permissions.BasePermission):
     def has_permission(self, request, view):
         return has_min_role(request.user, 'PARENT')
-
-# Aliases (backward-compatible — existing imports still work)
-# IsSchoolAdminOrAbove: Despite the name, this checks for ACCOUNTANT+ (rank 55+).
-# This is intentional — fee/report views need Accountant access, not School Admin.
-IsSchoolAdminOrAbove = IsAccountant
-IsBranchAdminOrAbove = IsBranchAdmin
-IsTeacherOrAbove = IsTeacher
-IsAccountantOrAbove = IsAccountant
 

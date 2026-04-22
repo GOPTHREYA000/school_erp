@@ -13,6 +13,5 @@ urlpatterns = [
     path('notifications/mine/<uuid:notification_id>/read/', views.my_mark_read, name='my_mark_read'),
     path('notifications/mine/read-all/', views.my_mark_all_read, name='my_mark_all_read'),
     
-    # Admin Custom Dispatch
-    path('notifications/dispatch/', views.dispatch_custom_notification, name='custom_dispatch_notification'),
+    # Admin Custom Dispatch removed in favor of Announcements workflow
 ]

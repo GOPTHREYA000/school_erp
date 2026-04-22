@@ -6,6 +6,7 @@ import { Search, Command, Users, Receipt, Calendar, CreditCard, LayoutDashboard,
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/axios';
 import { useBranch } from './BranchContext';
+import { toast } from 'react-hot-toast';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', shortcut: 'D' },
@@ -65,7 +66,7 @@ export default function CommandPalette() {
           path: `/students?search=${s.admission_no}`
         })));
       } catch (err) {
-        console.error(err);
+        toast.error("Failed to execute search. Please try again.", { id: 'search-error' });
       } finally {
         setLoading(false);
       }

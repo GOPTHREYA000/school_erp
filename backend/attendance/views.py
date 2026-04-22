@@ -95,6 +95,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
         year, m = month.split('-')
         records = AttendanceRecord.objects.filter(
+            tenant=request.user.tenant,
             student_id=student_id,
             date__year=int(year),
             date__month=int(m),

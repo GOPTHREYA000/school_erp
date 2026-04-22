@@ -64,3 +64,87 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         ser.is_valid(raise_exception=True)
         ser.save(homework=hw)
         return Response({'success': True, 'data': ser.data}, status=201)
+
+    @action(detail=False, methods=['get'], url_path='tracking')
+    def tracking(self, request):
+        """GET /api/homework/tracking/?class_section_id=<id>
+        Returns homework list for a class section with per-student acknowledgment status."""
+        from students.models import Student, ParentStudentRelation
+        from homework.models import HomeworkAcknowledgment
+        
+        cs_id = request.query_params.get('class_section_id')
+        if not cs_id:
+            return Response({'detail': 'class_section_id is required'}, status=400)
+        
+        # All homework for this class, latest first
+        homeworks = Homework.objects.filter(
+            class_section_id=cs_id,
+            class_section__branch__tenant=request.user.tenant,
+            is_published=True,
+        ).select_related('subject', 'posted_by').order_by('-due_date')[:50]
+        
+        # All active students in this class
+        students = Student.objects.filter(
+            class_section_id=cs_id, status='ACTIVE'
+        ).order_by('first_name', 'last_name')
+        
+        # Build parent → student mapping
+        parent_student_map = {}  # parent_id → [student_ids]
+        relations = ParentStudentRelation.objects.filter(
+            student__in=students
+        ).select_related('parent')
+        for r in relations:
+            parent_student_map.setdefault(r.parent_id, set()).add(r.student_id)
+        
+        # All acknowledgments for these homeworks
+        acks = HomeworkAcknowledgment.objects.filter(
+            homework__in=homeworks
+        ).values_list('homework_id', 'parent_id')
+        
+        # Build hw_id → set of acknowledged student_ids (via their parents)
+        hw_acked_students = {}
+        for hw_id, parent_id in acks:
+            student_ids = parent_student_map.get(parent_id, set())
+            hw_acked_students.setdefault(hw_id, set()).update(student_ids)
+        
+        # Student list
+        student_list = [{
+            'id': str(s.id),
+            'name': f"{s.first_name} {s.last_name}",
+            'admission_number': s.admission_number,
+        } for s in students]
+        
+        # Homework list with per-student ack status
+        homework_data = []
+        for hw in homeworks:
+            acked_set = hw_acked_students.get(hw.id, set())
+            acked_count = len(acked_set)
+            total = len(student_list)
+            
+            student_statuses = [{
+                'student_id': str(s.id),
+                'acknowledged': s.id in acked_set,
+            } for s in students]
+            
+            homework_data.append({
+                'id': str(hw.id),
+                'title': hw.title,
+                'description': hw.description,
+                'subject_name': hw.subject.name if hw.subject else '',
+                'due_date': str(hw.due_date),
+                'activity_type': hw.activity_type,
+                'posted_by': f"{hw.posted_by.first_name} {hw.posted_by.last_name}" if hw.posted_by else None,
+                'created_at': hw.created_at.isoformat(),
+                'acked_count': acked_count,
+                'total_students': total,
+                'ack_percentage': round((acked_count / total * 100)) if total > 0 else 0,
+                'student_statuses': student_statuses,
+            })
+        
+        return Response({
+            'success': True,
+            'data': {
+                'students': student_list,
+                'homework': homework_data,
+            }
+        })

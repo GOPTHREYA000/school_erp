@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.db import transaction, models
 from django.db.models import Q
 
-from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove
+from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove, IsAccountantOrAbove, IsBranchAdminOrAbove
 from .models import (
     ClassSection, AdmissionInquiry, AdmissionApplication,
     ApplicationDocument, Student, ParentStudentRelation,
@@ -131,11 +131,13 @@ def link_parent_accounts_to_student(student, father_info, mother_info, tenant, b
         {'phone': mother_info.get('phone'), 'email': mother_info.get('email'), 'first_name': mother_info.get('name') or '', 'role_type': 'MOTHER'},
     ]
 
+    from django.utils.crypto import get_random_string
+
     for p in parents_data:
         if not p['phone'] and not p['email']:
             continue
         
-        parent_email = p['email'] if p['email'] else f"{p['phone']}@parent.local"
+        parent_email = p['email'] if p['email'] else f"{tenant.id}_{p['phone']}@parent.local"
         
         parent_user, created = User.objects.get_or_create(
             email=parent_email,
@@ -149,7 +151,10 @@ def link_parent_accounts_to_student(student, father_info, mother_info, tenant, b
             }
         )
         if created:
-            parent_user.set_password('password123')
+            # Set password to the parent's phone number (something they know)
+            # If no phone, use a known default that can be communicated by the school
+            default_password = p['phone'] if p['phone'] else 'Welcome@123'
+            parent_user.set_password(default_password)
             parent_user.save()
         
         ParentStudentRelation.objects.get_or_create(
@@ -159,11 +164,19 @@ def link_parent_accounts_to_student(student, father_info, mother_info, tenant, b
         )
 
 
+from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove, IsBranchAdminOrAbove
+
+# ... further down ...
+
 class ClassSectionViewSet(viewsets.ModelViewSet):
     serializer_class = ClassSectionSerializer
-    permission_classes = [IsAuthenticated, IsTeacherOrAbove]
     filter_backends = [filters.SearchFilter]
     search_fields = ['grade', 'section', 'display_name']
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'students']:
+            return [IsAuthenticated(), IsTeacherOrAbove()]
+        return [IsAuthenticated(), IsSchoolAdminOrAbove()]
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -229,7 +242,7 @@ class AdmissionInquiryViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == 'create':
             return []  # Public endpoint per PRD
-        return [IsAuthenticated(), IsSchoolAdminOrAbove()]
+        return [IsAuthenticated(), IsBranchAdminOrAbove()]
 
     def get_queryset(self):
         if not self.request.user.is_authenticated:
@@ -263,7 +276,7 @@ class AdmissionInquiryViewSet(viewsets.ModelViewSet):
 
 class AdmissionApplicationViewSet(viewsets.ModelViewSet):
     serializer_class = AdmissionApplicationSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
     filter_backends = [filters.SearchFilter]
     search_fields = ['first_name', 'last_name', 'father_name']
 
@@ -435,9 +448,14 @@ class AdmissionApplicationViewSet(viewsets.ModelViewSet):
 
 
 class StudentViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, IsTeacherOrAbove]
     filter_backends = [filters.SearchFilter]
     search_fields = ['first_name', 'last_name', 'admission_number']
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated(), IsTeacherOrAbove()]
+        # Accountants handle front-desk admissions and enrollment
+        return [IsAuthenticated(), IsAccountantOrAbove()]
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -463,6 +481,10 @@ class StudentViewSet(viewsets.ModelViewSet):
                 'payments',          # H1: eliminate N+1 for payments
             )
         
+        # Teachers strictly see only students in their classes unless assigned otherwise
+        if user.role == 'TEACHER':
+            qs = qs.filter(class_section__teacher_assignments__teacher__user=user).distinct()
+            
         # Branch Isolation
         if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
             qs = qs.filter(branch=user.branch)
@@ -547,10 +569,187 @@ class StudentViewSet(viewsets.ModelViewSet):
             student.save()
         return Response({'success': True, 'data': StudentSerializer(student).data})
 
+    @action(detail=False, methods=['post'], url_path='promote')
+    @transaction.atomic
+    def promote_students(self, request):
+        """MF1: Academic year student promotion/rollover system."""
+        student_ids = request.data.get('student_ids', [])
+        target_academic_year_id = request.data.get('target_academic_year_id')
+        target_class_section_id = request.data.get('target_class_section_id')
+
+        if not all([student_ids, target_academic_year_id, target_class_section_id]):
+            return Response({'error': 'student_ids, target_academic_year_id, and target_class_section_id are required'}, status=400)
+            
+        from tenants.models import AcademicYear
+        try:
+            target_ay = AcademicYear.objects.get(id=target_academic_year_id, tenant=request.user.tenant)
+            target_cs = ClassSection.objects.get(id=target_class_section_id, tenant=request.user.tenant)
+        except (AcademicYear.DoesNotExist, ClassSection.DoesNotExist):
+            return Response({'error': 'Invalid academic year or class section id.'}, status=400)
+
+        students = Student.objects.filter(id__in=student_ids, tenant=request.user.tenant)
+        
+        promoted_count = 0
+        for student in students:
+            student.academic_year = target_ay
+            student.class_section = target_cs
+            student.save()
+            promoted_count += 1
+            
+            # Auto-generate the academic year fee records for the promoted student
+            create_student_fees(student, None, None, f'Promotion to {target_cs.grade}', request.user)
+            
+        return Response({'success': True, 'message': f'Successfully promoted {promoted_count} students.', 'promoted_count': promoted_count})
+        return Response({'success': True, 'message': f'Successfully promoted {promoted_count} students.', 'promoted_count': promoted_count})
+
+    @action(detail=False, methods=['post'], url_path='import-csv')
+    @transaction.atomic
+    def import_csv(self, request):
+        import csv
+        import io
+        from django.db import transaction
+        from tenants.models import AcademicYear, Branch
+        from students.models import ClassSection, Student, GRADE_CHOICES
+
+        user = request.user
+        branch_id = request.data.get('branch_id')
+        academic_year_id = request.data.get('academic_year_id')
+        file_obj = request.FILES.get('file')
+
+        if not file_obj or not file_obj.name.endswith('.csv'):
+            return Response({'success': False, 'detail': 'Please upload a valid CSV file.'}, status=400)
+            
+        if not branch_id or not academic_year_id:
+            return Response({'success': False, 'detail': 'Branch ID and Academic Year ID are required.'}, status=400)
+
+        # Verify branch and ay
+        try:
+            if user.role == 'SUPER_ADMIN':
+                branch = Branch.objects.get(id=branch_id)
+                ay = AcademicYear.objects.get(id=academic_year_id, tenant=branch.tenant)
+                tenant = branch.tenant
+            else:
+                branch = Branch.objects.get(id=branch_id, tenant=user.tenant)
+                ay = AcademicYear.objects.get(id=academic_year_id, tenant=user.tenant)
+                tenant = user.tenant
+        except (Branch.DoesNotExist, AcademicYear.DoesNotExist):
+            return Response({'success': False, 'detail': 'Invalid branch or academic year.'}, status=400)
+
+        try:
+            decoded_file = file_obj.read().decode('utf-8')
+        except UnicodeDecodeError:
+            return Response({'success': False, 'detail': 'File encoding must be UTF-8.'}, status=400)
+
+        io_string = io.StringIO(decoded_file)
+        reader = csv.DictReader(io_string)
+        
+        expected_headers = ['first_name', 'last_name', 'date_of_birth', 'gender', 'grade', 'section']
+        if not reader.fieldnames or not all(h in reader.fieldnames for h in expected_headers):
+            return Response({'success': False, 'detail': f'Missing required CSV headers. Look for: {", ".join(expected_headers)}'}, status=400)
+
+        errors = []
+        success_count = 0
+        grade_map = {choice[1].lower(): choice[0] for choice in GRADE_CHOICES}
+
+        try:
+            with transaction.atomic():
+                for row_idx, row in enumerate(reader, start=2): # Row 1 is header
+                    row = {k.strip().lower(): v.strip() for k, v in row.items() if k}
+                    if not row: continue # Skip empty rows
+                    
+                    try:
+                        with transaction.atomic(): # Savepoint per row for robust error collection
+                            first_name = row.get('first_name')
+                            last_name = row.get('last_name', '')
+                            dob = row.get('date_of_birth')
+                            gender = row.get('gender', 'OTHER').upper()
+                            grade_str = row.get('grade')
+                            section = row.get('section')
+                            admission_number = row.get('admission_number')
+
+                            if not first_name or not dob or not grade_str or not section:
+                                raise ValueError('first_name, date_of_birth, grade, and section cannot be empty.')
+
+                            # Resolve Grade using choice mapping (Case insensitive)
+                            grade = None
+                            if grade_str.upper() in dict(GRADE_CHOICES):
+                                grade = grade_str.upper()
+                            elif grade_str.lower() in grade_map:
+                                grade = grade_map[grade_str.lower()]
+                            else:
+                                raise ValueError(f"Invalid grade '{grade_str}'. Use standard values (e.g., 'Grade 1', 'Nursery').")
+
+                            # Find or Create Class Section
+                            cs, _ = ClassSection.objects.get_or_create(
+                                tenant=tenant,
+                                branch=branch,
+                                academic_year=ay,
+                                grade=grade,
+                                section=section.upper(),
+                            )
+
+                            if not admission_number:
+                                admission_number = Student.generate_admission_number(branch, ay)
+                                
+                            if Student.objects.filter(branch=branch, academic_year=ay, admission_number=admission_number).exists():
+                                raise ValueError(f"Admission number {admission_number} already in use.")
+
+                            # Standardized DOB approach
+                            import re
+                            if re.match(r'^\d{2}/\d{2}/\d{4}$', dob):
+                                d, m, y = dob.split('/')
+                                dob = f"{y}-{m}-{d}"
+                            
+                            student = Student.objects.create(
+                                tenant=tenant,
+                                branch=branch,
+                                academic_year=ay,
+                                class_section=cs,
+                                first_name=first_name,
+                                last_name=last_name,
+                                date_of_birth=dob,
+                                gender=gender,
+                                admission_number=admission_number,
+                                father_name=row.get('father_name'),
+                                father_phone=row.get('father_phone'),
+                                father_email=row.get('father_email'),
+                                mother_name=row.get('mother_name'),
+                                mother_phone=row.get('mother_phone'),
+                                mother_email=row.get('mother_email'),
+                                address_line1=row.get('address'),
+                                created_by=user
+                            )
+
+                            father_info = {'phone': student.father_phone, 'email': student.father_email, 'name': student.father_name}
+                            mother_info = {'phone': student.mother_phone, 'email': student.mother_email, 'name': student.mother_name}
+                            link_parent_accounts_to_student(student, father_info, mother_info, tenant, branch)
+                            create_student_fees(student, None, None, 'Auto-generated on CSV Import', user)
+                            
+                            success_count += 1
+                            
+                    except Exception as row_error:
+                        errors.append(f"Row {row_idx} ({first_name or 'Unknown'}): {str(row_error)}")
+
+                if errors:
+                    # Roll back entire outer transaction safely
+                    raise ValueError("Validation failed.")
+                    
+        except Exception as e:
+            return Response({
+                'success': False, 
+                'detail': 'Import failed across all rows. No students were imported. Please check the errors array.', 
+                'errors': errors or [str(e)]
+            }, status=400)
+
+        return Response({
+            'success': True,
+            'message': f"Successfully imported {success_count} students.",
+        })
+
 
 class ParentStudentRelationViewSet(viewsets.ModelViewSet):
     serializer_class = ParentStudentRelationSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
 
     def get_queryset(self):
         qs = ParentStudentRelation.objects.filter(student__branch__tenant=self.request.user.tenant)

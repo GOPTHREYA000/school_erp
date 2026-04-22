@@ -28,6 +28,11 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
     skipped = 0
     errors = []
 
+    from tenants.models import AcademicYear
+    ay = AcademicYear.objects.get(id=academic_year_id)
+    target_year, target_month = map(int, month.split('-'))
+    month_index = (target_year - ay.start_date.year) * 12 + target_month - ay.start_date.month
+
     with transaction.atomic():
         for student in students:
             # Skip if invoice already exists for this student/month
@@ -52,7 +57,7 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
             invoice_number = DocumentSequence.get_next_sequence(
                 branch=student.branch, 
                 document_type='INVOICE', 
-                prefix=f"INV-{month}"
+                prefix=f"INV-{student.branch.branch_code}-{month}"
             )
 
             gross = Decimal('0.00')
@@ -60,7 +65,17 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
             
             # Use structure items to build the invoice
             for item in structure.items.filter(is_optional=False):
+                include_item = False
                 if item.frequency == 'MONTHLY' or item.frequency == 'ONE_TIME':
+                    include_item = True
+                elif item.frequency == 'QUARTERLY' and month_index % 3 == 0:
+                    include_item = True
+                elif item.frequency == 'HALF_YEARLY' and month_index % 6 == 0:
+                    include_item = True
+                elif item.frequency == 'ANNUALLY' and month_index == 0:
+                    include_item = True
+                    
+                if include_item:
                     gross += item.amount
                     invoice_items.append(FeeInvoiceItem(
                         category=item.category,
@@ -84,7 +99,7 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
                 invoice_number=invoice_number,
                 due_date=date.today().replace(day=10), # Due by 10th of the month
                 gross_amount=gross,
-                discount_amount=discount,
+                concession_amount=discount,
                 net_amount=net_amount,
                 outstanding_amount=net_amount,
                 status='SENT',

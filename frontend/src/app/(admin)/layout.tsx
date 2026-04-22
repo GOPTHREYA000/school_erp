@@ -14,7 +14,7 @@ import {
   LayoutDashboard, Users, BookOpen, ClipboardCheck, 
   Calendar, Receipt, TrendingDown, TrendingUp, PenTool, 
   Megaphone, Shield, LogOut, Settings, Building2, Search,
-  Menu, X, Bell
+  Menu, X, Bell, Bus, Eye
 } from 'lucide-react';
 
 const getNavGroups = (role: string) => {
@@ -24,7 +24,7 @@ const getNavGroups = (role: string) => {
         {
           group: 'Platform',
           items: [
-            { href: '/dashboard', label: 'Global Overview', icon: LayoutDashboard },
+            { href: '/management-dashboard', label: 'Global Overview', icon: LayoutDashboard },
             { href: '/tenants', label: 'Tenant Control', icon: Shield },
             { href: '/users', label: 'Global Users', icon: Users },
             { href: '/audit-logs', label: 'System Ledger', icon: ClipboardCheck },
@@ -38,6 +38,7 @@ const getNavGroups = (role: string) => {
           group: 'Analytics',
           items: [
             { href: '/dashboard', label: 'School Analytics', icon: LayoutDashboard },
+            { href: '/approvals', label: 'Principal Queue', icon: ClipboardCheck },
             { href: '/reports/financial', label: 'Financial Analytics', icon: TrendingUp },
           ]
         },
@@ -56,9 +57,15 @@ const getNavGroups = (role: string) => {
           ]
         },
         {
+          group: 'Academics',
+          items: [
+            { href: '/homework-tracking', label: 'Homework Tracking', icon: Eye },
+          ]
+        },
+        {
           group: 'Communicate',
           items: [
-            { href: '/notifications/send', label: 'Push Notifications', icon: Bell },
+            { href: '/announcements', label: 'Announcements', icon: Megaphone },
           ]
         }
       ];
@@ -76,6 +83,7 @@ const getNavGroups = (role: string) => {
           items: [
             { href: '/students', label: 'Students', icon: Users },
             { href: '/teachers', label: 'Staff Directory', icon: Users },
+            { href: '/transport', label: 'Transport', icon: Bus },
           ]
         },
         {
@@ -91,13 +99,13 @@ const getNavGroups = (role: string) => {
             { href: '/classes', label: 'Classes', icon: BookOpen },
             { href: '/attendance', label: 'Attendance Overview', icon: ClipboardCheck },
             { href: '/timetable', label: 'Timetable', icon: Calendar },
+            { href: '/homework-tracking', label: 'Homework Tracking', icon: Eye },
           ]
         },
         {
           group: 'Communicate',
           items: [
             { href: '/announcements', label: 'Announcements', icon: Megaphone },
-            { href: '/notifications/send', label: 'Push Notifications', icon: Bell },
           ]
         }
       ];
@@ -106,7 +114,7 @@ const getNavGroups = (role: string) => {
         {
           group: 'Overview',
           items: [
-            { href: '/dashboard', label: 'My Dashboard', icon: LayoutDashboard },
+            { href: '/teacher-dashboard', label: 'My Dashboard', icon: LayoutDashboard },
           ]
         },
         {
@@ -114,6 +122,7 @@ const getNavGroups = (role: string) => {
           items: [
             { href: '/attendance', label: 'My Classes', icon: BookOpen },
             { href: '/homework', label: 'Homework', icon: PenTool },
+            { href: '/homework-tracking', label: 'Homework Tracking', icon: Eye },
             { href: '/timetable', label: 'My Timetable', icon: Calendar },
           ]
         },
@@ -131,12 +140,6 @@ const getNavGroups = (role: string) => {
           items: [
             { href: '/dashboard', label: 'Family Dashboard', icon: LayoutDashboard },
           ]
-        },
-        {
-          group: 'Communicate',
-          items: [
-            { href: '/announcements', label: 'Notices', icon: Megaphone },
-          ]
         }
       ];
     default:
@@ -153,9 +156,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     try {
       await api.post('auth/logout/');
-      router.push('/login');
     } catch (err) {
-      console.error("Logout failed", err);
+      // API might fail if token is already expired, continue to redirect regardless
+    } finally {
       router.push('/login');
     }
   };

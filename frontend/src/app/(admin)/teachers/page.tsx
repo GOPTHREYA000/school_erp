@@ -9,7 +9,9 @@ import {
   BookOpen, PlusCircle, Trash2, CheckCircle2,
   MoreVertical, X, UserPlus, Filter
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useConfirm } from '@/components/common/ConfirmProvider';
 
 export default function TeachersPage() {
   const { data: staff, refetch: refetchStaff, loading: staffLoading, error: staffError } = useApi<any[]>('staff/');
@@ -26,8 +28,10 @@ export default function TeachersPage() {
   const [showQuickSubject, setShowQuickSubject] = useState(false);
   const [quickSubject, setQuickSubject] = useState({ name: '', code: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingSubject, setSavingSubject] = useState(false);
+  const { confirm } = useConfirm();
   const [error, setError] = useState('');
 
   // New Teacher Form
@@ -67,7 +71,6 @@ export default function TeachersPage() {
         employee_id: '', qualification: '', specialization: '', joining_date: '', branch: ''
       });
     } catch (err: any) {
-      console.error(err);
       let errorMsg = "Error creating teacher";
       if (err.response?.data) {
         const data = err.response.data;
@@ -79,7 +82,7 @@ export default function TeachersPage() {
           errorMsg = data;
         }
       }
-      alert(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -99,7 +102,7 @@ export default function TeachersPage() {
         primary_class_id: assignment.primary_class_id,
         class_assignments: assignment.class_assignments
       });
-      alert("Assignment successful!");
+      toast.success("Assignment successful!");
       setShowAssignModal(null);
       setAssignment({ 
         class_assignments: {}, 
@@ -109,20 +112,26 @@ export default function TeachersPage() {
       });
       refetchStaff();
     } catch (err: any) {
-      alert(err.response?.data?.error || "Error assigning teacher");
+      toast.error(err.response?.data?.error || "Error assigning teacher");
     } finally {
       setSaving(false);
     }
   };
 
   const handleRemoveStaff = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove ${name}? This will also delete their login account.`)) return;
+    const isConfirmed = await confirm({
+      title: "Remove Staff",
+      message: `Are you sure you want to remove ${name}? This will also delete their login account.`,
+      isDestructive: true
+    });
+    if (!isConfirmed) return;
+    
     try {
       await api.delete(`staff/${id}/`);
-      alert("Staff removed successfully");
+      toast.success("Staff removed successfully");
       refetchStaff();
     } catch (err) {
-      alert("Error removing staff");
+      toast.error("Error removing staff");
     }
   };
 
@@ -132,11 +141,11 @@ export default function TeachersPage() {
     setSaving(true);
     try {
       await api.patch(`staff/${showEditModal.id}/`, showEditModal);
-      alert("Details updated!");
+      toast.success("Details updated!");
       setShowEditModal(null);
       refetchStaff();
     } catch (err) {
-      alert("Error updating details");
+      toast.error("Error updating details");
     } finally {
       setSaving(false);
     }
@@ -145,7 +154,7 @@ export default function TeachersPage() {
   const handleQuickSubjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickSubject.name || !quickSubject.code || !newTeacher.branch) {
-      alert("Subject Name, Code, and Branch are required");
+      toast.error("Subject Name, Code, and Branch are required");
       return;
     }
     setSavingSubject(true);
@@ -157,9 +166,8 @@ export default function TeachersPage() {
       setShowQuickSubject(false);
       setQuickSubject({ name: '', code: '' });
       await refetchSubjects();
-      alert("Subject added successfully!");
+      toast.success("Subject added successfully!");
     } catch (err: any) {
-      console.error(err);
       let errorMsg = "Error adding subject";
       if (err.response?.data) {
         const data = err.response.data;
@@ -171,7 +179,7 @@ export default function TeachersPage() {
           errorMsg = data;
         }
       }
-      alert(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSavingSubject(false);
     }

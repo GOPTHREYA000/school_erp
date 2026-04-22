@@ -42,3 +42,19 @@ class HomeworkAttachment(models.Model):
 
     def __str__(self):
         return self.file_name
+
+
+class HomeworkAcknowledgment(models.Model):
+    """Tracks parent acknowledgment of homework — like a diary signature."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    homework = models.ForeignKey(Homework, on_delete=models.CASCADE, related_name='acknowledgments')
+    parent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='homework_acknowledgments')
+    acknowledged_at = models.DateTimeField(auto_now_add=True)
+    note = models.CharField(max_length=200, blank=True, default='')
+
+    class Meta:
+        unique_together = ['homework', 'parent']
+        ordering = ['-acknowledged_at']
+
+    def __str__(self):
+        return f"{self.parent.email} ack → {self.homework.title}"

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import { Plus, BookOpen } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface ClassSection {
   id: string;
@@ -30,7 +31,7 @@ export default function ClassesPage() {
       setShowForm(false);
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Error creating class');
+      toast.error(err.response?.data?.detail || 'Error creating class');
     } finally {
       setSaving(false);
     }

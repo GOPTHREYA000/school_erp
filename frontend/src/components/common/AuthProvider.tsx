@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '@/lib/axios';
+import { toast } from 'react-hot-toast';
 
 interface User {
   id: string;
@@ -31,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.get('auth/me/');
       setUser(res.data.data);
     } catch (err) {
-      console.error("Failed to load user profile", err);
+      toast.error("Failed to load user profile");
       setUser(null);
     } finally {
       setLoading(false);

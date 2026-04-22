@@ -6,10 +6,12 @@ import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import Link from 'next/link';
 import { Plus, Search, Users, Filter, Receipt, Building2, UserPlus, CheckCircle, Trash2, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import StudentForm from '@/components/students/StudentForm';
 import { useBranch } from '@/components/common/BranchContext';
-import Drawer from '@/components/common/Drawer';
+import Modal from '@/components/common/Modal';
 import FloatingActionBar from '@/components/common/FloatingActionBar';
+import CsvImportModal from '@/components/students/CsvImportModal';
 
 interface Student {
   id: string;
@@ -33,6 +35,7 @@ export default function StudentsPage() {
   const [statusFilter, setStatusFilter] = useState('ACTIVE');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showDrawer, setShowDrawer] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const { data: students, loading, error, refetch } = useApi<Student[]>(
     `/students/?status=${statusFilter}&search=${search}&branch_id=${selectedBranch}`
@@ -57,7 +60,7 @@ export default function StudentsPage() {
       setShowDrawer(false);
       refetch();
     } catch (err: any) {
-      alert("Failed to enroll: " + JSON.stringify(err.response?.data));
+      toast.error("Failed to enroll: " + (err.response?.data?.detail || JSON.stringify(err.response?.data)));
     }
   };
 
@@ -72,13 +75,22 @@ export default function StudentsPage() {
            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Student Directory</h1>
            <p className="text-gray-500 text-sm mt-1">Manage enrollments, academic mapping, and student lifecycle.</p>
         </div>
-        <button 
-          onClick={() => setShowDrawer(true)}
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2 group"
-        >
-          <UserPlus size={18} className="group-hover:scale-110 transition-transform" />
-          Enroll Student
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setShowImport(true)}
+            className="bg-white border border-gray-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:border-blue-300 transition-all flex items-center gap-2 group"
+          >
+            <Users size={18} className="text-blue-500 group-hover:scale-110 transition-transform" />
+            Import CSV
+          </button>
+          <button 
+            onClick={() => setShowDrawer(true)}
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2 group"
+          >
+            <UserPlus size={18} className="group-hover:scale-110 transition-transform" />
+            Enroll Student
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
@@ -180,29 +192,42 @@ export default function StudentsPage() {
         )}
       </div>
 
-      {/* Slide-over Drawer for Enrollment */}
-      <Drawer 
+      {/* CSV Import Modal */}
+      <CsvImportModal 
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        onSuccess={() => refetch()}
+        branchId={selectedBranch}
+      />
+
+      {/* Centered Modal for Enrollment */}
+      <Modal 
         isOpen={showDrawer} 
         onClose={() => setShowDrawer(false)} 
         title="Student Enrollment"
+        maxWidth="5xl"
       >
-        <div className="bg-blue-50/50 p-4 rounded-2xl mb-6 border border-blue-100">
-           <h4 className="text-sm font-bold text-blue-900 flex items-center gap-2 mb-1">
-             <ShieldCheck size={16} /> 
-             Authenticated Admission
-           </h4>
-           <p className="text-[11px] text-blue-700 opacity-80">All data entered here automatically links to the selected branch and initiates the financial lifecycle.</p>
+        <div className="p-8">
+          <div className="bg-blue-50/50 p-6 rounded-3xl mb-8 border border-blue-100 flex gap-4 items-center">
+             <div className="bg-blue-100 p-3 rounded-2xl">
+               <ShieldCheck size={24} className="text-blue-700" />
+             </div>
+             <div>
+                <h4 className="text-base font-bold text-blue-900">Authenticated Admission</h4>
+                <p className="text-sm text-blue-700 opacity-80 mt-0.5">All data entered here automatically links to the selected branch and initiates the financial lifecycle.</p>
+             </div>
+          </div>
+          <StudentForm onSubmit={handleEnroll} onCancel={() => setShowDrawer(false)} />
         </div>
-        <StudentForm onSubmit={handleEnroll} onCancel={() => setShowDrawer(false)} />
-      </Drawer>
+      </Modal>
 
       {/* Bulk Actions */}
       <FloatingActionBar 
         count={selectedIds.length}
         onClear={() => setSelectedIds([])}
         actions={[
-          { label: 'Bulk ID Generation', icon: Receipt, onClick: () => alert('Generating IDs...') },
-          { label: 'Archive Selected', icon: Trash2, variant: 'danger', onClick: () => alert('Mock Archive') },
+          { label: 'Bulk ID Generation', icon: Receipt, onClick: () => toast('Generating IDs...', { icon: '🪪' }) },
+          { label: 'Archive Selected', icon: Trash2, variant: 'danger', onClick: () => toast('Archive coming soon', { icon: '📦' }) },
         ]}
       />
     </div>

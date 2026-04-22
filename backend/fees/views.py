@@ -11,7 +11,7 @@ from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
-from accounts.permissions import IsSchoolAdminOrAbove
+from accounts.permissions import IsSchoolAdminOrAbove, IsBranchAdminOrAbove, IsAccountantOrAbove
 from accounts.utils import get_validated_branch_id, get_active_academic_year, log_audit_action
 from students.models import Student, ClassSection
 from .models import (
@@ -32,7 +32,7 @@ from .services import process_initial_payment
 
 class FeeCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = FeeCategorySerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         qs = FeeCategory.objects.filter(branch__tenant=self.request.user.tenant)
@@ -47,7 +47,7 @@ class FeeCategoryViewSet(viewsets.ModelViewSet):
 
 class FeeStructureViewSet(viewsets.ModelViewSet):
     serializer_class = FeeStructureSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -89,7 +89,7 @@ class FeeStructureViewSet(viewsets.ModelViewSet):
 
 class FeeStructureItemViewSet(viewsets.ModelViewSet):
     serializer_class = FeeStructureItemSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         return FeeStructureItem.objects.filter(structure__branch__tenant=self.request.user.tenant)
@@ -97,7 +97,7 @@ class FeeStructureItemViewSet(viewsets.ModelViewSet):
 
 class StudentFeeItemViewSet(viewsets.ModelViewSet):
     serializer_class = StudentFeeItemSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         return StudentFeeItem.objects.filter(student__branch__tenant=self.request.user.tenant)
@@ -105,7 +105,12 @@ class StudentFeeItemViewSet(viewsets.ModelViewSet):
 
 class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
     serializer_class = FeeApprovalRequestSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
+
+    def get_permissions(self):
+        if self.action in ['approve', 'reject']:
+            return [IsAuthenticated(), IsBranchAdminOrAbove()]
+        return [IsAuthenticated(), IsAccountantOrAbove()]
 
     def get_queryset(self):
         user = self.request.user
@@ -133,10 +138,11 @@ class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
         approval.admin_remarks = request.data.get('remarks', '')
         approval.save()
         
-        # After approval, update student status
+        # After approval, update student status if applicable
         student = approval.student
-        student.status = 'ACTIVE'
-        student.save()
+        if student.status in ['PENDING_APPROVAL', 'INACTIVE']:
+            student.status = 'ACTIVE'
+            student.save()
         
         return Response({'success': True, 'message': 'Fee reduction approved.'})
 
@@ -154,7 +160,7 @@ class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
 
 class FeeConcessionViewSet(viewsets.ModelViewSet):
     serializer_class = FeeConcessionSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         user = self.request.user
@@ -168,7 +174,7 @@ class FeeConcessionViewSet(viewsets.ModelViewSet):
 
 class LateFeeRuleViewSet(viewsets.ModelViewSet):
     serializer_class = LateFeeRuleSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         user = self.request.user
@@ -181,7 +187,7 @@ class LateFeeRuleViewSet(viewsets.ModelViewSet):
 
 
 class FeeInvoiceViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -353,7 +359,7 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
 
 class PaymentViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         qs = Payment.objects.filter(branch__tenant=self.request.user.tenant).select_related('student', 'invoice')
@@ -394,7 +400,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
         receipt_number = DocumentSequence.get_next_sequence(
             branch=invoice.branch,
             document_type='RECEIPT',
-            prefix=f"RCP-{timezone.now().strftime('%Y%m')}"
+            prefix=f"RCP-{invoice.branch.branch_code}-{timezone.now().strftime('%Y%m')}"
         )
 
         payment = Payment.objects.create(

@@ -24,6 +24,7 @@ from homework.models import Homework
 from homework.serializers import HomeworkSerializer
 from announcements.models import Announcement
 from announcements.serializers import AnnouncementSerializer
+from transport.models import StudentTransport
 
 
 def get_parent_student(user, student_id):
@@ -51,6 +52,9 @@ def parent_children(request):
              pending = FeeApprovalRequest.objects.filter(student=s, status='PENDING').first()
              total = pending.offered_total if pending else 0
              
+        # Transport info
+        transport = StudentTransport.objects.filter(student=s, is_active=True).select_related('route').first()
+
         data.append({
             'id': str(s.id),
             'first_name': s.first_name,
@@ -59,6 +63,9 @@ def parent_children(request):
             'branch_name': s.branch.name if s.branch else None,
             'enroll_no': s.admission_number,
             'committed_fee': float(total or 0),
+            'transport_opted': transport is not None,
+            'transport_fee': float(transport.monthly_fee) if transport else 0,
+            'transport_route': transport.route.name if transport else None,
             'photo_url': s.photo_url,
             'relation_type': r.relation_type,
         })
@@ -80,8 +87,51 @@ def parent_child_invoices(request, student_id):
     student = get_parent_student(request.user, student_id)
     if not student:
         return Response({'detail': 'Permission denied'}, status=403)
-    invoices = FeeInvoice.objects.filter(student=student).order_by('-created_at')
-    return Response({'success': True, 'data': FeeInvoiceListSerializer(invoices, many=True).data})
+    invoices = FeeInvoice.objects.filter(student=student).prefetch_related(
+        'payments', 'items', 'items__category'
+    ).order_by('-created_at')
+    
+    invoice_data = []
+    for inv in invoices:
+        # Payment history for this invoice
+        payments = [{
+            'id': str(p.id),
+            'receipt_number': p.receipt_number,
+            'amount': float(p.amount),
+            'payment_mode': p.payment_mode,
+            'payment_date': str(p.payment_date),
+            'status': p.status,
+            'reference_number': p.reference_number,
+            'bank_name': p.bank_name,
+            'created_at': p.created_at.isoformat(),
+        } for p in inv.payments.filter(status='COMPLETED').order_by('-payment_date')]
+        
+        # Invoice line items
+        items = [{
+            'category': item.category.name if item.category else 'Fee',
+            'original_amount': float(item.original_amount),
+            'concession': float(item.concession),
+            'final_amount': float(item.final_amount),
+        } for item in inv.items.all()]
+        
+        invoice_data.append({
+            'id': str(inv.id),
+            'invoice_number': inv.invoice_number,
+            'month': inv.month,
+            'due_date': str(inv.due_date) if inv.due_date else None,
+            'issued_date': str(inv.issued_date) if inv.issued_date else None,
+            'gross_amount': float(inv.gross_amount),
+            'concession_amount': float(inv.concession_amount),
+            'late_fee_amount': float(inv.late_fee_amount),
+            'net_amount': float(inv.net_amount),
+            'paid_amount': float(inv.paid_amount),
+            'outstanding_amount': float(inv.outstanding_amount),
+            'status': inv.status,
+            'payments': payments,
+            'items': items,
+        })
+    
+    return Response({'success': True, 'data': invoice_data})
 
 
 @api_view(['GET'])
@@ -107,8 +157,64 @@ def parent_child_homework(request, student_id):
         return Response({'detail': 'Permission denied'}, status=403)
     if not student.class_section:
         return Response({'success': True, 'data': []})
-    hw = Homework.objects.filter(class_section=student.class_section, is_published=True).order_by('due_date')[:20]
-    return Response({'success': True, 'data': HomeworkSerializer(hw, many=True).data})
+    
+    from homework.models import HomeworkAcknowledgment
+    
+    hw_list = Homework.objects.filter(
+        class_section=student.class_section, is_published=True
+    ).select_related('subject', 'posted_by').order_by('-due_date')[:50]
+    
+    # Get all acknowledgments by this parent for these homeworks
+    acked_ids = set(
+        HomeworkAcknowledgment.objects.filter(
+            parent=request.user, homework__in=hw_list
+        ).values_list('homework_id', flat=True)
+    )
+    
+    data = []
+    for hw in hw_list:
+        ack = hw.id in acked_ids
+        data.append({
+            'id': str(hw.id),
+            'title': hw.title,
+            'description': hw.description,
+            'subject_name': hw.subject.name if hw.subject else '',
+            'due_date': str(hw.due_date),
+            'activity_type': hw.activity_type,
+            'is_published': hw.is_published,
+            'created_at': hw.created_at.isoformat(),
+            'posted_by': f"{hw.posted_by.first_name} {hw.posted_by.last_name}" if hw.posted_by else None,
+            'acknowledged': ack,
+        })
+    
+    return Response({'success': True, 'data': data})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsParent])
+def parent_acknowledge_homework(request, student_id, homework_id):
+    """POST /api/parent/children/<id>/homework/<hw_id>/acknowledge/
+    Toggles parent acknowledgment (diary signature) on a homework."""
+    student = get_parent_student(request.user, student_id)
+    if not student:
+        return Response({'detail': 'Permission denied'}, status=403)
+    
+    from homework.models import HomeworkAcknowledgment
+    
+    hw = Homework.objects.filter(id=homework_id, class_section=student.class_section, is_published=True).first()
+    if not hw:
+        return Response({'detail': 'Homework not found'}, status=404)
+    
+    ack, created = HomeworkAcknowledgment.objects.get_or_create(
+        homework=hw, parent=request.user
+    )
+    
+    if not created:
+        # Already acknowledged — toggle it off
+        ack.delete()
+        return Response({'success': True, 'acknowledged': False, 'message': 'Acknowledgment removed'})
+    
+    return Response({'success': True, 'acknowledged': True, 'message': 'Homework acknowledged'})
 
 
 @api_view(['GET'])
@@ -146,3 +252,23 @@ def parent_announcements(request):
         models.Q(target_audience__in=['ALL', 'PARENTS']) | models.Q(target_classes__id__in=class_ids)
     ).distinct().order_by('-published_at')[:20]
     return Response({'success': True, 'data': AnnouncementSerializer(anns, many=True).data})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsParent])
+def parent_child_transport(request, student_id):
+    """GET /api/parent/children/<id>/transport/ — transport details for a child."""
+    student = get_parent_student(request.user, student_id)
+    if not student:
+        return Response({'detail': 'Permission denied'}, status=403)
+    transport = StudentTransport.objects.filter(student=student, is_active=True).select_related('route').first()
+    if not transport:
+        return Response({'success': True, 'data': None})
+    return Response({'success': True, 'data': {
+        'route_name': transport.route.name,
+        'pickup_point': transport.pickup_point,
+        'distance_km': float(transport.distance_km),
+        'monthly_fee': float(transport.monthly_fee),
+        'annual_fee': float(transport.monthly_fee * 12),
+        'opted_at': transport.opted_at.isoformat() if transport.opted_at else None,
+    }})

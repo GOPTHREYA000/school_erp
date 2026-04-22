@@ -81,6 +81,13 @@ class AcademicYear(models.Model):
 
     class Meta:
         unique_together = ('tenant', 'name')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant'],
+                condition=models.Q(is_active=True),
+                name='unique_active_academic_year_per_tenant'
+            )
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.tenant.name})"

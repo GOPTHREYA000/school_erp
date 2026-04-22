@@ -5,8 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 from collections import defaultdict
 
 from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove
-from .models import Period, Subject, TimetableSlot, DAY_CHOICES
-from .serializers import PeriodSerializer, SubjectSerializer, TimetableSlotSerializer
+from .models import Period, Subject, TimetableSlot, DAY_CHOICES, ClassSubjectDemand
+from .serializers import PeriodSerializer, SubjectSerializer, TimetableSlotSerializer, ClassSubjectDemandSerializer
+import random
 
 
 class PeriodViewSet(viewsets.ModelViewSet):
@@ -84,6 +85,29 @@ class SubjectViewSet(viewsets.ModelViewSet):
         return Response({"success": True, "data": SubjectSerializer(instance).data}, status=201)
 
 
+class ClassSubjectDemandViewSet(viewsets.ModelViewSet):
+    serializer_class = ClassSubjectDemandSerializer
+    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+
+    def get_queryset(self):
+        qs = ClassSubjectDemand.objects.filter(branch__tenant=self.request.user.tenant)
+        branch = self.request.query_params.get('branch_id')
+        cs = self.request.query_params.get('class_section_id')
+        if branch:
+            qs = qs.filter(branch_id=branch)
+        if cs:
+            qs = qs.filter(class_section_id=cs)
+        return qs.select_related('subject', 'teacher', 'class_section').order_by('-priority')
+
+    def perform_create(self, serializer):
+        class_section = serializer.validated_data.get('class_section')
+        serializer.save(
+            tenant=self.request.user.tenant,
+            branch=class_section.branch,
+            academic_year=class_section.academic_year
+        )
+
+
 class TimetableSlotViewSet(viewsets.ModelViewSet):
     serializer_class = TimetableSlotSerializer
     permission_classes = [IsAuthenticated, IsTeacherOrAbove]
@@ -102,6 +126,106 @@ class TimetableSlotViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.user.tenant)
+
+    @action(detail=False, methods=['post'], url_path='auto-generate')
+    def auto_generate(self, request):
+        branch_id = request.data.get('branch_id')
+        if not branch_id:
+            return Response({'detail': 'branch_id is required'}, status=400)
+            
+        tenant = request.user.tenant
+        
+        # 1. Clear existing slots
+        TimetableSlot.objects.filter(class_section__branch_id=branch_id, tenant=tenant).delete()
+        
+        # 2. Fetch Base Configuration
+        days = [d[0] for d in DAY_CHOICES]
+        periods = list(Period.objects.filter(branch_id=branch_id, tenant=tenant, period_type='CLASS').order_by('order'))
+        
+        if not periods:
+            return Response({'detail': 'No CLASS periods defined for this branch.'}, status=400)
+            
+        demands = ClassSubjectDemand.objects.filter(branch_id=branch_id, tenant=tenant).order_by('-priority')
+        
+        if not demands.exists():
+            return Response({'detail': 'No Class Subject demands correctly configured.'}, status=400)
+
+        slots_to_create = []
+        teacher_schedule = defaultdict(set) # key: teacher_id, val: set of (day, period_id)
+        
+        # Group demands by class_section
+        demands_by_class = defaultdict(list)
+        for d in demands:
+            demands_by_class[d.class_section_id].append(d)
+
+        # 3. Allocation Algorithm
+        for cs_id, class_demands in demands_by_class.items():
+            class_schedule = defaultdict(set) # key: day, val: set of period_id
+            
+            for demand in class_demands:
+                periods_scheduled = 0
+                max_attempts = 1000
+                attempts = 0
+                
+                while periods_scheduled < demand.classes_per_week and attempts < max_attempts:
+                    attempts += 1
+                    day = random.choice(days)
+                    period_index = random.randint(0, len(periods) - 1)
+                    p1 = periods[period_index]
+                    
+                    # Hard constraints
+                    # A. Is class free in this period?
+                    if p1.id in class_schedule[day]:
+                        continue
+                        
+                    # B. Is teacher free in this period?
+                    if demand.teacher_id and (day, p1.id) in teacher_schedule[demand.teacher_id]:
+                        continue
+                        
+                    # Handle double periods if required
+                    if demand.requires_double_period:
+                        if period_index >= len(periods) - 1:
+                            continue # Needs another period after this
+                        p2 = periods[period_index + 1]
+                        
+                        if p2.id in class_schedule[day]:
+                            continue
+                        if demand.teacher_id and (day, p2.id) in teacher_schedule[demand.teacher_id]:
+                            continue
+                            
+                        # Book both
+                        slots_to_create.append(TimetableSlot(
+                            tenant=tenant, class_section_id=cs_id, period=p1, day_of_week=day,
+                            subject=demand.subject, teacher=demand.teacher
+                        ))
+                        slots_to_create.append(TimetableSlot(
+                            tenant=tenant, class_section_id=cs_id, period=p2, day_of_week=day,
+                            subject=demand.subject, teacher=demand.teacher
+                        ))
+                        class_schedule[day].update([p1.id, p2.id])
+                        if demand.teacher_id:
+                            teacher_schedule[demand.teacher_id].update([(day, p1.id), (day, p2.id)])
+                            
+                        periods_scheduled += 2
+                    else:
+                        # Book single
+                        slots_to_create.append(TimetableSlot(
+                            tenant=tenant, class_section_id=cs_id, period=p1, day_of_week=day,
+                            subject=demand.subject, teacher=demand.teacher
+                        ))
+                        class_schedule[day].add(p1.id)
+                        if demand.teacher_id:
+                            teacher_schedule[demand.teacher_id].add((day, p1.id))
+                            
+                        periods_scheduled += 1
+
+        if slots_to_create:
+            TimetableSlot.objects.bulk_create(slots_to_create)
+            
+        return Response({
+            'success': True, 
+            'message': f'Timetable generated successfully. Allocated {len(slots_to_create)} slots.'
+        })
 
     @action(detail=False, methods=['get'], url_path='weekly')
     def weekly_view(self, request):

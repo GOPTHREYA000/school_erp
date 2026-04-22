@@ -27,7 +27,7 @@ class BulkAttendanceSerializer(serializers.Serializer):
     records = BulkAttendanceItemSerializer(many=True)
 
     def validate_date(self, value):
-        if value > timezone.now().date():
+        if value > timezone.localdate():
             raise serializers.ValidationError("Cannot mark attendance for future dates.")
         if value.weekday() == 6:  # Sunday
             raise serializers.ValidationError("Cannot mark attendance on a non-working day (Sunday).")

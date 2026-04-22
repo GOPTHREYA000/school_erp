@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db.models import Sum
 from decimal import Decimal
 
-from accounts.permissions import IsSchoolAdminOrAbove
+from accounts.permissions import IsBranchAdminOrAbove
 from accounts.utils import get_validated_branch_id, log_audit_action, log_bulk_action
 from .models import ExpenseCategory, Vendor, Expense, TransactionLog
 from .serializers import ExpenseCategorySerializer, VendorSerializer, ExpenseSerializer, TransactionLogSerializer
@@ -14,7 +14,7 @@ from .serializers import ExpenseCategorySerializer, VendorSerializer, ExpenseSer
 
 class ExpenseCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseCategorySerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
 
     def get_queryset(self):
         qs = ExpenseCategory.objects.filter(branch__tenant=self.request.user.tenant)
@@ -29,7 +29,7 @@ class ExpenseCategoryViewSet(viewsets.ModelViewSet):
 
 class VendorViewSet(viewsets.ModelViewSet):
     serializer_class = VendorSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
 
     def get_queryset(self):
         qs = Vendor.objects.filter(branch__tenant=self.request.user.tenant)
@@ -44,7 +44,7 @@ class VendorViewSet(viewsets.ModelViewSet):
 
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
 
     def get_queryset(self):
         qs = Expense.objects.filter(branch__tenant=self.request.user.tenant).select_related('category', 'vendor')
@@ -205,7 +205,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
 class TransactionLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TransactionLogSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
 
     def get_queryset(self):
         qs = TransactionLog.objects.filter(branch__tenant=self.request.user.tenant)

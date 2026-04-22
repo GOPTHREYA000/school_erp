@@ -61,15 +61,17 @@ def teacher_dashboard(request):
 
             # Check if attendance marked today for this class
             from attendance.models import AttendanceRecord
-            marked_today = AttendanceRecord.objects.filter(
-                student__class_section_id=cs_id, date=today
-            ).exists()
+            marked_today = False
+            if student_count > 0:
+                marked_today = AttendanceRecord.objects.filter(
+                    class_section_id=cs_id, date=today
+                ).exists()
 
-            attendance_status.append({
-                'class_id': str(cs_id),
-                'class_name': cs_name,
-                'marked_today': marked_today,
-            })
+                attendance_status.append({
+                    'class_id': str(cs_id),
+                    'class_name': cs_name,
+                    'marked_today': marked_today,
+                })
 
     # 2. Today's timetable schedule
     today_schedule = []

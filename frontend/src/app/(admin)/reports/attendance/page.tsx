@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/lib/axios';
 import { ClipboardCheck, Users, Percent } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function AttendanceReportsPage() {
   const [stats, setStats] = useState<any[]>([]);
@@ -11,7 +12,7 @@ export default function AttendanceReportsPage() {
   useEffect(() => {
     api.get('reports/attendance/stats/')
       .then(res => setStats(res.data.data))
-      .catch(err => console.error(err))
+      .catch(err => toast.error('Failed to load attendance stats', { id: 'attendance-report-err' }))
       .finally(() => setLoading(false));
   }, []);
 

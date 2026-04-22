@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
+import { toast } from 'react-hot-toast';
+import { useConfirm } from '@/components/common/ConfirmProvider';
 import { Plus, Search, Shield, UserCog, Trash2, Mail, Lock, Phone, Building2, User, KeyRound } from 'lucide-react';
 
 interface User {
@@ -70,13 +72,15 @@ export default function UsersPage() {
   const [formData, setFormData] = useState({
     first_name: '', last_name: '', email: '', password: '', role: 'TEACHER', phone: '', branch: ''
   });
-  
   const [saving, setSaving] = useState(false);
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     api.get('auth/me/')
       .then(res => setCurrentUser(res.data.data))
-      .catch(console.error);
+      .catch(err => {
+        toast.error('Failed to authenticate session', { id: 'auth-error' });
+      });
   }, []);
 
   // Reset branch when tenant changes
@@ -98,7 +102,7 @@ export default function UsersPage() {
       setFormData({ first_name: '', last_name: '', email: '', password: '', role: 'TEACHER', phone: '', branch: '' });
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Error creating user');
+      toast.error(err.response?.data?.detail || 'Error creating user');
     } finally {
       setSaving(false);
     }
@@ -115,24 +119,35 @@ export default function UsersPage() {
       const confirmText = window.prompt(warningMsg);
       if (confirmText !== 'DELETE') return;
     } else {
-      if (!window.confirm(warningMsg)) return;
+      const isConfirmed = await confirm({
+        title: "Delete User",
+        message: warningMsg,
+        isDestructive: true
+      });
+      if (!isConfirmed) return;
     }
 
     try {
       await api.delete(`/users/${userToDelete.id}/`);
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Error deleting user. You may not have permission.');
+      toast.error(err.response?.data?.detail || 'Error deleting user. You may not have permission.');
     }
   };
 
   const handleImpersonate = async (targetUser: User) => {
-    if (!confirm(`Are you sure you want to impersonate ${targetUser.email}?`)) return;
+    const isConfirmed = await confirm({
+      title: "Impersonate User",
+      message: `Are you sure you want to impersonate ${targetUser.email}?`,
+      isDestructive: false,
+      confirmText: "Impersonate"
+    });
+    if (!isConfirmed) return;
     try {
       await api.post('auth/impersonate/', { user_id: targetUser.id });
       window.location.href = '/super-admin/all';
     } catch (err) {
-      alert('Failed to impersonate user.');
+      toast.error('Failed to impersonate user.');
     }
   };
 

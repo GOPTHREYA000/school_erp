@@ -7,8 +7,10 @@ import DateInput from '@/components/DateInput';
 import { 
   Settings, Calendar, Building2, BookOpen, 
   Receipt, CheckCircle2, XCircle, Clock, AlertTriangle,
-  Layers, Tag, IndianRupee, Plus as CustomPlus, Trash2, Edit2, Truck, CheckCircle2 as CheckCircle
+  Layers, Tag, IndianRupee, Plus as CustomPlus, Trash2, Edit2, Truck, CheckCircle2 as CheckCircle 
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { useConfirm } from '@/components/common/ConfirmProvider';
 
 type TabType = 'school' | 'years' | 'branches' | 'classes' | 'subjects' | 'approvals';
 
@@ -130,8 +132,8 @@ function SchoolSettings() {
       const { ...payload } = formData;
       await api.patch('tenants/me/', payload);
       refetch();
-      alert("Settings saved successfully");
-    } catch (err) { alert("Error saving settings"); }
+      toast.success("Settings saved successfully");
+    } catch (err) { toast.error("Error saving settings"); }
     finally { setSaving(false); }
   };
 
@@ -275,22 +277,22 @@ function AcademicYearManager() {
     if (!sourceYearName) return;
     
     const sourceYear = data?.find(y => y.name === sourceYearName);
-    if (!sourceYear) { alert("Source Academic Year not found"); return; }
+    if (!sourceYear) { toast.error("Source Academic Year not found"); return; }
     
     setSaving(true);
     try {
       await api.post(`/tenants/academic-years/${targetId}/clone-setup/`, { source_year_id: sourceYear.id });
-      alert("Setup cloned successfully! Classes and Fees have been replicated.");
+      toast.success("Setup cloned successfully! Classes and Fees have been replicated.");
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.error || "Error cloning setup");
+      toast.error(err.response?.data?.error || "Error cloning setup");
     } finally { setSaving(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.start_date || !formData.end_date) {
-      alert("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return;
     }
     setSaving(true);
@@ -305,7 +307,7 @@ function AcademicYearManager() {
       setFormData({ name: '', start_date: '', end_date: '', is_active: true });
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Error saving academic year');
+      toast.error(err.response?.data?.detail || 'Error saving academic year');
     } finally { setSaving(false); }
   };
 
@@ -396,14 +398,14 @@ function BranchManager() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.branch_code) { alert("Name and Code are required"); return; }
+    if (!formData.name || !formData.branch_code) { toast.error("Name and Code are required"); return; }
     setSaving(true);
     try {
       await api.post('tenants/branches/', formData);
       setShowForm(false);
       setFormData({ name: '', branch_code: '', address: '', is_active: true });
       refetch();
-    } catch (err: any) { alert('Error creating branch'); } finally { setSaving(false); }
+    } catch (err: any) { toast.error('Error creating branch'); } finally { setSaving(false); }
   };
 
   
@@ -476,6 +478,10 @@ function ClassAndFeeSetup() {
     selectedBranch && selectedAY ? `/fees/structures/?branch_id=${selectedBranch}&academic_year_id=${selectedAY}` : null
   );
 
+  const { data: slabs, refetch: refetchSlabs } = useApi<any[]>(
+    selectedBranch ? `/transport/rate-slabs/?branch_id=${selectedBranch}` : null
+  );
+
   useEffect(() => {
     if (branches?.length && !selectedBranch) setSelectedBranch(branches[0].id);
     if (years?.length && !selectedAY) setSelectedAY(years.find(y => y.is_active)?.id || years[0].id);
@@ -492,9 +498,35 @@ function ClassAndFeeSetup() {
     try {
       await api.post('classes/', { grade, section: 'A', branch: selectedBranch, academic_year: selectedAY, max_capacity: 40 });
       refetch();
-    } catch (err) { alert("Error creating class"); }
+    } catch (err) { toast.error("Error creating class"); }
   };
 
+  // ─── Transport Rate Slab Handler (uses dedicated transport/rate-slabs/ API) ───
+  const handleUpdateTransportSlab = async (label: string, minKm: number, maxKm: number, existingSlab: any) => {
+    const amount = prompt(`Enter monthly rate for ${label}:`, existingSlab?.monthly_rate?.toString() || '0');
+    if (amount === null) return;
+    const rate = parseFloat(amount);
+    if (isNaN(rate) || rate < 0) { toast.error('Please enter a valid amount'); return; }
+
+    try {
+      if (existingSlab) {
+        await api.patch(`transport/rate-slabs/${existingSlab.id}/`, { monthly_rate: rate });
+      } else {
+        await api.post('transport/rate-slabs/', {
+          branch: selectedBranch,
+          min_km: minKm,
+          max_km: maxKm,
+          monthly_rate: rate,
+        });
+      }
+      toast.success('Transport rate updated!');
+      refetchSlabs();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Error updating transport rate slab');
+    }
+  };
+
+  // ─── Tuition/Class Fee Handler (uses fees/structures/ API) ───
   const handleUpdateFee = async (grade: string, catName: string, currentAmount: number) => {
     const amount = prompt(`Enter ${catName} for Grade ${grade}:`, currentAmount.toString());
     if (amount === null) return;
@@ -504,27 +536,24 @@ function ClassAndFeeSetup() {
       let cat = categories?.find(c => c.name.toLowerCase().includes(catName.toLowerCase()) && c.branch === selectedBranch);
       
       if (!cat) {
-        console.log(`Auto-creating missing category: ${catName}`);
         let code = catName.toUpperCase().replace(/\s+/g, '_');
-        if (catName.includes('0-2')) code = 'TRANS_0_2';
-        else if (catName.includes('2-5')) code = 'TRANS_2_5';
-        else if (catName.includes('5-10')) code = 'TRANS_5_10';
-        else if (catName.includes('10+')) code = 'TRANS_10_PLUS';
-        else if (catName === 'Tuition') code = 'TUITION';
+        if (catName === 'Tuition') code = 'TUITION';
 
         const newCatRes = await api.post('fees/categories/', {
-          name: catName.includes('Transport') ? catName : (catName === 'Tuition' ? 'Tuition Fee' : catName),
+          name: catName === 'Tuition' ? 'Tuition Fee' : catName,
           code: code,
           branch: selectedBranch,
           description: `Automatically created ${catName} category`
         });
         cat = newCatRes.data;
-        await refetchCategories?.(); // Ensure UI can find the new category name by ID
+        await refetchCategories?.();
       }
 
-      // Get or Create Fee Structure for this grade/AY/branch
+      // Get or Create Fee Structure — backend wraps as {success, data}
       let structRes = await api.get(`/fees/structures/?branch_id=${selectedBranch}&academic_year_id=${selectedAY}&grade=${grade}`);
-      let structureId = structRes.data[0]?.id;
+      const structList = structRes.data?.data ?? structRes.data?.results ?? structRes.data;
+      const existingStruct = Array.isArray(structList) ? structList[0] : null;
+      let structureId = existingStruct?.id;
 
       if (!structureId) {
         const createRes = await api.post('fees/structures/', {
@@ -534,18 +563,17 @@ function ClassAndFeeSetup() {
       }
 
       // Update or create item
-      const existingItem = (structRes.data[0]?.items || []).find((i: any) => i.category === cat.id);
+      const existingItem = (existingStruct?.items || []).find((i: any) => i.category === cat.id);
       if (existingItem) {
         await api.patch(`/fees/structure-items/${existingItem.id}/`, { amount });
       } else {
         await api.post(`/fees/structures/${structureId}/items/`, { category: cat.id, amount, frequency: 'MONTHLY' });
       }
-      alert("Fee updated!");
+      toast.success("Fee updated!");
       refetch();
       refetchStructures();
-    } catch (err) { 
-      console.error(err);
-      alert("Error updating fee. Make sure the category exists or can be created."); 
+    } catch (err: any) { 
+      toast.error(err.response?.data?.detail || "Error updating fee. Check console for details."); 
     }
   };
 
@@ -585,25 +613,26 @@ function ClassAndFeeSetup() {
                 </div>
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-                {['Transport (0-2 KM)', 'Transport (2-5 KM)', 'Transport (5-10 KM)', 'Transport (10+ KM)'].map(tier => {
-                  const transStruct = structures?.find((s: any) => s.grade === 'TRANSPORT');
-                  const item = transStruct?.items?.find((i: any) => {
-                    const cat = categories?.find(c => c.id === i.category);
-                    return cat?.name === tier || cat?.name === tier.replace('Transport ', 'Transport Fee ');
-                  });
+                {[
+                  { label: '0-2 KM', minKm: 0, maxKm: 2 },
+                  { label: '2-5 KM', minKm: 2, maxKm: 5 },
+                  { label: '5-10 KM', minKm: 5, maxKm: 10 },
+                  { label: '10+ KM', minKm: 10, maxKm: 50 },
+                ].map(tier => {
+                  const slab = slabs?.find((s: any) => Number(s.min_km) === tier.minKm && Number(s.max_km) === tier.maxKm);
                   return (
-                    <div key={tier} className="bg-white p-4 rounded-2xl border border-blue-100 shadow-sm hover:shadow-md transition-all group">
-                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-3">{tier.replace('Transport ', '')}</div>
+                    <div key={tier.label} className="bg-white p-4 rounded-2xl border border-blue-100 shadow-sm hover:shadow-md transition-all group">
+                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-3">({tier.label})</div>
                       <div className="flex items-center justify-between">
-                        {item ? (
+                        {slab ? (
                           <div className="flex flex-col">
-                            <span className="text-xl font-black text-gray-900 leading-none">₹{Number(item.amount).toLocaleString()}</span>
-                            <button onClick={() => handleUpdateFee('TRANSPORT', tier, item.amount)} className="text-[10px] text-blue-600 font-bold mt-2 hover:underline text-left">Change Rate</button>
+                            <span className="text-xl font-black text-gray-900 leading-none">₹{Number(slab.monthly_rate).toLocaleString()}</span>
+                            <button onClick={() => handleUpdateTransportSlab(tier.label, tier.minKm, tier.maxKm, slab)} className="text-[10px] text-blue-600 font-bold mt-2 hover:underline text-left">Change Rate</button>
                           </div>
                         ) : (
-                          <button onClick={() => handleUpdateFee('TRANSPORT', tier, 0)} className="w-full py-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-black hover:bg-blue-100 transition-colors uppercase">Set Rate</button>
+                          <button onClick={() => handleUpdateTransportSlab(tier.label, tier.minKm, tier.maxKm, null)} className="w-full py-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-black hover:bg-blue-100 transition-colors uppercase">Set Rate</button>
                         )}
-                        {item && <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform"><CheckCircle size={20} /></div>}
+                        {slab && <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform"><CheckCircle size={20} /></div>}
                       </div>
                     </div>
                   );
@@ -699,7 +728,7 @@ function FeeApprovalManager() {
     try {
       await api.post(`/fees/approvals/${id}/${action}/`, { remarks });
       refetch();
-    } catch (err) { alert('Error processing request'); } finally { setActioning(null); }
+    } catch (err) { toast.error('Error processing request'); } finally { setActioning(null); }
   };
 
   return (
@@ -736,8 +765,9 @@ function FeeApprovalManager() {
 }
 
 function SubjectManager() {
-  const { data: subjects, loading, refetch } = useApi<any[]>('/subjects/');
-  const { data: branches } = useApi<any[]>('/tenants/branches/');
+  const { data: subjects, refetch, loading } = useApi('subjects/?assigned_only=false');
+  const { data: branches } = useApi('branches/');
+  const { confirm } = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', code: '', branch: '' });
   const [saving, setSaving] = useState(false);
@@ -754,7 +784,7 @@ function SubjectManager() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.code) {
-      alert("Name and Code are required");
+      toast.error("Name and Code are required");
       return;
     }
     setSaving(true);
@@ -769,19 +799,25 @@ function SubjectManager() {
       setFormData({ name: '', code: '', branch: user?.branch_id || '' });
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Error creating subject');
+      toast.error(err.response?.data?.detail || 'Error creating subject');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this subject?")) return;
+    const isConfirmed = await confirm({
+      title: "Delete Subject",
+      message: "Are you sure you want to delete this subject?",
+      isDestructive: true
+    });
+    if (!isConfirmed) return;
+    
     try {
       await api.delete(`subjects/${id}/`);
       refetch();
     } catch (err) {
-      alert("Error deleting subject. It might be in use.");
+      toast.error("Error deleting subject. It might be in use.");
     }
   };
 

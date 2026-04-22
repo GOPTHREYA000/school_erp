@@ -3,13 +3,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
-from accounts.permissions import IsSchoolAdminOrAbove
+from accounts.permissions import IsBranchAdminOrAbove
 from .models import NotificationTemplate, NotificationLog
 from .serializers import NotificationTemplateSerializer, NotificationLogSerializer
 
 class NotificationTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationTemplateSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
     lookup_field = 'event_type'
 
     def get_queryset(self):
@@ -17,7 +17,7 @@ class NotificationTemplateViewSet(viewsets.ModelViewSet):
 
 class NotificationLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationLogSerializer
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
 
     def get_queryset(self):
         qs = NotificationLog.objects.filter(branch__tenant=self.request.user.tenant)
@@ -94,44 +94,4 @@ def my_mark_all_read(request):
 
     return Response({'success': True, 'marked_count': count})
 
-
-@api_view(['POST'])
-@perm_classes([IsAuthenticated, IsSchoolAdminOrAbove])
-def dispatch_custom_notification(request):
-    """POST /api/notifications/dispatch/ — Admin endpoint to send custom notifications."""
-    from .dispatcher import dispatch_notification, dispatch_bulk_notifications
-    
-    title = request.data.get('title')
-    message = request.data.get('message')
-    target_role = request.data.get('target_role')
-    user_id = request.data.get('user_id')
-    
-    if not title or not message:
-        return Response({'detail': 'Title and message are required.'}, status=400)
-    
-    payload = {'title': title, 'message': message}
-    event_type = 'CUSTOM_ANNOUNCEMENT'
-    tenant = request.user.tenant
-    branch = request.user.branch
-    
-    # Send to specific user
-    if user_id:
-        try:
-            recipient = User.objects.get(id=user_id, tenant=tenant)
-            dispatch_notification(tenant, branch, event_type, recipient, payload)
-            return Response({'success': True, 'detail': f'Sent to {recipient.email}'})
-        except User.DoesNotExist:
-            return Response({'detail': 'User not found in this tenant.'}, status=404)
-            
-    # Send to specific role in tenant
-    if target_role:
-        users = User.objects.filter(tenant=tenant, role=target_role)
-        # If branch admin, limit to their branch
-        if request.user.role == 'BRANCH_ADMIN' and branch:
-            users = users.filter(branch=branch)
-            
-        dispatched = dispatch_bulk_notifications(tenant, branch, event_type, users, payload)
-        return Response({'success': True, 'detail': f'Sent to {len(dispatched)} {target_role}s'})
-        
-    return Response({'detail': 'Must provide target_role or user_id.'}, status=400)
 

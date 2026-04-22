@@ -5,6 +5,7 @@ import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import DateInput from '@/components/DateInput';
 import { CheckCircle, XCircle, Clock, Users, Zap, Check, ShieldCheck, AlertCircle, Calendar } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useBranch } from '@/components/common/BranchContext';
 
 interface Student { id: string; first_name: string; last_name: string; admission_no: string; }
@@ -14,7 +15,13 @@ export default function AttendancePage() {
   const { selectedBranch } = useBranch();
   const { data: classes } = useApi<ClassSection[]>(`/classes/?teacher_only=true&branch_id=${selectedBranch}`);
   const [selectedClass, setSelectedClass] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  // Get local date string YYYY-MM-DD without UTC shift
+  const getLocalDate = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const [date, setDate] = useState(getLocalDate());
   const [students, setStudents] = useState<Student[]>([]);
   const [records, setRecords] = useState<Record<string, string>>({});
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -90,7 +97,7 @@ export default function AttendancePage() {
       setHasExistingRecords(true);
       // Success animation/feedback would go here
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Error submitting attendance');
+      toast.error(err.response?.data?.detail || 'Error submitting attendance');
     } finally { setSubmitting(false); }
   };
 

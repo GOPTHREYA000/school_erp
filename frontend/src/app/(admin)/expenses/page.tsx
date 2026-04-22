@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import { Plus, Receipt, TrendingDown, Check, X, FileText, Search, CreditCard, Wallet, Landmark, AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useBranch } from '@/components/common/BranchContext';
 import Drawer from '@/components/common/Drawer';
 import DateInput from '@/components/DateInput';
@@ -73,7 +74,7 @@ export default function ExpensesPage() {
     try {
       await api.patch(`expenses/${id}/status/`, { status: s, reason });
       refetch();
-    } catch { alert('Failed to update status'); }
+    } catch { toast.error('Failed to update status'); }
   };
 
   const handleBulkApprove = async () => {
@@ -81,11 +82,11 @@ export default function ExpensesPage() {
     try {
       const res = await api.post('/expenses/bulk-approve/', { expense_ids: selectedIds });
       const approved = res.data?.data?.approved || 0;
-      alert(`${approved} expense(s) approved successfully.`);
+      toast.success(`${approved} expense(s) approved successfully.`);
       setSelectedIds([]);
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to approve expenses.');
+      toast.error(err.response?.data?.detail || 'Failed to approve expenses.');
     }
   };
 
@@ -97,7 +98,7 @@ export default function ExpensesPage() {
       setShowDrawer(false);
       setFormData({ title: '', amount: '', payment_mode: 'CASH', expense_date: new Date().toISOString().split('T')[0], category: '', branch: selectedBranch });
       refetch();
-    } catch (err: any) { alert('Error: ' + JSON.stringify(err.response?.data)); }
+    } catch (err: any) { toast.error('Error: ' + (err.response?.data?.detail || JSON.stringify(err.response?.data))); }
     finally { setSaving(false); }
   };
 

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/lib/axios';
 import { Receipt, AlertCircle, Download } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function FeeReportsPage() {
   const [defaulters, setDefaulters] = useState<any[]>([]);
@@ -11,7 +12,7 @@ export default function FeeReportsPage() {
   useEffect(() => {
     api.get('reports/fees/defaulters/')
       .then(res => setDefaulters(res.data.data))
-      .catch(err => console.error(err))
+      .catch(err => toast.error('Failed to load fee defaulters data', { id: 'fees-report-err' }))
       .finally(() => setLoading(false));
   }, []);
 

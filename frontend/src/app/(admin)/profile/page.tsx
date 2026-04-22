@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/axios';
 import { UserCircle, KeyRound, CheckCircle2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
@@ -14,7 +15,7 @@ export default function ProfilePage() {
   useEffect(() => {
     api.get('auth/me/')
       .then(res => setUser(res.data.data))
-      .catch(err => console.error(err))
+      .catch(err => toast.error('Failed to load profile profile.'))
       .finally(() => setLoading(false));
   }, []);
 

@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/axios';
 import DateInput from '@/components/DateInput';
-import { Receipt, X } from 'lucide-react';
+import { Receipt, X, User, Users, MapPin, GraduationCap, FileText, IndianRupee } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface StudentFormData {
   id?: string;
@@ -198,7 +199,7 @@ export default function StudentForm({
             }
           })
           .catch(err => {
-            console.error('Failed to fetch fee structure:', err);
+            toast.error('Failed to load fee structure for this class');
             setFeeStructure(null);
             setFormData(prev => ({ ...prev, standard_total: 0, offered_total: 0 }));
           });
@@ -227,47 +228,40 @@ export default function StudentForm({
     try {
       await onSubmit(formData);
     } catch (err) {
-      console.error(err);
+      toast.error("Failed to save student details. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <div 
-      className="bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-    >
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/30">
-        <h3 className="font-bold text-gray-900">{title}</h3>
-        <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 transition-colors">
-          <X size={20} />
-        </button>
-      </div>
+  const tabs = [
+    { id: 'personal', label: 'Student Info', icon: User },
+    { id: 'parents', label: 'Parents', icon: Users },
+    { id: 'address', label: 'Address', icon: MapPin },
+    { id: 'admission', label: 'Admission', icon: GraduationCap },
+    { id: 'academic', label: 'Academic', icon: FileText },
+    { id: 'fees', label: 'Fees', icon: IndianRupee }
+  ].filter(t => !isEdit || t.id !== 'fees');
 
+  return (
+    <div className="animate-in fade-in zoom-in-95 duration-200">
       {/* Form Tabs */}
-      <div className="flex overflow-x-auto border-b border-gray-100 bg-gray-50/50 scrollbar-hide">
-        {[
-          { id: 'personal', label: 'Student Info' },
-          { id: 'parents', label: 'Parents' },
-          { id: 'address', label: 'Address' },
-          { id: 'admission', label: 'Admission' },
-          { id: 'academic', label: 'Academic' },
-          { id: 'fees', label: 'Fees' }
-        ].filter(t => !isEdit || t.id !== 'fees').map(tab => (
+      <div className="flex overflow-x-auto border-b border-gray-100 bg-gray-50/30 scrollbar-hide">
+        {tabs.map(tab => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-all relative ${
+            className={`px-8 py-5 text-sm font-bold whitespace-nowrap transition-all relative flex items-center gap-2 ${
               activeTab === tab.id 
-                ? 'text-blue-600 bg-white shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+                ? 'text-blue-600 bg-white' 
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'
             }`}
           >
+            <tab.icon size={16} className={activeTab === tab.id ? 'text-blue-600' : 'text-gray-400'} />
             {tab.label}
             {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-full" />
             )}
           </button>
         ))}
@@ -631,22 +625,24 @@ export default function StudentForm({
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
               <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Agreed Total Fee <span className="text-red-500">*</span></label>
-                  <div className="relative group">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-gray-300 group-focus-within:text-blue-600 transition-colors">₹</span>
-                    <input 
-                      type="number" 
-                      required
-                      readOnly={isEdit}
-                      value={formData.offered_total}
-                      onChange={e => setFormData(prev => ({...prev, offered_total: Number(e.target.value)}))}
-                      className="w-full pl-12 pr-6 py-5 border-2 border-white bg-white rounded-3xl text-3xl font-black text-gray-900 focus:border-blue-600 shadow-xl shadow-blue-900/5 outline-none transition-all disabled:opacity-50" 
-                    />
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2 block">Agreed Total Fee <span className="text-red-500">*</span></label>
+                    <div className="relative group">
+                      <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-300 group-focus-within:text-blue-600 transition-colors">₹</span>
+                      <input 
+                        type="number" 
+                        required
+                        readOnly={isEdit}
+                        value={formData.offered_total}
+                        onChange={e => setFormData(prev => ({...prev, offered_total: Number(e.target.value)}))}
+                        className="w-full pl-10 pr-6 py-4 border border-gray-100 bg-white rounded-2xl text-2xl font-bold text-gray-900 focus:border-blue-600 shadow-sm outline-none transition-all disabled:opacity-50" 
+                      />
+                    </div>
                   </div>
                   {!isEdit && formData.offered_total < formData.standard_total && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-100 text-xs font-black animate-pulse uppercase tracking-tight">
-                      <span>⚠️ Reduction of ₹{(formData.standard_total - formData.offered_total).toLocaleString()} requires admin approval</span>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-blue-50/50 text-blue-600 rounded-xl border border-blue-100/50 text-[10px] font-bold uppercase tracking-tight">
+                      <span>⚠️ Reduction requires admin approval</span>
                     </div>
                   )}
                 </div>
@@ -666,13 +662,22 @@ export default function StudentForm({
               </div>
 
               <div className="bg-white/60 backdrop-blur-sm p-8 rounded-[2rem] border border-white shadow-xl shadow-slate-200/50">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Standard Fee Breakdown</p>
                 {feeStructure || isEdit ? (
-                  <div className="space-y-4">
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Standard Total</p>
+                        <p className="text-xl font-black text-slate-900 leading-none">₹{formData.standard_total.toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Items</p>
+                        <p className="text-sm font-bold text-slate-500">{(feeStructure?.items || []).length} Categories</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-2 scrollbar-hide">
                       {(feeStructure?.items || []).map((item: any) => (
-                        <div key={item.id} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-50 shadow-sm transition-transform hover:scale-[1.02]">
-                          <span className="text-sm font-bold text-slate-600">{item.category_name || item.category}</span>
+                        <div key={item.id} className="flex justify-between items-center bg-gray-50/50 p-3 rounded-xl border border-transparent hover:border-gray-100 transition-all">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">{item.category_name || item.category}</span>
                           <span className="text-sm font-black text-slate-900">₹{Number(item.amount).toLocaleString()}</span>
                         </div>
                       ))}
@@ -685,11 +690,13 @@ export default function StudentForm({
                           </div>
                       )}
                     </div>
-                    <div className="mt-8 pt-6 border-t-2 border-dashed border-slate-100 flex justify-between items-end">
-                      <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Standard Total</p>
-                        <p className="text-3xl font-black text-slate-900 tracking-tighter">₹{formData.standard_total.toLocaleString()}</p>
-                      </div>
+                    <div className="mt-4 pt-6 border-t border-slate-100 flex items-center justify-end">
+                      {!isEdit && (
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Agreed Total</p>
+                          <p className="text-3xl font-black text-blue-600 leading-none tabular-nums tracking-tighter">₹{formData.offered_total.toLocaleString()}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (

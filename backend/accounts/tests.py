@@ -40,13 +40,17 @@ class SecurityAndIsolationTests(TestCase):
         url = reverse('student-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 0)
+        
+        results = response.data.get('results', response.data) if isinstance(response.data, dict) else response.data
+        self.assertEqual(len(results), 0)
         
         # Verify Tenant A user CAN see the student
         self.client.force_authenticate(user=self.user_a)
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 1)
+        
+        results = response.data.get('results', response.data) if isinstance(response.data, dict) else response.data
+        self.assertEqual(len(results), 1)
 
     def test_fee_invoice_isolation(self):
         """User from Tenant B cannot see invoices from Tenant A."""
@@ -67,7 +71,9 @@ class SecurityAndIsolationTests(TestCase):
         url = reverse('feeinvoice-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 0)
+        
+        results = response.data.get('results', response.data) if isinstance(response.data, dict) else response.data
+        self.assertEqual(len(results), 0)
 
     def test_clone_setup_cross_tenant_blocked(self):
         """School Admin cannot clone a setup from a different tenant."""

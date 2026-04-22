@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/axios';
 import { Settings, Save, Plus, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
+import { useConfirm } from '@/components/common/ConfirmProvider';
 
 interface GlobalSetting {
   id: string;
@@ -19,6 +20,7 @@ export default function SystemSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const { confirm } = useConfirm();
   
   const [newSetting, setNewSetting] = useState<Partial<GlobalSetting>>({
     key: '', value: '', description: '', is_public: false
@@ -77,7 +79,12 @@ export default function SystemSettingsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this setting?')) return;
+    const isConfirmed = await confirm({
+      title: 'Delete Setting',
+      message: 'Are you sure you want to delete this setting?',
+      isDestructive: true
+    });
+    if (!isConfirmed) return;
     
     try {
       await api.delete(`tenants/global-settings/${id}/`);

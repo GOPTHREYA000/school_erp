@@ -4,6 +4,7 @@ from . import views
 
 router = DefaultRouter()
 router.register(r'timetable/periods', views.PeriodViewSet, basename='period')
+router.register(r'timetable/demands', views.ClassSubjectDemandViewSet, basename='demand')
 router.register(r'timetable/slots', views.TimetableSlotViewSet, basename='timetableslot')
 router.register(r'subjects', views.SubjectViewSet, basename='subject')
 

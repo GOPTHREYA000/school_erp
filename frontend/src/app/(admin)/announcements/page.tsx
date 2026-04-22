@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import { Plus, Megaphone, Eye, Send } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface AnnouncementItem {
   id: string;
@@ -27,7 +28,7 @@ export default function AnnouncementsPage() {
     try {
       await api.post('announcements/', formData);
       setShowForm(false); refetch();
-    } catch { alert('Error'); }
+    } catch { toast.error('Error creating announcement'); }
     finally { setSaving(false); }
   };
 
@@ -40,8 +41,8 @@ export default function AnnouncementsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Announcements</h1>
-          <p className="text-gray-500 text-sm mt-1">Broadcast messages to parents, teachers, or all</p>
+          <h1 className="text-2xl font-bold text-gray-900">Announcements & Push Notifications</h1>
+          <p className="text-gray-500 text-sm mt-1">Broadcast messages to notice boards. Publishing automatically sends mobile push notifications.</p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-slate-800">

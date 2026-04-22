@@ -16,6 +16,9 @@ def dispatch_notification(
     event_type: str,
     recipient_user=None,
     payload: dict = None,
+    send_sms: bool = False,
+    send_email: bool = False,
+    send_push: bool = True,
 ):
     """
     Create an in-app notification for a parent user.
@@ -48,25 +51,60 @@ def dispatch_notification(
 
     # Construct the notification message
     message = _build_message(event_type, template, payload or {})
+    title = _event_title(event_type)
 
-    log = NotificationLog.objects.create(
-        tenant=tenant,
-        branch=branch,
-        event_type=event_type,
-        recipient_user=recipient_user,
-        recipient_email=recipient_user.email,
-        channel='IN_APP',
-        status='DELIVERED',
-        payload={
-            **(payload or {}),
-            'message': message,
-            'title': _event_title(event_type),
-        },
-        sent_at=timezone.now(),
-    )
+    logs = []
+    
+    if send_push:
+        logs.append(NotificationLog.objects.create(
+            tenant=tenant,
+            branch=branch,
+            event_type=event_type,
+            recipient_user=recipient_user,
+            recipient_email=recipient_user.email,
+            channel='IN_APP',
+            status='DELIVERED',
+            payload={
+                **(payload or {}),
+                'message': message,
+                'title': title,
+            },
+            sent_at=timezone.now(),
+        ))
+        
+    if send_sms and hasattr(recipient_user, 'phone') and getattr(recipient_user, 'phone', None):
+        logs.append(NotificationLog.objects.create(
+            tenant=tenant,
+            branch=branch,
+            event_type=event_type,
+            recipient_user=recipient_user,
+            recipient_phone=getattr(recipient_user, 'phone', ''),
+            channel='SMS',
+            status='PENDING', # Ready to be picked up by Celery task
+            payload={
+                **(payload or {}),
+                'message': message,
+                'title': title,
+            }
+        ))
+        
+    if send_email and getattr(recipient_user, 'email', None):
+        logs.append(NotificationLog.objects.create(
+            tenant=tenant,
+            branch=branch,
+            event_type=event_type,
+            recipient_user=recipient_user,
+            recipient_email=recipient_user.email,
+            channel='EMAIL',
+            status='PENDING', # Ready to be picked up by Celery task
+            payload={
+                **(payload or {}),
+                'message': message,
+                'title': title,
+            }
+        ))
 
-    logger.info(f"In-app notification created: {event_type} → {recipient_user.email}")
-    return log
+    return logs[0] if logs else None
 
 
 def dispatch_bulk_notifications(
@@ -75,6 +113,9 @@ def dispatch_bulk_notifications(
     event_type: str,
     recipient_users,
     payload: dict = None,
+    send_sms: bool = False,
+    send_email: bool = False,
+    send_push: bool = True,
 ):
     """
     Send the same notification to multiple parent users.
@@ -88,6 +129,9 @@ def dispatch_bulk_notifications(
             event_type=event_type,
             recipient_user=user,
             payload=payload,
+            send_sms=send_sms,
+            send_email=send_email,
+            send_push=send_push,
         )
         if result:
             results.append(result)

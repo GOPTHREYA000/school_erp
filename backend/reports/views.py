@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from accounts.permissions import IsSchoolAdminOrAbove, IsSuperAdmin
+from accounts.permissions import IsBranchAdminOrAbove, IsSuperAdmin
 from accounts.utils import get_validated_branch_id, get_active_academic_year
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -19,7 +19,7 @@ from decimal import Decimal
 
 
 class ReportingViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated, IsSchoolAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
 
     # ─── Helpers ────────────────────────────────────────────────
     def _get_branch_id(self, request):
@@ -112,11 +112,24 @@ class ReportingViewSet(viewsets.ViewSet):
             approval_qs = approval_qs.filter(branch_id=branch_id)
         pending_approvals = approval_qs.count()
 
+        # Today's collection
+        today_payments = Payment.objects.filter(
+            tenant=request.user.tenant,
+            payment_date=timezone.now().date(),
+            status='SUCCESS'
+        )
+        if branch_id:
+            today_payments = today_payments.filter(branch_id=branch_id)
+        if ay_id:
+            today_payments = today_payments.filter(invoice__academic_year_id=ay_id)
+        today_collection = today_payments.aggregate(total=Sum('amount'))['total'] or 0
+
         return Response({
             'success': True,
             'data': {
                 'total_gross': float(stats['total_gross'] or 0),
                 'total_paid': float(stats['total_paid'] or 0),
+                'today_collection': float(today_collection),
                 'total_outstanding': float(stats['total_outstanding'] or 0),
                 'invoice_count': stats['count'],
                 'total_students': total_students,

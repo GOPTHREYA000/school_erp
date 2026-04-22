@@ -22,7 +22,9 @@ urlpatterns = [
     path('parent/children/<uuid:student_id>/fees/invoices/', parent_views.parent_child_invoices, name='parent_child_invoices'),
     path('parent/children/<uuid:student_id>/attendance/', parent_views.parent_child_attendance, name='parent_child_attendance'),
     path('parent/children/<uuid:student_id>/homework/', parent_views.parent_child_homework, name='parent_child_homework'),
+    path('parent/children/<uuid:student_id>/homework/<uuid:homework_id>/acknowledge/', parent_views.parent_acknowledge_homework, name='parent_acknowledge_homework'),
     path('parent/children/<uuid:student_id>/timetable/', parent_views.parent_child_timetable, name='parent_child_timetable'),
+    path('parent/children/<uuid:student_id>/transport/', parent_views.parent_child_transport, name='parent_child_transport'),
     path('parent/announcements/', parent_views.parent_announcements, name='parent_announcements'),
     # Teacher Portal
     path('teacher/dashboard/', teacher_views.teacher_dashboard, name='teacher_dashboard'),

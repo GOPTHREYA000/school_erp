@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import { Receipt, CreditCard, Banknote, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function PayAdmissionPage() {
   const params = useParams();
@@ -28,7 +29,7 @@ export default function PayAdmissionPage() {
         setStudent(res.data?.data ?? res.data);
         setLoading(false);
       }).catch(err => {
-        console.error(err);
+        toast.error('Failed to load student details');
         setLoading(false);
       });
     }
@@ -38,7 +39,7 @@ export default function PayAdmissionPage() {
 
   const handleSubmit = async () => {
     if (totalAmount <= 0) {
-      alert("Please enter a payment amount.");
+      toast.error("Please enter a payment amount.");
       return;
     }
 
@@ -56,7 +57,7 @@ export default function PayAdmissionPage() {
       setResult(res.data.data);
       setSuccess(true);
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Error processing payment');
+      toast.error(err.response?.data?.detail || 'Error processing payment');
     } finally {
       setSaving(false);
     }

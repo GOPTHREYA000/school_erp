@@ -18,5 +18,14 @@ services:
       - "1025:1025" # SMTP
       - "8025:8025" # Web UI
 
+  redis:
+    image: redis:7-alpine
+    container_name: scoolerp_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
 volumes:
   pg-data:
+  redis-data:

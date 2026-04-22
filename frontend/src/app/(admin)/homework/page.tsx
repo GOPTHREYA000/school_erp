@@ -5,6 +5,7 @@ import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import DateInput from '@/components/DateInput';
 import { Plus, BookOpen, Clock } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface HomeworkItem {
   id: string;
@@ -56,7 +57,7 @@ export default function HomeworkPage() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.class_section || !formData.subject) {
-      alert('Please select a class and subject');
+      toast.error('Please select a class and subject');
       return;
     }
     setSaving(true);
@@ -65,7 +66,7 @@ export default function HomeworkPage() {
       setShowForm(false); 
       setFormData({ title: '', description: '', due_date: '', activity_type: 'HOMEWORK', class_section: '', subject: '' });
       refetch();
-    } catch { alert('Error creating homework'); }
+    } catch { toast.error('Error creating homework'); }
     finally { setSaving(false); }
   };
 

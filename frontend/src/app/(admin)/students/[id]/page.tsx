@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import StudentForm from '@/components/students/StudentForm';
 import PaymentModal from '@/components/students/PaymentModal';
+import Modal from '@/components/common/Modal';
+import { toast } from 'react-hot-toast';
 
 export default function StudentProfilePage() {
   const { id } = useParams();
@@ -63,7 +65,6 @@ export default function StudentProfilePage() {
       setShowEditForm(false);
       refetch();
     } catch (err: any) {
-      console.error('Update failed:', err.response?.data);
       const detail = err.response?.data?.detail;
       const errors = err.response?.data;
       let msg = 'Error updating student';
@@ -71,13 +72,13 @@ export default function StudentProfilePage() {
       else if (errors && typeof errors === 'object') {
         msg = Object.entries(errors).map(([f, m]) => `${f}: ${m}`).join('\n');
       }
-      alert(msg);
+      toast.error(msg);
     }
   };
 
   const handleWithdraw = async () => {
     if (!withdrawData.leaving_reason) {
-      alert("Please provide a reason for withdrawal.");
+      toast.error("Please provide a reason for withdrawal.");
       return;
     }
     setWithdrawing(true);
@@ -89,7 +90,7 @@ export default function StudentProfilePage() {
       setShowWithdrawModal(false);
       refetch();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Error processing withdrawal');
+      toast.error(err.response?.data?.detail || 'Error processing withdrawal');
     } finally {
       setWithdrawing(false);
     }
@@ -508,89 +509,87 @@ export default function StudentProfilePage() {
       </div>
 
       {/* Edit Form Modal */}
-      {showEditForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowEditForm(false)} />
-          <div className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto scrollbar-hide">
-            <StudentForm 
-              title={`Edit ${student.first_name}'s Profile`}
-              initialData={student}
-              submitLabel="Update Profile"
-              onSubmit={handleUpdate}
-              onCancel={() => setShowEditForm(false)}
-              isEdit={true}
-            />
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={showEditForm}
+        onClose={() => setShowEditForm(false)}
+        title={`Edit ${student.first_name}'s Profile`}
+        maxWidth="5xl"
+      >
+        <StudentForm 
+          initialData={student}
+          submitLabel="Update Profile"
+          onSubmit={handleUpdate}
+          onCancel={() => setShowEditForm(false)}
+          isEdit={true}
+        />
+      </Modal>
 
       {/* Withdrawal Modal */}
-      {showWithdrawModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => !withdrawing && setShowWithdrawModal(false)} />
-          
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg relative z-10 shadow-2xl p-8 animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500">
-                <LogOut size={28} />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Withdraw Student</h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Process "Left" procedure</p>
-              </div>
+      <Modal
+        isOpen={showWithdrawModal}
+        onClose={() => !withdrawing && setShowWithdrawModal(false)}
+        title="Withdraw Student"
+        maxWidth="lg"
+      >
+        <div className="p-8">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500">
+              <LogOut size={28} />
             </div>
-
-            <div className="space-y-6 mb-10">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Withdrawal Date</label>
-                <input 
-                  type="date"
-                  value={withdrawData.leaving_date}
-                  onChange={e => setWithdrawData({...withdrawData, leaving_date: e.target.value})}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Reason for Leaving</label>
-                <textarea 
-                  placeholder="Mention the reason (e.g., Relocation, Financial...)"
-                  value={withdrawData.leaving_reason}
-                  onChange={e => setWithdrawData({...withdrawData, leaving_reason: e.target.value})}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none min-h-[120px] transition-all"
-                />
-              </div>
-
-              <div className="bg-rose-50 p-4 rounded-2xl flex gap-3 text-rose-700">
-                <AlertCircle size={20} className="shrink-0" />
-                <p className="text-xs font-bold uppercase leading-relaxed tracking-tight">
-                  Warning: This will change student status to "TRANSFERRED". 
-                  The student will no longer appear in active class rolls.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <button 
-                onClick={() => setShowWithdrawModal(false)}
-                disabled={withdrawing}
-                className="flex-1 px-8 py-4 rounded-2xl text-sm font-black text-slate-400 hover:bg-slate-50 transition-all uppercase tracking-widest"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleWithdraw}
-                disabled={withdrawing}
-                className="flex-[2] bg-rose-600 text-white px-8 py-4 rounded-2xl text-sm font-black hover:bg-rose-700 shadow-xl shadow-rose-200 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
-              >
-                {withdrawing ? (
-                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                ) : 'Confirm Withdrawal'}
-              </button>
+            <div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Withdraw Student</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Process "Left" procedure</p>
             </div>
           </div>
+
+          <div className="space-y-6 mb-10">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Withdrawal Date</label>
+              <input 
+                type="date"
+                value={withdrawData.leaving_date}
+                onChange={e => setWithdrawData({...withdrawData, leaving_date: e.target.value})}
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Reason for Leaving</label>
+              <textarea 
+                placeholder="Mention the reason (e.g., Relocation, Financial...)"
+                value={withdrawData.leaving_reason}
+                onChange={e => setWithdrawData({...withdrawData, leaving_reason: e.target.value})}
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none min-h-[120px] transition-all"
+              />
+            </div>
+
+            <div className="bg-rose-50 p-4 rounded-2xl flex gap-3 text-rose-700">
+              <AlertCircle size={20} className="shrink-0" />
+              <p className="text-xs font-bold uppercase leading-relaxed tracking-tight">
+                Warning: This will change student status to "TRANSFERRED". 
+                The student will no longer appear in active class rolls.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <button 
+              onClick={() => setShowWithdrawModal(false)}
+              disabled={withdrawing}
+              className="flex-1 px-8 py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-all uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleWithdraw}
+              disabled={withdrawing}
+              className="flex-[2] bg-rose-600 text-white px-8 py-4 rounded-2xl text-sm font-black hover:bg-rose-700 shadow-xl shadow-rose-200 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              {withdrawing ? 'Processing...' : 'Confirm Withdrawal'}
+            </button>
+          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Payment Modal */}
       {showPaymentModal && selectedInvoice && (

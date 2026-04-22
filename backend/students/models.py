@@ -125,9 +125,6 @@ class AdmissionApplication(models.Model):
     religion = models.CharField(max_length=100, blank=True, null=True)
     caste_category = models.CharField(max_length=10, choices=CASTE_CHOICES, blank=True, null=True)
     aadhar_number = models.CharField(max_length=12, blank=True, null=True)
-    previous_school_name = models.CharField(max_length=200, blank=True, null=True)
-    previous_class = models.CharField(max_length=20, blank=True, null=True)
-    reason_for_leaving = models.TextField(blank=True, null=True)
     grade_applying_for = models.CharField(max_length=20, choices=GRADE_CHOICES)
     # Student Extra Info
     mother_tongue = models.CharField(max_length=50, blank=True, null=True)

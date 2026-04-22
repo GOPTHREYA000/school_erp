@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import { Receipt, AlertTriangle, Plus, DollarSign, CheckCircle2, Search, Filter } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useBranch } from '@/components/common/BranchContext';
 import FloatingActionBar from '@/components/common/FloatingActionBar';
 
@@ -70,7 +71,7 @@ export default function FeesPage() {
       refetchApprovals();
       refetchInvoices();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Approval failed');
+      toast.error(err.response?.data?.detail || 'Approval failed');
     } finally { setProcessingApproval(null); }
   };
 
@@ -82,7 +83,7 @@ export default function FeesPage() {
       await api.post(`/fees/approval-requests/${id}/reject/`, { remarks });
       refetchApprovals();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Rejection failed');
+      toast.error(err.response?.data?.detail || 'Rejection failed');
     } finally { setProcessingApproval(null); }
   };
 
@@ -99,7 +100,7 @@ export default function FeesPage() {
       setPayAmount('');
       refetchInvoices();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Payment failed');
+      toast.error(err.response?.data?.detail || 'Payment failed');
     } finally { setPaying(false); }
   };
 
@@ -112,10 +113,10 @@ export default function FeesPage() {
     try {
       const res = await api.post('/fees/invoices/bulk-remind/', { invoice_ids: selectedIds });
       const reminded = res.data?.data?.reminded || 0;
-      alert(`${reminded} reminder(s) sent successfully.`);
+      toast.success(`${reminded} reminder(s) sent successfully.`);
       setSelectedIds([]);
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to send reminders.');
+      toast.error(err.response?.data?.detail || 'Failed to send reminders.');
     }
   };
 

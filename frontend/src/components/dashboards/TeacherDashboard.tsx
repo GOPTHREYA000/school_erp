@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/axios';
 import { Calendar, PenTool, Users, BookOpen, Clock, CheckCircle2, AlertCircle, ArrowRight, Zap } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import StatCard from '@/components/dashboard/StatCard';
 
 interface ScheduleSlot {
@@ -42,7 +43,9 @@ export default function TeacherDashboard({ user }: { user: any }) {
   useEffect(() => {
     api.get('teacher/dashboard/')
       .then(res => setData(res.data.data))
-      .catch(err => console.error('Teacher dashboard API failed:', err))
+      .catch(err => {
+        toast.error('Failed to load dashboard data');
+      })
       .finally(() => setLoading(false));
   }, []);
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import api from '@/lib/axios';
 import { Building2, Search, PowerOff, Power, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useConfirm } from '@/components/common/ConfirmProvider';
 
 interface Tenant {
   id: string;
@@ -21,6 +22,7 @@ export default function TenantControlPage() {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     fetchTenants();
@@ -38,9 +40,13 @@ export default function TenantControlPage() {
   };
 
   const handleToggleStatus = async (tenantId: string, currentStatus: boolean) => {
-    if (!confirm(`Are you sure you want to ${currentStatus ? 'freeze' : 'activate'} this tenant? ${currentStatus ? 'Users will be locked out immediately.' : ''}`)) {
-      return;
-    }
+    const isConfirmed = await confirm({
+      title: 'Tenant Status',
+      message: `Are you sure you want to ${currentStatus ? 'freeze' : 'activate'} this tenant? ${currentStatus ? 'Users will be locked out immediately.' : ''}`,
+      isDestructive: currentStatus // destructive if freezing
+    });
+    
+    if (!isConfirmed) return;
 
     try {
       const response = await api.patch(`tenants/super-admin/all/${tenantId}/toggle-status/`);
