@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db.models import Sum
 from decimal import Decimal
 
-from accounts.permissions import IsBranchAdminOrAbove
+from accounts.permissions import IsAccountantOrAbove
 from accounts.utils import get_validated_branch_id, log_audit_action, log_bulk_action
 from .models import ExpenseCategory, Vendor, Expense, TransactionLog
 from .serializers import ExpenseCategorySerializer, VendorSerializer, ExpenseSerializer, TransactionLogSerializer
@@ -14,7 +14,7 @@ from .serializers import ExpenseCategorySerializer, VendorSerializer, ExpenseSer
 
 class ExpenseCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseCategorySerializer
-    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         qs = ExpenseCategory.objects.filter(branch__tenant=self.request.user.tenant)
@@ -29,7 +29,7 @@ class ExpenseCategoryViewSet(viewsets.ModelViewSet):
 
 class VendorViewSet(viewsets.ModelViewSet):
     serializer_class = VendorSerializer
-    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         qs = Vendor.objects.filter(branch__tenant=self.request.user.tenant)
@@ -44,7 +44,7 @@ class VendorViewSet(viewsets.ModelViewSet):
 
 class ExpenseViewSet(viewsets.ModelViewSet):
     serializer_class = ExpenseSerializer
-    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         qs = Expense.objects.filter(branch__tenant=self.request.user.tenant).select_related('category', 'vendor')
@@ -58,34 +58,92 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
+        from rest_framework.exceptions import PermissionDenied, ValidationError
+        if user.role != 'ACCOUNTANT':
+            raise PermissionDenied("Only accountants can log expenses.")
         branch = user.branch
         if not branch:
-            from rest_framework.exceptions import ValidationError
             raise ValidationError({"branch": "Your account has no branch assigned. Contact your administrator."})
             
         expense_date = timezone.now().date()
         
+        category_name = self.request.data.get('category_name')
         category_id = self.request.data.get('category')
-        if not category_id:
+        if category_id:
+            category = ExpenseCategory.objects.get(id=category_id)
+        elif category_name:
             category, _ = ExpenseCategory.objects.get_or_create(
-                tenant=user.tenant, 
-                branch=branch, 
-                name='General',
-                defaults={'code': 'GEN'}
+                tenant=user.tenant, branch=branch, name=category_name,
+                defaults={'code': category_name[:10].upper().replace(' ', '_')}
             )
         else:
-            category = ExpenseCategory.objects.get(id=category_id)
+            category, _ = ExpenseCategory.objects.get_or_create(
+                tenant=user.tenant, branch=branch, name='General',
+                defaults={'code': 'GEN'}
+            )
 
-        # Refined Workflow: Default to SUBMITTED for all expenses
-        status = 'SUBMITTED'
-        expense = serializer.save(
-            tenant=user.tenant,
-            branch=branch,
-            expense_date=expense_date,
-            category=category,
-            submitted_by=user,
-            status=status
-        )
+        vendor_name = self.request.data.get('vendor_name')
+        vendor_id = self.request.data.get('vendor')
+        vendor_obj = None
+        if vendor_id:
+            vendor_obj = Vendor.objects.get(id=vendor_id)
+        elif vendor_name:
+            vendor_obj, _ = Vendor.objects.get_or_create(
+                tenant=user.tenant, branch=branch, name=vendor_name
+            )
+
+        # Use manually provided voucher number, or auto-generate
+        manual_voucher = self.request.data.get('voucher_number')
+        if manual_voucher:
+            try:
+                voucher_number = int(manual_voucher)
+            except ValueError:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"voucher_number": "Voucher number must be an integer."})
+            
+            if Expense.objects.filter(branch=branch, voucher_number=voucher_number).exists():
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"voucher_number": "This voucher number already exists."})
+        else:
+            last_expense = Expense.objects.filter(branch=branch).order_by('-voucher_number').first()
+            voucher_number = (last_expense.voucher_number + 1) if (last_expense and last_expense.voucher_number) else 1
+
+        amount_val = Decimal(str(self.request.data.get('amount', 0)))
+        
+        # Smart routing: auto-approve if under threshold
+        if amount_val <= 3000:
+            status = 'APPROVED'
+            expense = serializer.save(
+                tenant=user.tenant,
+                branch=branch,
+                expense_date=expense_date,
+                category=category,
+                vendor=vendor_obj,
+                submitted_by=user,
+                approved_by=user,
+                approved_at=timezone.now(),
+                status=status,
+                voucher_number=voucher_number
+            )
+            TransactionLog.objects.create(
+                tenant=user.tenant, branch=branch,
+                transaction_type='EXPENSE', category=category.name,
+                reference_model='Expense', reference_id=expense.id,
+                amount=expense.amount, description=expense.title,
+                transaction_date=expense.expense_date,
+            )
+        else:
+            status = 'SUBMITTED'
+            expense = serializer.save(
+                tenant=user.tenant,
+                branch=branch,
+                expense_date=expense_date,
+                category=category,
+                vendor=vendor_obj,
+                submitted_by=user,
+                status=status,
+                voucher_number=voucher_number
+            )
 
     @action(detail=True, methods=['patch'], url_path='status')
     def update_status(self, request, pk=None):
@@ -205,7 +263,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
 class TransactionLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TransactionLogSerializer
-    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         qs = TransactionLog.objects.filter(branch__tenant=self.request.user.tenant)

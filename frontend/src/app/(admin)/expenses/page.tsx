@@ -3,23 +3,24 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
-import { Plus, Receipt, TrendingDown, Check, X, FileText, Search, CreditCard, Wallet, Landmark, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, Receipt, Check, X, FileText, Search, CreditCard, Wallet, Landmark } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useBranch } from '@/components/common/BranchContext';
-import Drawer from '@/components/common/Drawer';
-import DateInput from '@/components/DateInput';
+import Modal from '@/components/common/Modal';
 import FloatingActionBar from '@/components/common/FloatingActionBar';
 
 interface Expense {
   id: string;
+  voucher_number: number | null;
   title: string;
   amount: string;
   expense_date: string;
   status: string;
   category_name: string;
-  vendor_name: string | null;
+  vendor_display: string | null;
   payment_mode: string;
-  requested_by_name: string;
+  submitted_by_name: string | null;
 }
 
 const statusStyles: Record<string, string> = {
@@ -38,7 +39,7 @@ const modeIcons: Record<string, any> = {
 
 export default function ExpensesPage() {
   const { selectedBranch } = useBranch();
-  const [activeTab, setActiveTab] = useState<'APPROVALS' | 'HISTORY'>('APPROVALS');
+  const [activeTab, setActiveTab] = useState<'APPROVALS' | 'HISTORY'>('HISTORY');
   const [statusFilter, setStatusFilter] = useState('');
   const [showDrawer, setShowDrawer] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -48,22 +49,36 @@ export default function ExpensesPage() {
     amount: '', 
     payment_mode: 'CASH',
     expense_date: new Date().toISOString().split('T')[0],
-    category: '',
-    branch: selectedBranch
+    category_name: '',
+    vendor_name: '',
   });
 
+  const branchParam = selectedBranch && selectedBranch !== 'all' ? `branch_id=${selectedBranch}` : '';
+
   const { data: expenses, loading, error, refetch } = useApi<Expense[]>(
-    `/expenses/?status=${activeTab === 'APPROVALS' ? 'SUBMITTED' : statusFilter}&branch_id=${selectedBranch}`
+    `/expenses/?status=${activeTab === 'APPROVALS' ? 'SUBMITTED' : statusFilter}${branchParam ? `&${branchParam}` : ''}`
   );
+  const { data: categoriesData } = useApi<any>(`/expenses/categories/${branchParam ? `?${branchParam}` : ''}`);
+  const { data: vendorsData } = useApi<any>(`/vendors/${branchParam ? `?${branchParam}` : ''}`);
+  
+  const categories = Array.isArray(categoriesData) ? categoriesData : [];
+  const vendors = Array.isArray(vendorsData) ? vendorsData : [];
 
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<any>(null);
 
+  const router = useRouter();
+
   useEffect(() => {
-    api.get('auth/me/').then(res => setUser(res.data.data));
+    api.get('auth/me/').then(res => {
+      const u = res.data.data;
+      setUser(u);
+      if (u?.role === 'TEACHER') router.replace('/teacher-dashboard');
+    });
   }, []);
 
   const isAdmin = ['SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(user?.role);
+  const canLogExpense = user?.role === 'ACCOUNTANT';
 
   const handleUpdateStatus = async (id: string, s: string) => {
     let reason = '';
@@ -90,13 +105,19 @@ export default function ExpensesPage() {
     }
   };
 
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [isCustomVendor, setIsCustomVendor] = useState(false);
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.category_name.trim()) { toast.error('Expense type is required'); return; }
     setSaving(true);
     try {
-      await api.post('expenses/', { ...formData, branch: selectedBranch });
+      await api.post('expenses/', formData);
       setShowDrawer(false);
-      setFormData({ title: '', amount: '', payment_mode: 'CASH', expense_date: new Date().toISOString().split('T')[0], category: '', branch: selectedBranch });
+      setFormData({ title: '', amount: '', payment_mode: 'CASH', expense_date: new Date().toISOString().split('T')[0], category_name: '', vendor_name: '', voucher_number: '' });
+      setIsCustomCategory(false);
+      setIsCustomVendor(false);
       refetch();
     } catch (err: any) { toast.error('Error: ' + (err.response?.data?.detail || JSON.stringify(err.response?.data))); }
     finally { setSaving(false); }
@@ -109,25 +130,29 @@ export default function ExpensesPage() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Expense Desk</h1>
           <p className="text-gray-500 text-sm mt-1">Operational spend tracking and reimbursement approvals.</p>
         </div>
-        <button onClick={() => setShowDrawer(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all group">
-          <Plus size={18} className="group-hover:scale-110 transition-transform" /> 
-          Log Expense
-        </button>
+        {canLogExpense && (
+          <button onClick={() => setShowDrawer(true)}
+            className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-black transition-all group">
+            <Plus size={18} className="group-hover:scale-110 transition-transform" /> 
+            Log Expense
+          </button>
+        )}
       </div>
 
       <div className="flex gap-1 border-b border-gray-100 pb-px">
-        <button
-          onClick={() => setActiveTab('APPROVALS')}
-          className={`px-6 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
-            activeTab === 'APPROVALS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'
-          }`}
-        >
-          Review Requests
-          {activeTab !== 'APPROVALS' && expenses?.filter(e => e.status === 'SUBMITTED').length ? (
-            <span className="w-2 h-2 bg-rose-500 rounded-full animate-ping" />
-          ) : null}
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('APPROVALS')}
+            className={`px-6 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'APPROVALS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Review Requests
+            {activeTab !== 'APPROVALS' && expenses?.filter(e => e.status === 'SUBMITTED').length ? (
+              <span className="w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+            ) : null}
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('HISTORY')}
           className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${
@@ -164,119 +189,158 @@ export default function ExpensesPage() {
           <p className="text-gray-400 text-sm mt-1">No expenses found for the current selection.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {expenses?.map((e: Expense) => {
-             const ModeIcon = modeIcons[e.payment_mode] || Wallet;
-             return (
-               <div key={e.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
-                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                       {activeTab === 'APPROVALS' && isAdmin && (
-                         <input 
-                           type="checkbox" 
-                           checked={selectedIds.includes(e.id)} 
-                           onChange={() => setSelectedIds(prev => prev.includes(e.id) ? prev.filter(x => x !== e.id) : [...prev, e.id])} 
-                           className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                         />
-                       )}
-                       <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                          <ModeIcon size={20} />
-                       </div>
-                       <div>
-                          <h3 className="font-bold text-slate-900">{e.title}</h3>
-                          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                             <span>{e.category_name}</span>
-                             <span>•</span>
-                             <span>{e.expense_date}</span>
-                             {e.requested_by_name && (
-                               <>
-                                 <span>•</span>
-                                 <span className="text-blue-500">By {e.requested_by_name}</span>
-                               </>
-                             )}
-                          </div>
-                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-6 justify-between md:justify-end">
-                       <div className="text-right">
-                          <p className="text-lg font-black text-slate-900">₹{Number(e.amount).toLocaleString()}</p>
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter border ${statusStyles[e.status]}`}>
-                             {e.status}
-                          </span>
-                       </div>
-
-                       {isAdmin && e.status === 'SUBMITTED' && activeTab === 'APPROVALS' && (
-                         <div className="flex gap-2">
-                            <button onClick={() => handleUpdateStatus(e.id, 'APPROVED')}
-                              className="p-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl transition-all shadow-sm" title="Approve">
-                              <Check size={18} />
-                            </button>
-                            <button onClick={() => handleUpdateStatus(e.id, 'REJECTED')}
-                              className="p-2.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-xl transition-all shadow-sm" title="Reject">
-                              <X size={18} />
-                            </button>
-                         </div>
-                       )}
-                    </div>
-                 </div>
-               </div>
-             );
-          })}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+                  {activeTab === 'APPROVALS' && isAdmin && <th className="px-5 py-4 w-12"></th>}
+                  <th className="px-5 py-4 whitespace-nowrap">Voucher No#</th>
+                  <th className="px-5 py-4 whitespace-nowrap">Expense Type</th>
+                  <th className="px-5 py-4 min-w-[200px]">Description</th>
+                  <th className="px-5 py-4 whitespace-nowrap">Vendor Name</th>
+                  <th className="px-5 py-4 whitespace-nowrap">Payment Date</th>
+                  <th className="px-5 py-4 whitespace-nowrap">Payment Mode</th>
+                  <th className="px-5 py-4 whitespace-nowrap text-right">Amount</th>
+                  {isAdmin && activeTab === 'APPROVALS' && <th className="px-5 py-4 text-right">Actions</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {expenses?.map((e: Expense) => (
+                  <tr key={e.id} className="hover:bg-slate-50/50 transition-colors group">
+                    {activeTab === 'APPROVALS' && isAdmin && (
+                      <td className="px-5 py-4">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.includes(e.id)} 
+                          onChange={() => setSelectedIds(prev => prev.includes(e.id) ? prev.filter(x => x !== e.id) : [...prev, e.id])} 
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+                    )}
+                    <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                      {e.voucher_number || '-'}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="inline-block px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[11px] font-bold">
+                        {e.category_name}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-sm text-slate-800 font-medium">
+                      {e.title || '-'}
+                    </td>
+                    <td className="px-5 py-4 text-sm text-slate-600">
+                      {e.vendor_display || '-'}
+                    </td>
+                    <td className="px-5 py-4 text-sm text-slate-600 whitespace-nowrap">
+                      {new Date(e.expense_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="px-5 py-4 text-sm text-slate-600">
+                      {e.payment_mode === 'CASH' ? 'Cash' : 'Online'}
+                    </td>
+                    <td className="px-5 py-4 text-right text-sm font-black text-slate-900">
+                      {Number(e.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    {isAdmin && e.status === 'SUBMITTED' && activeTab === 'APPROVALS' && (
+                      <td className="px-5 py-4">
+                        <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                           <button onClick={() => handleUpdateStatus(e.id, 'APPROVED')}
+                             className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-lg transition-all" title="Approve">
+                             <Check size={16} />
+                           </button>
+                           <button onClick={() => handleUpdateStatus(e.id, 'REJECTED')}
+                             className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-lg transition-all" title="Reject">
+                             <X size={16} />
+                           </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {/* Slide-over Drawer for Log Expense */}
-      <Drawer 
+      <Modal 
         isOpen={showDrawer} 
         onClose={() => setShowDrawer(false)} 
         title="Log New Expense"
+        maxWidth="md"
       >
-        <form onSubmit={handleAdd} className="space-y-6">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description / Title</label>
-            <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
-              placeholder="e.g. Electricity Bill - March"
-              className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 ring-blue-500 outline-none" />
-          </div>
+        <div className="p-6">
+          <form onSubmit={handleAdd} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Voucher No.</label>
+                <input required type="number" value={formData.voucher_number || ''} onChange={e => setFormData({...formData, voucher_number: e.target.value})}
+                  placeholder="e.g. 101"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Description / Title</label>
+                <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
+                  placeholder="e.g. Electricity Bill"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all" />
+              </div>
+            </div>
 
-          <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-1.5">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount (₹)</label>
-               <input type="number" required value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})}
-                 className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 ring-blue-500 outline-none" />
-             </div>
-             <div className="space-y-1.5">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Mode</label>
-               <select value={formData.payment_mode} onChange={e => setFormData({...formData, payment_mode: e.target.value})}
-                 className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 ring-blue-500 outline-none">
-                 <option value="CASH">Cash</option>
-                 <option value="BANK_TRANSFER">Bank Transfer</option>
-                 <option value="UPI">UPI / Digital</option>
-                 <option value="CHEQUE">Cheque</option>
-               </select>
-             </div>
-          </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="border border-slate-200 rounded-xl p-3 bg-white flex flex-col justify-center">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Date</label>
+                <div className="text-sm font-semibold text-slate-700">
+                  Today, {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+              </div>
 
-          <DateInput 
-             label="Expense Date"
-             value={formData.expense_date}
-             onChange={val => setFormData({...formData, expense_date: val})}
-          />
+              <div className="border border-slate-200 rounded-xl p-3 bg-white flex flex-col justify-center">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Expense Type</label>
+                <input
+                  required
+                  value={formData.category_name}
+                  onChange={e => setFormData({...formData, category_name: e.target.value})}
+                  placeholder="e.g. Electricity Bill"
+                  className="w-full text-sm font-medium text-slate-700 outline-none bg-transparent placeholder:text-slate-300" />
+              </div>
+            </div>
 
-          <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex gap-3">
-             <AlertCircle className="text-amber-500 shrink-0" size={18} />
-             <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
-               Submitted expenses will go to the Branch Manager / Admin queue for approval before being finalized in the ledger.
-             </p>
-          </div>
+            <div className="border border-slate-200 rounded-xl p-3 bg-white flex flex-col justify-center">
+              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vendor Name <span className="text-slate-300 font-normal normal-case">(optional)</span></label>
+              <input
+                value={formData.vendor_name}
+                onChange={e => setFormData({...formData, vendor_name: e.target.value})}
+                placeholder="e.g. ABC Suppliers"
+                className="w-full text-sm font-medium text-slate-700 outline-none bg-transparent placeholder:text-slate-300" />
+            </div>
 
-          <button type="submit" disabled={saving}
-            className="w-full bg-blue-600 text-white py-4 rounded-2xl text-sm font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50">
-            {saving ? 'Processing...' : 'Submit for Approval'}
-          </button>
-        </form>
-      </Drawer>
+            <div className="grid grid-cols-2 gap-3">
+               <div className="border border-slate-200 rounded-xl p-3 bg-white flex flex-col justify-center relative">
+                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Amount (₹)</label>
+                 <input type="number" required value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})}
+                   placeholder="0.00"
+                   className="w-full text-lg font-bold text-slate-700 outline-none bg-transparent" />
+               </div>
+               <div className="border border-slate-200 rounded-xl p-3 bg-white flex flex-col justify-center">
+                 <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Mode</label>
+                 <select required value={formData.payment_mode} onChange={e => setFormData({...formData, payment_mode: e.target.value})}
+                   className="w-full text-sm font-medium text-slate-700 outline-none bg-transparent appearance-none">
+                   <option value="CASH">Cash</option>
+                   <option value="BANK_TRANSFER">Bank Transfer</option>
+                   <option value="UPI">UPI / Digital</option>
+                   <option value="CHEQUE">Cheque</option>
+                 </select>
+               </div>
+            </div>
+
+            <button type="submit" disabled={saving}
+              className="w-full bg-slate-900 hover:bg-black text-white py-3.5 mt-2 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-50">
+              {saving ? 'Processing...' : 'SUBMIT'}
+            </button>
+          </form>
+        </div>
+      </Modal>
 
       <FloatingActionBar 
         count={selectedIds.length}

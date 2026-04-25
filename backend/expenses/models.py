@@ -9,6 +9,7 @@ EXPENSE_STATUS = [
 PAYMENT_MODE = [
     ("CASH", "Cash"), ("CHEQUE", "Cheque"), ("NEFT", "NEFT"),
     ("RTGS", "RTGS"), ("UPI", "UPI"), ("CARD", "Card"),
+    ("BANK_TRANSFER", "Bank Transfer"),
 ]
 
 
@@ -57,8 +58,9 @@ class Expense(models.Model):
     description = models.TextField(blank=True, null=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     expense_date = models.DateField()
-    payment_mode = models.CharField(max_length=10, choices=PAYMENT_MODE)
+    payment_mode = models.CharField(max_length=15, choices=PAYMENT_MODE)
     reference_number = models.CharField(max_length=100, blank=True, null=True)
+    voucher_number = models.PositiveIntegerField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=EXPENSE_STATUS, default='DRAFT')
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='submitted_expenses')
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_expenses')
@@ -70,6 +72,7 @@ class Expense(models.Model):
 
     class Meta:
         ordering = ['-expense_date']
+        unique_together = ['branch', 'voucher_number']
 
     def __str__(self):
         return f"{self.title} - ₹{self.amount}"

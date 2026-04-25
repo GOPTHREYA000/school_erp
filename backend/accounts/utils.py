@@ -18,7 +18,12 @@ def get_validated_branch_id(user, requested_branch_id):
     - If a branch_id is requested that doesn't belong to the user's tenant, raises PermissionDenied.
     """
     if user.role in ('SUPER_ADMIN', 'SCHOOL_ADMIN'):
-        if requested_branch_id:
+        if requested_branch_id and requested_branch_id not in ('all', ''):
+            import uuid as _uuid
+            try:
+                _uuid.UUID(str(requested_branch_id))
+            except ValueError:
+                return None  # Invalid UUID format, treat as "all branches"
             from tenants.models import Branch
             if not Branch.objects.filter(id=requested_branch_id, tenant=user.tenant).exists():
                 raise PermissionDenied("Access denied: branch does not belong to your organization.")

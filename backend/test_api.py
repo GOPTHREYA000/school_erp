@@ -1,26 +1,17 @@
-import os
-import django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
-from django.test import Client
-from rest_framework_simplejwt.tokens import RefreshToken
-from accounts.models import User
+import requests
+import json
 
-c = Client(SERVER_NAME='localhost')
-u = User.objects.get(id='ef9b8c2c-d1f9-42f7-922a-9d7fcd18edf5')
-token = RefreshToken.for_user(u).access_token
-c.cookies['access_token'] = str(token)
+# Login
+res = requests.post('http://127.0.0.1:8000/api/auth/login/', json={'email': 'abhigroup@gmail.com', 'password': 'password123'})
+token = res.json().get('access_token') or res.json().get('access') # It sets cookie usually
 
-urls = [
-    '/api/parent/children/22222960-a83f-492e-99f3-a470c958111d/attendance/',
-    '/api/parent/children/22222960-a83f-492e-99f3-a470c958111d/fees/invoices/',
-    '/api/parent/children/22222960-a83f-492e-99f3-a470c958111d/homework/',
-]
+session = requests.Session()
+if res.cookies:
+    session.cookies.update(res.cookies)
 
-for url in urls:
-    res = c.get(url)
-    print(f"{url} -> {res.status_code}")
-    if res.status_code == 200:
-        data = res.json().get('data', [])
-        print(f"  Length: {len(data)}")
-
+req = session.get('http://127.0.0.1:8000/api/expenses/categories/')
+print(req.status_code)
+print(req.text)
+if req.status_code == 200:
+    for c in req.json().get('results', req.json()):
+        print(c.get('name'))

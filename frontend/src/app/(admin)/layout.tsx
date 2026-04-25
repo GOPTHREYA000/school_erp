@@ -14,7 +14,7 @@ import {
   LayoutDashboard, Users, BookOpen, ClipboardCheck, 
   Calendar, Receipt, TrendingDown, TrendingUp, PenTool, 
   Megaphone, Shield, LogOut, Settings, Building2, Search,
-  Menu, X, Bell, Bus, Eye
+  Menu, X, Bell, Bus, Eye, BarChart3
 } from 'lucide-react';
 
 const getNavGroups = (role: string) => {
@@ -38,6 +38,7 @@ const getNavGroups = (role: string) => {
           group: 'Analytics',
           items: [
             { href: '/dashboard', label: 'School Analytics', icon: LayoutDashboard },
+            { href: '/reports', label: 'Reports Center', icon: BarChart3 },
             { href: '/approvals', label: 'Principal Queue', icon: ClipboardCheck },
             { href: '/reports/financial', label: 'Financial Analytics', icon: TrendingUp },
           ]
@@ -56,12 +57,7 @@ const getNavGroups = (role: string) => {
             { href: '/setup', label: 'School Settings', icon: Settings },
           ]
         },
-        {
-          group: 'Academics',
-          items: [
-            { href: '/homework-tracking', label: 'Homework Tracking', icon: Eye },
-          ]
-        },
+
         {
           group: 'Communicate',
           items: [
@@ -76,6 +72,7 @@ const getNavGroups = (role: string) => {
           group: 'Overview',
           items: [
             { href: '/dashboard', label: 'Branch Dashboard', icon: LayoutDashboard },
+            { href: '/reports', label: 'Reports Center', icon: BarChart3 },
           ]
         },
         {
@@ -99,7 +96,6 @@ const getNavGroups = (role: string) => {
             { href: '/classes', label: 'Classes', icon: BookOpen },
             { href: '/attendance', label: 'Attendance Overview', icon: ClipboardCheck },
             { href: '/timetable', label: 'Timetable', icon: Calendar },
-            { href: '/homework-tracking', label: 'Homework Tracking', icon: Eye },
           ]
         },
         {
@@ -182,6 +178,18 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   const navGroups = user?.role ? getNavGroups(user.role) : [];
 
+  // Determine the active item by finding the longest matching href prefix
+  let activeItemHref = '';
+  navGroups.forEach(group => {
+    group.items.forEach(item => {
+      if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
+        if (item.href.length > activeItemHref.length) {
+          activeItemHref = item.href;
+        }
+      }
+    });
+  });
+
   return (
     <BranchProvider>
       <CommandPalette />
@@ -202,7 +210,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   <div key={groupIndex} className="space-y-1">
                     <h3 className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">{group.group}</h3>
                     {group.items.map(({ href, label, icon: Icon }) => {
-                      const active = pathname === href || pathname.startsWith(`${href}/`);
+                      const active = href === activeItemHref;
                       return (
                         <Link key={href} href={href} onClick={() => setSidebarOpen(false)}
                           className={`flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
@@ -252,7 +260,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   {group.group}
                 </h3>
                 {group.items.map(({ href, label, icon: Icon }) => {
-                  const active = pathname === href || pathname.startsWith(`${href}/`);
+                  const active = href === activeItemHref;
                   return (
                     <Link key={href} href={href}
                       className={`flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${

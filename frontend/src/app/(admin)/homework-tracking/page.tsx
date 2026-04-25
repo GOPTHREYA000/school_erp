@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/axios';
+import { useAuth } from '@/components/common/AuthProvider';
+import { useRouter } from 'next/navigation';
 import { 
   BookOpen, CheckCircle2, Clock, AlertCircle, Users, ChevronDown,
   ChevronRight, Search, Filter, Calendar, PenTool, Eye, XCircle
@@ -40,6 +42,16 @@ interface HomeworkTracking {
 }
 
 export default function HomeworkTrackingPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  // Enforce teacher-only access
+  useEffect(() => {
+    if (user && user.role !== 'TEACHER') {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
+
   const [classes, setClasses] = useState<ClassSection[]>([]);
   const [selectedClass, setSelectedClass] = useState('');
   const [students, setStudents] = useState<StudentInfo[]>([]);

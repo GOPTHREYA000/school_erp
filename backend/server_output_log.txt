@@ -22,3 +22,1458 @@ Quit the server with CONTROL-C.
   paginator = self.django_paginator_class(queryset, page_size)
 2026-04-22 21:42:36,364 WARNING django.request Not Found: /api/branches/
 2026-04-22 21:42:36,365 WARNING django.server "GET /api/branches/ HTTP/1.1" 404 72884
+2026-04-22 22:49:37,772 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-22 22:49:37,773 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-23 17:12:49,823 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-23 17:12:49,824 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-23 17:12:49,867 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-23 17:12:49,867 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 50
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 22, 2026 - 03:47:17
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:23:32
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:25:48
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:31:03
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2026-04-26 00:33:04,100 INFO accounts.views Login attempt: iitsrinivas@yahoo.in
+2026-04-26 00:33:04,284 INFO accounts.views Login successful: iitsrinivas@yahoo.in
+2026-04-26 00:33:04,700 WARNING django.request Not Found: /api/reports/analytics/expense-breakdown/
+2026-04-26 00:33:04,700 WARNING django.request Not Found: /api/reports/analytics/fee-collection-by-branch/
+2026-04-26 00:33:04,700 WARNING django.request Not Found: /api/reports/attendance/stats/
+2026-04-26 00:33:04,700 WARNING django.request Not Found: /api/reports/fees/stats/
+2026-04-26 00:33:04,700 WARNING django.request Not Found: /api/reports/analytics/branch-distribution/
+2026-04-26 00:33:04,700 WARNING django.request Not Found: /api/reports/finance/summary/
+2026-04-26 00:33:04,700 WARNING django.server "GET /api/reports/analytics/expense-breakdown/?days=30&branch_id= HTTP/1.1" 404 82754
+2026-04-26 00:33:04,700 WARNING django.server "GET /api/reports/analytics/fee-collection-by-branch/?branch_id= HTTP/1.1" 404 82763
+2026-04-26 00:33:04,701 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 404 82709
+2026-04-26 00:33:04,701 WARNING django.server "GET /api/reports/fees/stats/?branch_id= HTTP/1.1" 404 82691
+2026-04-26 00:33:04,701 WARNING django.server "GET /api/reports/analytics/branch-distribution/?branch_id= HTTP/1.1" 404 82748
+2026-04-26 00:33:04,703 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 404 82718
+2026-04-26 00:33:04,710 WARNING django.request Not Found: /api/reports/analytics/admission-funnel/
+2026-04-26 00:33:04,710 WARNING django.server "GET /api/reports/analytics/admission-funnel/?branch_id= HTTP/1.1" 404 82739
+2026-04-26 00:33:20,011 WARNING django.request Not Found: /api/reports/admit/applicants/
+2026-04-26 00:33:20,011 WARNING django.server "GET /api/reports/admit/applicants/?page=1 HTTP/1.1" 404 82705
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'fees.models.FeeApprovalRequest'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 00:33:48,460 WARNING django.request Not Found: /api/reports/academics/students-list/
+2026-04-26 00:33:48,460 WARNING django.server "GET /api/reports/academics/students-list/?page=1 HTTP/1.1" 404 82726
+2026-04-26 00:35:16,737 WARNING django.request Not Found: /api/reports/admit/applicants/
+2026-04-26 00:35:16,737 WARNING django.server "GET /api/reports/admit/applicants/?page=1 HTTP/1.1" 404 82705
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:31:05
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2026-04-26 00:36:10,261 ERROR django.request Internal Server Error: /api/reports/admit/applicants/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2170, in add_fields
+    join_info = self.setup_joins(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1832, in setup_joins
+    path, final_field, targets, rest = self.names_to_path(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1733, in names_to_path
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'parent_phone' into field. Choices are: aadhar_number, academic_year, academic_year_id, address_line1, address_line2, admission_staff_name, admission_staff_phone, allergies, apartment_name, application_fee_amount, application_fee_paid, blood_group, branch, branch_id, caste_category, city, created_at, date_of_birth, district, doc_aadhaar_submitted, doc_birth_cert_submitted, doc_bonafide_submitted, doc_caste_cert_submitted, doc_tc_submitted, doctor_name, doctor_phone, documents, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, enrolled_student, father_aadhaar, father_annual_income, father_email, father_name, father_occupation, father_phone, father_qualification, first_name, gender, grade_applying_for, guardian_name, guardian_phone, guardian_relation, has_medical_condition, health_status, id, identification_mark_1, identification_mark_2, inquiry, inquiry_id, landmark, last_name, mandal, medical_details, mother_aadhaar, mother_email, mother_name, mother_occupation, mother_phone, mother_qualification, mother_tongue, nationality, pincode, previous_class, previous_school_ay, previous_school_name, reason_for_leaving, religion, remarks, reviewed_at, reviewed_by, reviewed_by_id, sibling_link, sibling_link_id, source, state, status, submitted_at, tenant, tenant_id, updated_at
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/admit.py", line 16, in applicants
+    data = AdmitService.get_applicants(filters).values(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1315, in values
+    clone = self._values(*fields, **expressions)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1310, in _values
+    clone.query.set_values(fields)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2471, in set_values
+    self.add_fields(field_names, True)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2203, in add_fields
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'parent_phone' into field. Choices are: aadhar_number, academic_year, academic_year_id, address_line1, address_line2, admission_staff_name, admission_staff_phone, allergies, apartment_name, application_fee_amount, application_fee_paid, blood_group, branch, branch_id, caste_category, city, created_at, date_of_birth, district, doc_aadhaar_submitted, doc_birth_cert_submitted, doc_bonafide_submitted, doc_caste_cert_submitted, doc_tc_submitted, doctor_name, doctor_phone, documents, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, enrolled_student, father_aadhaar, father_annual_income, father_email, father_name, father_occupation, father_phone, father_qualification, first_name, gender, grade_applying_for, guardian_name, guardian_phone, guardian_relation, has_medical_condition, health_status, id, identification_mark_1, identification_mark_2, inquiry, inquiry_id, landmark, last_name, mandal, medical_details, mother_aadhaar, mother_email, mother_name, mother_occupation, mother_phone, mother_qualification, mother_tongue, nationality, pincode, previous_class, previous_school_ay, previous_school_name, reason_for_leaving, religion, remarks, reviewed_at, reviewed_by, reviewed_by_id, sibling_link, sibling_link_id, source, state, status, submitted_at, tenant, tenant_id, updated_at
+2026-04-26 00:36:10,268 ERROR django.server "GET /api/reports/admit/applicants/?page=1 HTTP/1.1" 500 23814
+2026-04-26 00:36:12,514 ERROR django.request Internal Server Error: /api/reports/admit/applicant-counts/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/admit.py", line 26, in applicant_counts
+    return ReportPagination().get_paginated_response(list(data))
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:12,517 ERROR django.server "GET /api/reports/admit/applicant-counts/?page=1 HTTP/1.1" 500 18751
+2026-04-26 00:36:13,860 ERROR django.request Internal Server Error: /api/reports/admit/applicants/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2170, in add_fields
+    join_info = self.setup_joins(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1832, in setup_joins
+    path, final_field, targets, rest = self.names_to_path(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1733, in names_to_path
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'parent_phone' into field. Choices are: aadhar_number, academic_year, academic_year_id, address_line1, address_line2, admission_staff_name, admission_staff_phone, allergies, apartment_name, application_fee_amount, application_fee_paid, blood_group, branch, branch_id, caste_category, city, created_at, date_of_birth, district, doc_aadhaar_submitted, doc_birth_cert_submitted, doc_bonafide_submitted, doc_caste_cert_submitted, doc_tc_submitted, doctor_name, doctor_phone, documents, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, enrolled_student, father_aadhaar, father_annual_income, father_email, father_name, father_occupation, father_phone, father_qualification, first_name, gender, grade_applying_for, guardian_name, guardian_phone, guardian_relation, has_medical_condition, health_status, id, identification_mark_1, identification_mark_2, inquiry, inquiry_id, landmark, last_name, mandal, medical_details, mother_aadhaar, mother_email, mother_name, mother_occupation, mother_phone, mother_qualification, mother_tongue, nationality, pincode, previous_class, previous_school_ay, previous_school_name, reason_for_leaving, religion, remarks, reviewed_at, reviewed_by, reviewed_by_id, sibling_link, sibling_link_id, source, state, status, submitted_at, tenant, tenant_id, updated_at
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/admit.py", line 16, in applicants
+    data = AdmitService.get_applicants(filters).values(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1315, in values
+    clone = self._values(*fields, **expressions)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1310, in _values
+    clone.query.set_values(fields)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2471, in set_values
+    self.add_fields(field_names, True)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2203, in add_fields
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'parent_phone' into field. Choices are: aadhar_number, academic_year, academic_year_id, address_line1, address_line2, admission_staff_name, admission_staff_phone, allergies, apartment_name, application_fee_amount, application_fee_paid, blood_group, branch, branch_id, caste_category, city, created_at, date_of_birth, district, doc_aadhaar_submitted, doc_birth_cert_submitted, doc_bonafide_submitted, doc_caste_cert_submitted, doc_tc_submitted, doctor_name, doctor_phone, documents, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, enrolled_student, father_aadhaar, father_annual_income, father_email, father_name, father_occupation, father_phone, father_qualification, first_name, gender, grade_applying_for, guardian_name, guardian_phone, guardian_relation, has_medical_condition, health_status, id, identification_mark_1, identification_mark_2, inquiry, inquiry_id, landmark, last_name, mandal, medical_details, mother_aadhaar, mother_email, mother_name, mother_occupation, mother_phone, mother_qualification, mother_tongue, nationality, pincode, previous_class, previous_school_ay, previous_school_name, reason_for_leaving, religion, remarks, reviewed_at, reviewed_by, reviewed_by_id, sibling_link, sibling_link_id, source, state, status, submitted_at, tenant, tenant_id, updated_at
+2026-04-26 00:36:13,860 ERROR django.server "GET /api/reports/admit/applicants/?page=1 HTTP/1.1" 500 23814
+2026-04-26 00:36:16,218 ERROR django.request Internal Server Error: /api/reports/admit/applicant-counts/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/admit.py", line 26, in applicant_counts
+    return ReportPagination().get_paginated_response(list(data))
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:16,218 ERROR django.server "GET /api/reports/admit/applicant-counts/?page=1 HTTP/1.1" 500 18751
+2026-04-26 00:36:18,594 ERROR django.request Internal Server Error: /api/reports/admit/applicant-counts/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/admit.py", line 26, in applicant_counts
+    return ReportPagination().get_paginated_response(list(data))
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:18,594 ERROR django.server "GET /api/reports/admit/applicant-counts/?branch_id=ff0d4ad2-f701-4f50-b88b-8acf225070a0&academic_year_id=&startDate=&endDate=&class_id=&section_id=&status=&page=1 HTTP/1.1" 500 19124
+2026-04-26 00:36:20,482 ERROR django.request Internal Server Error: /api/reports/admit/applicant-counts/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/admit.py", line 26, in applicant_counts
+    return ReportPagination().get_paginated_response(list(data))
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:20,482 ERROR django.server "GET /api/reports/admit/applicant-counts/?branch_id=ff0d4ad2-f701-4f50-b88b-8acf225070a0&academic_year_id=5617b88c-f696-460b-8515-28319c95d7e1&startDate=&endDate=&class_id=&section_id=&status=&page=1 HTTP/1.1" 500 19232
+2026-04-26 00:36:28,211 ERROR django.request Internal Server Error: /api/reports/admit/applicants/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2170, in add_fields
+    join_info = self.setup_joins(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1832, in setup_joins
+    path, final_field, targets, rest = self.names_to_path(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1733, in names_to_path
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'parent_phone' into field. Choices are: aadhar_number, academic_year, academic_year_id, address_line1, address_line2, admission_staff_name, admission_staff_phone, allergies, apartment_name, application_fee_amount, application_fee_paid, blood_group, branch, branch_id, caste_category, city, created_at, date_of_birth, district, doc_aadhaar_submitted, doc_birth_cert_submitted, doc_bonafide_submitted, doc_caste_cert_submitted, doc_tc_submitted, doctor_name, doctor_phone, documents, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, enrolled_student, father_aadhaar, father_annual_income, father_email, father_name, father_occupation, father_phone, father_qualification, first_name, gender, grade_applying_for, guardian_name, guardian_phone, guardian_relation, has_medical_condition, health_status, id, identification_mark_1, identification_mark_2, inquiry, inquiry_id, landmark, last_name, mandal, medical_details, mother_aadhaar, mother_email, mother_name, mother_occupation, mother_phone, mother_qualification, mother_tongue, nationality, pincode, previous_class, previous_school_ay, previous_school_name, reason_for_leaving, religion, remarks, reviewed_at, reviewed_by, reviewed_by_id, sibling_link, sibling_link_id, source, state, status, submitted_at, tenant, tenant_id, updated_at
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/admit.py", line 16, in applicants
+    data = AdmitService.get_applicants(filters).values(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1315, in values
+    clone = self._values(*fields, **expressions)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1310, in _values
+    clone.query.set_values(fields)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2471, in set_values
+    self.add_fields(field_names, True)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2203, in add_fields
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'parent_phone' into field. Choices are: aadhar_number, academic_year, academic_year_id, address_line1, address_line2, admission_staff_name, admission_staff_phone, allergies, apartment_name, application_fee_amount, application_fee_paid, blood_group, branch, branch_id, caste_category, city, created_at, date_of_birth, district, doc_aadhaar_submitted, doc_birth_cert_submitted, doc_bonafide_submitted, doc_caste_cert_submitted, doc_tc_submitted, doctor_name, doctor_phone, documents, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, enrolled_student, father_aadhaar, father_annual_income, father_email, father_name, father_occupation, father_phone, father_qualification, first_name, gender, grade_applying_for, guardian_name, guardian_phone, guardian_relation, has_medical_condition, health_status, id, identification_mark_1, identification_mark_2, inquiry, inquiry_id, landmark, last_name, mandal, medical_details, mother_aadhaar, mother_email, mother_name, mother_occupation, mother_phone, mother_qualification, mother_tongue, nationality, pincode, previous_class, previous_school_ay, previous_school_name, reason_for_leaving, religion, remarks, reviewed_at, reviewed_by, reviewed_by_id, sibling_link, sibling_link_id, source, state, status, submitted_at, tenant, tenant_id, updated_at
+2026-04-26 00:36:28,211 ERROR django.server "GET /api/reports/admit/applicants/?page=1 HTTP/1.1" 500 23814
+2026-04-26 00:36:43,990 ERROR django.request Internal Server Error: /api/reports/admit/applicants/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2170, in add_fields
+    join_info = self.setup_joins(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1832, in setup_joins
+    path, final_field, targets, rest = self.names_to_path(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1733, in names_to_path
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'parent_phone' into field. Choices are: aadhar_number, academic_year, academic_year_id, address_line1, address_line2, admission_staff_name, admission_staff_phone, allergies, apartment_name, application_fee_amount, application_fee_paid, blood_group, branch, branch_id, caste_category, city, created_at, date_of_birth, district, doc_aadhaar_submitted, doc_birth_cert_submitted, doc_bonafide_submitted, doc_caste_cert_submitted, doc_tc_submitted, doctor_name, doctor_phone, documents, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, enrolled_student, father_aadhaar, father_annual_income, father_email, father_name, father_occupation, father_phone, father_qualification, first_name, gender, grade_applying_for, guardian_name, guardian_phone, guardian_relation, has_medical_condition, health_status, id, identification_mark_1, identification_mark_2, inquiry, inquiry_id, landmark, last_name, mandal, medical_details, mother_aadhaar, mother_email, mother_name, mother_occupation, mother_phone, mother_qualification, mother_tongue, nationality, pincode, previous_class, previous_school_ay, previous_school_name, reason_for_leaving, religion, remarks, reviewed_at, reviewed_by, reviewed_by_id, sibling_link, sibling_link_id, source, state, status, submitted_at, tenant, tenant_id, updated_at
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/admit.py", line 16, in applicants
+    data = AdmitService.get_applicants(filters).values(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1315, in values
+    clone = self._values(*fields, **expressions)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1310, in _values
+    clone.query.set_values(fields)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2471, in set_values
+    self.add_fields(field_names, True)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2203, in add_fields
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'parent_phone' into field. Choices are: aadhar_number, academic_year, academic_year_id, address_line1, address_line2, admission_staff_name, admission_staff_phone, allergies, apartment_name, application_fee_amount, application_fee_paid, blood_group, branch, branch_id, caste_category, city, created_at, date_of_birth, district, doc_aadhaar_submitted, doc_birth_cert_submitted, doc_bonafide_submitted, doc_caste_cert_submitted, doc_tc_submitted, doctor_name, doctor_phone, documents, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, enrolled_student, father_aadhaar, father_annual_income, father_email, father_name, father_occupation, father_phone, father_qualification, first_name, gender, grade_applying_for, guardian_name, guardian_phone, guardian_relation, has_medical_condition, health_status, id, identification_mark_1, identification_mark_2, inquiry, inquiry_id, landmark, last_name, mandal, medical_details, mother_aadhaar, mother_email, mother_name, mother_occupation, mother_phone, mother_qualification, mother_tongue, nationality, pincode, previous_class, previous_school_ay, previous_school_name, reason_for_leaving, religion, remarks, reviewed_at, reviewed_by, reviewed_by_id, sibling_link, sibling_link_id, source, state, status, submitted_at, tenant, tenant_id, updated_at
+2026-04-26 00:36:43,991 ERROR django.server "GET /api/reports/admit/applicants/?page=1 HTTP/1.1" 500 23814
+2026-04-26 00:36:44,849 ERROR django.request Internal Server Error: /api/reports/academics/students-list/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/academics.py", line 24, in students_list
+    return ReportPagination().get_paginated_response(page)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:44,850 ERROR django.server "GET /api/reports/academics/students-list/?page=1 HTTP/1.1" 500 18758
+2026-04-26 00:36:46,471 ERROR django.request Internal Server Error: /api/reports/academics/student-strength/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/academics.py", line 30, in student_strength
+    return ReportPagination().get_paginated_response(list(data))
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:46,472 ERROR django.server "GET /api/reports/academics/student-strength/?page=1 HTTP/1.1" 500 18779
+2026-04-26 00:36:47,324 ERROR django.request Internal Server Error: /api/reports/academics/student-attendance-daily/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/academics.py", line 43, in student_attendance_daily
+    return ReportPagination().get_paginated_response(page)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:47,324 ERROR django.server "GET /api/reports/academics/student-attendance-daily/?page=1 HTTP/1.1" 500 18813
+2026-04-26 00:36:49,006 ERROR django.request Internal Server Error: /api/reports/payments/fee-balances/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2170, in add_fields
+    join_info = self.setup_joins(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1832, in setup_joins
+    path, final_field, targets, rest = self.names_to_path(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1733, in names_to_path
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'total_amount' into field. Choices are: academic_year, academic_year_id, branch, branch_id, cancellation_reason, cancelled_by, cancelled_by_id, concession_amount, created_at, created_by, created_by_id, due_date, generated_by, gross_amount, id, invoice_number, issued_date, items, late_fee_amount, month, net_amount, outstanding_amount, paid_amount, payments, status, student, student_id, tenant, tenant_id, updated_at
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/payments.py", line 18, in fee_balances
+    data = qs.values(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1315, in values
+    clone = self._values(*fields, **expressions)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1310, in _values
+    clone.query.set_values(fields)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2471, in set_values
+    self.add_fields(field_names, True)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 2203, in add_fields
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'total_amount' into field. Choices are: academic_year, academic_year_id, branch, branch_id, cancellation_reason, cancelled_by, cancelled_by_id, concession_amount, created_at, created_by, created_by_id, due_date, generated_by, gross_amount, id, invoice_number, issued_date, items, late_fee_amount, month, net_amount, outstanding_amount, paid_amount, payments, status, student, student_id, tenant, tenant_id, updated_at
+2026-04-26 00:36:49,008 ERROR django.server "GET /api/reports/payments/fee-balances/?page=1 HTTP/1.1" 500 21123
+2026-04-26 00:36:51,311 ERROR django.request Internal Server Error: /api/reports/payments/daily-collections/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/payments.py", line 36, in daily_collections
+    return ReportPagination().get_paginated_response(page)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:51,312 ERROR django.server "GET /api/reports/payments/daily-collections/?page=1 HTTP/1.1" 500 18771
+2026-04-26 00:36:52,138 ERROR django.request Internal Server Error: /api/reports/payments/receipts/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/payments.py", line 48, in receipts
+    return ReportPagination().get_paginated_response(page)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:52,138 ERROR django.server "GET /api/reports/payments/receipts/?page=1 HTTP/1.1" 500 18726
+2026-04-26 00:36:56,036 ERROR django.request Internal Server Error: /api/reports/payments/mismatch-detection/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/payments.py", line 67, in mismatch_detection
+    return ReportPagination().get_paginated_response(data)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:56,036 ERROR django.server "GET /api/reports/payments/mismatch-detection/?page=1 HTTP/1.1" 500 18776
+2026-04-26 00:36:56,769 ERROR django.request Internal Server Error: /api/reports/payments/income-statement/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/payments.py", line 73, in income_statement
+    return ReportPagination().get_paginated_response(list(data))
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:56,770 ERROR django.server "GET /api/reports/payments/income-statement/?page=1 HTTP/1.1" 500 18772
+2026-04-26 00:36:57,900 ERROR django.request Internal Server Error: /api/reports/payments/expenses/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/views/payments.py", line 81, in expenses
+    return ReportPagination().get_paginated_response(page)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/reports/pagination.py", line 13, in get_paginated_response
+    'count': self.page.paginator.count,
+AttributeError: 'ReportPagination' object has no attribute 'page'
+2026-04-26 00:36:57,901 ERROR django.server "GET /api/reports/payments/expenses/?page=1 HTTP/1.1" 500 18726
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:35:44
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:40:00
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:40:12
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:40:28
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:40:35
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:40:46
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 00:40:58
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:06:51
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:07:40
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:07:47
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:08:29
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2026-04-26 02:13:05,230 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-26 02:13:05,234 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'tenants.models.Tenant'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'fees.models.FeeApprovalRequest'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 02:31:28,677 INFO accounts.views Login attempt: injapur_acc@gmail.com
+2026-04-26 02:31:28,856 INFO accounts.views Login successful: injapur_acc@gmail.com
+2026-04-26 02:31:29,100 WARNING django.request Forbidden: /api/reports/fees/stats/
+2026-04-26 02:31:29,100 WARNING django.request Forbidden: /api/reports/finance/summary/
+2026-04-26 02:31:29,100 WARNING django.request Forbidden: /api/reports/attendance/stats/
+2026-04-26 02:31:29,101 WARNING django.request Forbidden: /api/reports/analytics/attendance-trend/
+2026-04-26 02:31:29,101 WARNING django.request Forbidden: /api/reports/analytics/fee-aging/
+2026-04-26 02:31:29,101 WARNING django.server "GET /api/reports/fees/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:31:29,102 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:31:29,102 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:31:29,102 WARNING django.server "GET /api/reports/analytics/fee-aging/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:31:29,102 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:31:50,390 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:31:50,390 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:35:14,903 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:35:14,903 WARNING django.server "GET /api/expenses/?status=&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:35:17,576 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:35:17,576 WARNING django.server "GET /api/expenses/?status=APPROVED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:35:18,262 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:35:18,262 WARNING django.server "GET /api/expenses/?status=REJECTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:35:19,207 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:35:19,207 WARNING django.server "GET /api/expenses/?status=DRAFT&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:35:22,803 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:35:22,804 WARNING django.server "GET /api/expenses/?status=&branch_id= HTTP/1.1" 403 63
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:09:41
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'staff.models.TeacherProfile'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'timetable.models.Subject'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 02:37:11,290 WARNING django.request Forbidden: /api/transport/rate-slabs/
+2026-04-26 02:37:11,290 WARNING django.request Forbidden: /api/transport/students/
+2026-04-26 02:37:11,290 WARNING django.request Forbidden: /api/transport/routes/
+2026-04-26 02:37:11,290 WARNING django.server "GET /api/transport/rate-slabs/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:37:11,290 WARNING django.server "GET /api/transport/routes/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:37:11,290 WARNING django.server "GET /api/transport/students/?branch_id=&search= HTTP/1.1" 403 63
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:36:40
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2026-04-26 02:37:58,452 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 02:37:58,452 WARNING django.server "GET /api/academic-years/ HTTP/1.1" 404 96104
+2026-04-26 02:38:22,540 INFO accounts.views Login attempt: kaz_acc@gmail.com
+2026-04-26 02:38:22,720 INFO accounts.views Login successful: kaz_acc@gmail.com
+2026-04-26 02:38:23,000 WARNING django.request Forbidden: /api/reports/finance/summary/
+2026-04-26 02:38:23,001 WARNING django.request Forbidden: /api/reports/fees/stats/
+2026-04-26 02:38:23,001 WARNING django.request Forbidden: /api/reports/attendance/stats/
+2026-04-26 02:38:23,001 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:38:23,001 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:38:23,001 WARNING django.server "GET /api/reports/fees/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:38:23,002 WARNING django.request Forbidden: /api/reports/analytics/fee-aging/
+2026-04-26 02:38:23,003 WARNING django.server "GET /api/reports/analytics/fee-aging/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:38:23,003 WARNING django.request Forbidden: /api/reports/analytics/attendance-trend/
+2026-04-26 02:38:23,003 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:39:01,207 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 02:39:01,208 WARNING django.server "GET /api/academic-years/ HTTP/1.1" 404 96104
+2026-04-26 02:39:31,222 WARNING django.request Forbidden: /api/expenses/vendors/
+2026-04-26 02:39:31,222 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 02:39:31,223 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:39:31,223 WARNING django.server "GET /api/expenses/categories/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:39:31,223 WARNING django.server "GET /api/expenses/vendors/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:39:31,225 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:41:37,409 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:41:37,410 WARNING django.server "GET /api/expenses/?status=&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:41:38,293 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:41:38,294 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:41:38,962 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:41:38,963 WARNING django.server "GET /api/expenses/?status=&branch_id= HTTP/1.1" 403 63
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:37:25
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:41:57
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2026-04-26 02:42:42,536 WARNING django.request Forbidden: /api/expenses/vendors/
+2026-04-26 02:42:42,536 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 02:42:42,536 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:42:42,537 WARNING django.server "GET /api/expenses/vendors/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:42:42,537 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:42:42,538 WARNING django.server "GET /api/expenses/categories/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:42:55,020 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:42:55,020 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:42:55,021 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 02:42:55,021 WARNING django.server "GET /api/expenses/categories/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:42:55,021 WARNING django.request Forbidden: /api/expenses/vendors/
+2026-04-26 02:42:55,021 WARNING django.server "GET /api/expenses/vendors/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:47:09,506 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 02:47:09,507 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:47:09,507 WARNING django.request Forbidden: /api/expenses/vendors/
+2026-04-26 02:47:09,508 WARNING django.server "GET /api/expenses/categories/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:47:09,509 WARNING django.server "GET /api/expenses/vendors/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:47:09,510 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:50:00,980 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 02:50:00,983 WARNING django.request Forbidden: /api/expenses/vendors/
+2026-04-26 02:50:00,985 WARNING django.server "GET /api/expenses/categories/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:50:00,986 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:50:00,986 WARNING django.server "GET /api/expenses/vendors/?branch_id= HTTP/1.1" 403 63
+2026-04-26 02:50:00,987 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:52:46,301 INFO accounts.views Login attempt: abhigroup@gmail.com
+2026-04-26 02:52:46,448 WARNING accounts.views Login failed for abhigroup@gmail.com: AuthenticationFailed
+2026-04-26 02:52:46,448 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-26 02:52:46,448 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-26 02:53:42,330 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 02:53:42,331 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:53:42,331 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 02:53:42,331 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:53:42,334 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 02:53:42,335 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 02:54:17,381 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:54:17,383 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 02:54:17,384 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 02:54:17,386 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 02:54:17,386 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 02:54:17,386 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:42:07
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Exception in thread django-main-thread:
+Traceback (most recent call last):
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/threading.py", line 973, in _bootstrap_inner
+    self.run()
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/threading.py", line 910, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/autoreload.py", line 64, in wrapper
+    fn(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/management/commands/runserver.py", line 133, in inner_run
+    self.check(display_num_errors=True)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/management/base.py", line 556, in check
+    raise SystemCheckError(msg)
+django.core.management.base.SystemCheckError: SystemCheckError: System check identified some issues:
+
+ERRORS:
+expenses.Expense.payment_mode: (fields.E009) 'max_length' is too small to fit the longest value in 'choices' (13 characters).
+
+System check identified 1 issue (0 silenced).
+Performing system checks...
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Exception in thread django-main-thread:
+Traceback (most recent call last):
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/threading.py", line 973, in _bootstrap_inner
+    self.run()
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/threading.py", line 910, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/autoreload.py", line 64, in wrapper
+    fn(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/management/commands/runserver.py", line 133, in inner_run
+    self.check(display_num_errors=True)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/management/base.py", line 556, in check
+    raise SystemCheckError(msg)
+django.core.management.base.SystemCheckError: SystemCheckError: System check identified some issues:
+
+ERRORS:
+expenses.Expense.payment_mode: (fields.E009) 'max_length' is too small to fit the longest value in 'choices' (13 characters).
+
+System check identified 1 issue (0 silenced).
+Performing system checks...
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2026-04-26 02:57:02,590 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 02:57:02,590 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 02:57:02,590 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 02:57:02,591 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 02:57:02,591 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 02:57:02,593 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:01:41,360 INFO accounts.views Login attempt: abhigroup@gmail.com
+2026-04-26 03:01:41,517 WARNING accounts.views Login failed for abhigroup@gmail.com: AuthenticationFailed
+2026-04-26 03:01:41,517 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-26 03:01:41,517 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-26 03:01:41,519 WARNING django.request Unauthorized: /api/expenses/categories/
+2026-04-26 03:01:41,519 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 401 58
+2026-04-26 03:02:16,065 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:02:16,068 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:02:16,069 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 03:02:16,075 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:02:16,076 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:02:16,076 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:02:40,452 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:02:40,452 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:02:40,453 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:02:40,455 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:02:40,455 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 03:02:40,457 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:03:55,507 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:03:55,523 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:03:55,531 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:03:55,531 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 03:03:55,533 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:03:55,535 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:04:40,888 INFO accounts.views Login attempt: abhigroup@gmail.com
+2026-04-26 03:04:41,060 WARNING accounts.views Login failed for abhigroup@gmail.com: AuthenticationFailed
+2026-04-26 03:04:41,061 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-26 03:04:41,061 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-26 03:04:41,072 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-26 03:04:41,072 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 53
+2026-04-26 03:05:02,713 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:05:02,714 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:05:02,714 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:05:02,714 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:05:02,715 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:05:02,716 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 03:05:03,223 INFO accounts.views Login attempt: abhigroup@gmail.com
+2026-04-26 03:05:03,398 WARNING accounts.views Login failed for abhigroup@gmail.com: AuthenticationFailed
+2026-04-26 03:05:03,398 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-26 03:05:03,398 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-26 03:05:03,421 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-26 03:05:03,422 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 53
+2026-04-26 03:05:35,207 WARNING django.request Unauthorized: /api/auth/me/
+2026-04-26 03:05:35,207 WARNING django.server "GET /api/auth/me/ HTTP/1.1" 401 58
+2026-04-26 03:05:35,210 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-26 03:05:35,210 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 53
+2026-04-26 03:05:47,574 INFO accounts.views Login attempt: abhigroup@gmail.com
+2026-04-26 03:05:47,755 INFO accounts.views Login successful: abhigroup@gmail.com
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 03:12:34,680 ERROR django.request Internal Server Error: /api/expenses/categories/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/fields/__init__.py", line 2688, in to_python
+    return uuid.UUID(**{input_form: value})
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/uuid.py", line 177, in __init__
+    raise ValueError('badly formed hexadecimal UUID string')
+ValueError: badly formed hexadecimal UUID string
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/mixins.py", line 38, in list
+    queryset = self.filter_queryset(self.get_queryset())
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/expenses/views.py", line 21, in get_queryset
+    branch_id = get_validated_branch_id(self.request.user, self.request.query_params.get('branch_id'))
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/accounts/utils.py", line 23, in get_validated_branch_id
+    if not Branch.objects.filter(id=requested_branch_id, tenant=user.tenant).exists():
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1438, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1456, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 1466, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1548, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1579, in _add_q
+    child_clause, needed_inner = self.build_filter(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1494, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 1321, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/lookups.py", line 27, in __init__
+    self.rhs = self.get_prep_lookup()
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/lookups.py", line 341, in get_prep_lookup
+    return super().get_prep_lookup()
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/lookups.py", line 85, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/fields/__init__.py", line 2672, in get_prep_value
+    return self.to_python(value)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/fields/__init__.py", line 2690, in to_python
+    raise exceptions.ValidationError(
+django.core.exceptions.ValidationError: ['“all” is not a valid UUID.']
+2026-04-26 03:12:34,690 ERROR django.server "GET /api/expenses/categories/?branch_id=all HTTP/1.1" 500 175115
+2026-04-26 03:21:46,948 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:21:46,949 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:21:46,950 WARNING django.server "GET /api/expenses/?status=SUBMITTED HTTP/1.1" 403 63
+2026-04-26 03:21:46,950 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:21:46,952 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:21:46,952 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 03:21:49,989 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:21:49,991 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:21:49,992 WARNING django.server "GET /api/expenses/?status=SUBMITTED HTTP/1.1" 403 63
+2026-04-26 03:21:49,994 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:21:49,997 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:21:49,998 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 02:56:39
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 03:24:09,368 ERROR django.request Internal Server Error: /api/expenses/categories/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/mixins.py", line 40, in list
+    page = self.paginate_queryset(queryset)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/generics.py", line 175, in paginate_queryset
+    return self.paginator.paginate_queryset(queryset, self.request, view=self)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py", line 211, in paginate_queryset
+    self.page = paginator.page(page_number)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/paginator.py", line 72, in page
+    number = self.validate_number(number)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/paginator.py", line 53, in validate_number
+    if number > self.num_pages:
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/paginator.py", line 99, in num_pages
+    if self.count == 0 and not self.allow_empty_first_page:
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/paginator.py", line 93, in count
+    return c()
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 610, in count
+    return self.query.get_count(using=self.db)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 570, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 556, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/compiler.py", line 1549, in execute_sql
+    sql, params = self.as_sql()
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/compiler.py", line 2078, in as_sql
+    inner_query_sql, inner_query_params = self.query.inner_query.get_compiler(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/compiler.py", line 785, in as_sql
+    distinct_result, distinct_params = self.connection.ops.distinct_sql(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/backends/base/operations.py", line 202, in distinct_sql
+    raise NotSupportedError(
+django.db.utils.NotSupportedError: DISTINCT ON fields is not supported by this database backend
+2026-04-26 03:24:09,378 ERROR django.server "GET /api/expenses/categories/ HTTP/1.1" 500 21731
+2026-04-26 03:24:09,391 ERROR django.request Internal Server Error: /api/expenses/categories/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/mixins.py", line 40, in list
+    page = self.paginate_queryset(queryset)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/generics.py", line 175, in paginate_queryset
+    return self.paginator.paginate_queryset(queryset, self.request, view=self)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py", line 211, in paginate_queryset
+    self.page = paginator.page(page_number)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/paginator.py", line 72, in page
+    number = self.validate_number(number)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/paginator.py", line 53, in validate_number
+    if number > self.num_pages:
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/paginator.py", line 99, in num_pages
+    if self.count == 0 and not self.allow_empty_first_page:
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/paginator.py", line 93, in count
+    return c()
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/query.py", line 610, in count
+    return self.query.get_count(using=self.db)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 570, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/query.py", line 556, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/compiler.py", line 1549, in execute_sql
+    sql, params = self.as_sql()
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/compiler.py", line 2078, in as_sql
+    inner_query_sql, inner_query_params = self.query.inner_query.get_compiler(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/models/sql/compiler.py", line 785, in as_sql
+    distinct_result, distinct_params = self.connection.ops.distinct_sql(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/db/backends/base/operations.py", line 202, in distinct_sql
+    raise NotSupportedError(
+django.db.utils.NotSupportedError: DISTINCT ON fields is not supported by this database backend
+2026-04-26 03:24:09,391 ERROR django.server "GET /api/expenses/categories/ HTTP/1.1" 500 21731
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:23:52
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:24:13
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:24:25
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:25:29
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:26:31
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:28:27
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 03:32:09,446 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:32:09,446 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:32:09,447 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:32:09,448 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 03:32:09,448 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:32:09,448 WARNING django.server "GET /api/expenses/?status=SUBMITTED&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:32:09,448 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:32:09,451 WARNING django.server "GET /api/expenses/?status=SUBMITTED HTTP/1.1" 403 63
+2026-04-26 03:32:11,396 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:32:11,396 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:32:11,398 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:32:11,398 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 03:32:11,398 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:32:11,398 WARNING django.server "GET /api/expenses/?status=SUBMITTED HTTP/1.1" 403 63
+2026-04-26 03:35:46,443 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:35:46,444 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:35:46,445 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:35:46,445 WARNING django.server "GET /api/expenses/?status=SUBMITTED HTTP/1.1" 403 63
+2026-04-26 03:35:46,445 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:35:46,445 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 03:35:49,967 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:35:49,967 WARNING django.server "GET /api/expenses/?status=SUBMITTED HTTP/1.1" 403 63
+2026-04-26 03:35:49,970 WARNING django.request Forbidden: /api/vendors/
+2026-04-26 03:35:49,970 WARNING django.server "GET /api/vendors/ HTTP/1.1" 403 63
+2026-04-26 03:35:49,973 WARNING django.request Forbidden: /api/expenses/categories/
+2026-04-26 03:35:49,976 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 403 63
+2026-04-26 03:36:08,056 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:36:08,057 WARNING django.server "POST /api/expenses/ HTTP/1.1" 403 63
+2026-04-26 03:36:22,619 WARNING django.request Forbidden: /api/expenses/
+2026-04-26 03:36:22,620 WARNING django.server "POST /api/expenses/ HTTP/1.1" 403 63
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:29:28
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Exception in thread django-main-thread:
+Traceback (most recent call last):
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/threading.py", line 973, in _bootstrap_inner
+    self.run()
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/threading.py", line 910, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/autoreload.py", line 64, in wrapper
+    fn(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/management/commands/runserver.py", line 133, in inner_run
+    self.check(display_num_errors=True)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/management/base.py", line 485, in check
+    all_issues = checks.run_checks(
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/checks/registry.py", line 88, in run_checks
+    new_errors = check(app_configs=app_configs, databases=databases)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/checks/urls.py", line 14, in check_url_config
+    return check_resolver(resolver)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/checks/urls.py", line 24, in check_resolver
+    return check_method()
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/urls/resolvers.py", line 494, in check
+    for pattern in self.url_patterns:
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/urls/resolvers.py", line 715, in url_patterns
+    patterns = getattr(self.urlconf_module, "urlpatterns", self.urlconf_module)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/urls/resolvers.py", line 708, in urlconf_module
+    return import_module(self.urlconf_name)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1030, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1007, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 986, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 680, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 850, in exec_module
+  File "<frozen importlib._bootstrap>", line 228, in _call_with_frames_removed
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/config/urls.py", line 28, in <module>
+    path('api/', include('expenses.urls')),
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/urls/conf.py", line 38, in include
+    urlconf_module = import_module(urlconf_module)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1030, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1007, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 986, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 680, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 850, in exec_module
+  File "<frozen importlib._bootstrap>", line 228, in _call_with_frames_removed
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/expenses/urls.py", line 3, in <module>
+    from . import views
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/expenses/views.py", line 15, in <module>
+    class ExpenseCategoryViewSet(viewsets.ModelViewSet):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/expenses/views.py", line 17, in ExpenseCategoryViewSet
+    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
+NameError: name 'IsBranchAdminOrAbove' is not defined
+Performing system checks...
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2026-04-26 03:37:43,543 WARNING django.request Bad Request: /api/expenses/
+2026-04-26 03:37:43,543 WARNING django.server "POST /api/expenses/ HTTP/1.1" 400 42
+2026-04-26 03:37:49,871 WARNING django.request Bad Request: /api/expenses/
+2026-04-26 03:37:49,872 WARNING django.server "POST /api/expenses/ HTTP/1.1" 400 42
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 03:39:05,478 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-26 03:39:05,479 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-26 03:39:05,483 WARNING django.request Unauthorized: /api/expenses/
+2026-04-26 03:39:05,485 WARNING django.request Unauthorized: /api/expenses/categories/
+2026-04-26 03:39:05,486 WARNING django.request Unauthorized: /api/vendors/
+2026-04-26 03:39:05,486 WARNING django.request Unauthorized: /api/auth/me/
+2026-04-26 03:39:05,487 WARNING django.server "GET /api/expenses/?status=SUBMITTED HTTP/1.1" 401 58
+2026-04-26 03:39:05,487 WARNING django.server "GET /api/vendors/ HTTP/1.1" 401 58
+2026-04-26 03:39:05,488 WARNING django.server "GET /api/auth/me/ HTTP/1.1" 401 58
+2026-04-26 03:39:05,488 WARNING django.server "GET /api/expenses/categories/ HTTP/1.1" 401 58
+2026-04-26 03:39:24,495 WARNING django.request Bad Request: /api/expenses/
+2026-04-26 03:39:24,495 WARNING django.server "POST /api/expenses/ HTTP/1.1" 400 38
+2026-04-26 03:39:41,146 WARNING django.request Bad Request: /api/expenses/
+2026-04-26 03:39:41,146 WARNING django.server "POST /api/expenses/ HTTP/1.1" 400 38
+2026-04-26 03:41:17,403 INFO accounts.views Login attempt: acct@admin.local
+2026-04-26 03:41:17,559 WARNING accounts.views Login failed for acct@admin.local: AuthenticationFailed
+2026-04-26 03:41:17,559 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-26 03:41:17,559 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-26 03:41:17,566 WARNING django.request Unauthorized: /api/expenses/
+2026-04-26 03:41:17,566 WARNING django.server "POST /api/expenses/ HTTP/1.1" 401 58
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:37:27
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2026-04-26 03:42:11,778 ERROR django.request Internal Server Error: /api/expenses/
+Traceback (most recent call last):
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/views/decorators/csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 515, in dispatch
+    response = self.handle_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 475, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 486, in raise_uncaught_exception
+    raise exc
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/views.py", line 512, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/mixins.py", line 20, in create
+    headers = self.get_success_headers(serializer.data)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/serializers.py", line 573, in data
+    ret = super().data
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/serializers.py", line 251, in data
+    self._data = self.to_representation(self.instance)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/serializers.py", line 540, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/fields.py", line 1870, in to_representation
+    return method(value)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/expenses/serializers.py", line 37, in get_submitted_by_name
+    return obj.submitted_by.get_full_name() or obj.submitted_by.email
+AttributeError: 'User' object has no attribute 'get_full_name'
+2026-04-26 03:42:11,785 ERROR django.server "POST /api/expenses/ HTTP/1.1" 500 19441
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:41:37
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 03:46:24,757 INFO accounts.views Login attempt: kaz_acc@gmail.com
+2026-04-26 03:46:24,938 INFO accounts.views Login successful: kaz_acc@gmail.com
+2026-04-26 03:46:25,169 WARNING django.request Forbidden: /api/reports/fees/stats/
+2026-04-26 03:46:25,169 WARNING django.request Forbidden: /api/reports/attendance/stats/
+2026-04-26 03:46:25,170 WARNING django.request Forbidden: /api/reports/analytics/attendance-trend/
+2026-04-26 03:46:25,170 WARNING django.request Forbidden: /api/reports/analytics/fee-aging/
+2026-04-26 03:46:25,170 WARNING django.request Forbidden: /api/reports/finance/summary/
+2026-04-26 03:46:25,170 WARNING django.server "GET /api/reports/fees/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:46:25,171 WARNING django.server "GET /api/reports/analytics/fee-aging/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:46:25,171 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:46:25,171 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:46:25,171 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:47:56,865 INFO accounts.views Login attempt: kaz_acc@gmail.com
+2026-04-26 03:47:57,021 WARNING accounts.views Login failed for kaz_acc@gmail.com: AuthenticationFailed
+2026-04-26 03:47:57,021 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-26 03:47:57,021 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-26 03:47:57,028 WARNING django.request Unauthorized: /api/expenses/
+2026-04-26 03:47:57,028 WARNING django.server "GET /api/expenses/?status= HTTP/1.1" 401 58
+2026-04-26 03:48:37,116 INFO accounts.views Login attempt: kaz_acc@gmail.com
+2026-04-26 03:48:37,270 WARNING accounts.views Login failed for kaz_acc@gmail.com: AuthenticationFailed
+2026-04-26 03:48:37,270 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-26 03:48:37,270 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-26 03:49:19,423 INFO accounts.views Login attempt: kaz_acc@gmail.com
+2026-04-26 03:49:19,579 WARNING accounts.views Login failed for kaz_acc@gmail.com: AuthenticationFailed
+2026-04-26 03:49:19,579 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-26 03:49:19,579 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-26 03:50:50,869 WARNING django.request Forbidden: /api/reports/fees/stats/
+2026-04-26 03:50:50,869 WARNING django.request Forbidden: /api/reports/finance/summary/
+2026-04-26 03:50:50,870 WARNING django.request Forbidden: /api/reports/attendance/stats/
+2026-04-26 03:50:50,870 WARNING django.request Forbidden: /api/reports/analytics/attendance-trend/
+2026-04-26 03:50:50,870 WARNING django.server "GET /api/reports/fees/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:50:50,870 WARNING django.request Forbidden: /api/reports/analytics/fee-aging/
+2026-04-26 03:50:50,870 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:50:50,871 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:50:50,871 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:50:50,871 WARNING django.server "GET /api/reports/analytics/fee-aging/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:51:02,712 WARNING django.request Unauthorized: /api/auth/me/
+2026-04-26 03:51:02,712 WARNING django.server "GET /api/auth/me/ HTTP/1.1" 401 58
+2026-04-26 03:51:02,716 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-26 03:51:02,716 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 53
+2026-04-26 03:51:24,332 INFO accounts.views Login attempt: kaz_acc@gmail.com
+2026-04-26 03:51:24,514 INFO accounts.views Login successful: kaz_acc@gmail.com
+2026-04-26 03:51:24,635 WARNING django.request Forbidden: /api/reports/attendance/stats/
+2026-04-26 03:51:24,635 WARNING django.request Forbidden: /api/reports/finance/summary/
+2026-04-26 03:51:24,636 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:51:24,636 WARNING django.request Forbidden: /api/reports/fees/stats/
+2026-04-26 03:51:24,636 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:51:24,637 WARNING django.request Forbidden: /api/reports/analytics/fee-aging/
+2026-04-26 03:51:24,638 WARNING django.request Forbidden: /api/reports/analytics/attendance-trend/
+2026-04-26 03:51:24,638 WARNING django.server "GET /api/reports/fees/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:51:24,638 WARNING django.server "GET /api/reports/analytics/fee-aging/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:51:24,638 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:51:39,883 WARNING django.request Unauthorized: /api/expenses/
+2026-04-26 03:51:39,884 WARNING django.server "GET /api/expenses/?status= HTTP/1.1" 401 58
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:42:54
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'expenses.models.Vendor'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 03:56:55,158 WARNING django.request Forbidden: /api/reports/fees/stats/
+2026-04-26 03:56:55,158 WARNING django.request Forbidden: /api/reports/analytics/fee-aging/
+2026-04-26 03:56:55,158 WARNING django.request Forbidden: /api/reports/analytics/attendance-trend/
+2026-04-26 03:56:55,158 WARNING django.request Forbidden: /api/reports/finance/summary/
+2026-04-26 03:56:55,158 WARNING django.request Forbidden: /api/reports/attendance/stats/
+2026-04-26 03:56:55,159 WARNING django.server "GET /api/reports/fees/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:56:55,159 WARNING django.server "GET /api/reports/analytics/fee-aging/?branch_id= HTTP/1.1" 403 63
+2026-04-26 03:56:55,159 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:56:55,159 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 03:56:55,159 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 403 63

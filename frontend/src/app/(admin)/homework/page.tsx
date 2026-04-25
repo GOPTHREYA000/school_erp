@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
+import { useAuth } from '@/components/common/AuthProvider';
+import { useRouter } from 'next/navigation';
 import DateInput from '@/components/DateInput';
 import { Plus, BookOpen, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -29,6 +31,16 @@ interface Subject {
 }
 
 export default function HomeworkPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  // Enforce teacher-only access
+  useEffect(() => {
+    if (user && user.role !== 'TEACHER') {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
+
   const { data, loading, refetch } = useApi<HomeworkItem[]>('/homework/');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ 
