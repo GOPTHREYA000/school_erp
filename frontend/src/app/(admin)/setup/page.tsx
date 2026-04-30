@@ -852,7 +852,7 @@ function SubjectManager() {
                 className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl text-sm focus:ring-4 focus:ring-blue-100 outline-none disabled:opacity-50">
                 <option value="">Select Branch</option>
                 {['SUPER_ADMIN', 'SCHOOL_ADMIN'].includes(user?.role) && <option value="ALL">--- All Branches ---</option>}
-                {branches?.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {Array.isArray(branches) && branches.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
           </div>
@@ -865,12 +865,12 @@ function SubjectManager() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
            [1,2,3].map(i => <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />)
-        ) : subjects?.length === 0 ? (
+        ) : Array.isArray(subjects) && subjects.length === 0 ? (
           <div className="col-span-full py-12 text-center text-gray-400 font-medium bg-white rounded-3xl border border-gray-100">
             No subjects registered yet.
           </div>
         ) : (
-          subjects?.map((sub) => (
+          Array.isArray(subjects) && subjects.map((sub: any) => (
             <div key={sub.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -880,7 +880,7 @@ function SubjectManager() {
                   <div>
                     <h3 className="font-bold text-gray-900 leading-tight">{sub.name}</h3>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                      {branches?.find(b => b.id === sub.branch)?.name || 'Multiple Branches'}
+                      {Array.isArray(branches) ? branches.find(b => b.id === sub.branch)?.name || 'Multiple Branches' : 'Multiple Branches'}
                     </p>
                   </div>
                 </div>

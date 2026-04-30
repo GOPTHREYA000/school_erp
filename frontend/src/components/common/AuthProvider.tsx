@@ -13,6 +13,7 @@ interface User {
   tenant_name?: string;
   tenant_logo?: string;
   branch?: string;
+  must_change_password?: boolean;
 }
 
 interface AuthContextType {

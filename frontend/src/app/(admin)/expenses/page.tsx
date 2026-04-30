@@ -51,6 +51,7 @@ export default function ExpensesPage() {
     expense_date: new Date().toISOString().split('T')[0],
     category_name: '',
     vendor_name: '',
+    voucher_number: '',
   });
 
   const branchParam = selectedBranch && selectedBranch !== 'all' ? `branch_id=${selectedBranch}` : '';

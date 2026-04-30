@@ -5,9 +5,26 @@ import api from '@/lib/axios';
 import { 
   Users, Calendar, Receipt, BookOpen, Clock, CheckCircle2, AlertCircle, 
   User, ChevronDown, FileText, PenTool, Bus, IndianRupee,
-  CreditCard, Banknote, ChevronRight, Check, X
+  CreditCard, Banknote, ChevronRight, Check, X, Download
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+
+const downloadReceipt = async (paymentId: string, receiptNumber: string) => {
+  try {
+    const response = await api.get(`/templates/generate/receipt/${paymentId}/`, {
+      responseType: 'blob'
+    });
+    const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Receipt_${receiptNumber}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Receipt downloaded!');
+  } catch {
+    toast.error('Receipt not available. Template may not be configured.');
+  }
+};
 
 interface Child {
   id: string;
@@ -86,6 +103,7 @@ export default function ParentDashboard({ user }: { user: any }) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
+  const [transportInfo, setTransportInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [childDropdownOpen, setChildDropdownOpen] = useState(false);
   const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null);
@@ -134,22 +152,62 @@ export default function ParentDashboard({ user }: { user: any }) {
         })
         .catch(() => setHomework([]));
     }
+    if (activeTab === 'transport' || activeTab === 'overview') {
+      api.get(`parent/children/${selectedChild}/transport/`)
+        .then(res => {
+          setTransportInfo(res.data?.data || null);
+        })
+        .catch(() => setTransportInfo(null));
+    }
   }, [selectedChild, activeTab]);
 
   const currentChild = children.find(c => c.id === selectedChild);
   const totalDue = invoices.reduce((sum, inv) => sum + (Number(inv.outstanding_amount) || 0), 0);
   const totalPaid = invoices.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0);
+  
+  // Transport Fee specific calculations
+  let transportTotalDue = 0;
+  let transportTotalPaid = 0;
+  
+  invoices.forEach(inv => {
+    const isTransport = inv.invoice_number?.startsWith('TRN-');
+    if (isTransport) {
+      const tAmount = Number(inv.net_amount) || 0;
+      transportTotalPaid += Number(inv.paid_amount) || 0;
+      transportTotalDue += Number(inv.outstanding_amount) || 0;
+    } else {
+      // Legacy bundled invoice fallback
+      const transportItem = inv.items?.find((i: any) => i.category_name?.toUpperCase().includes('TRANSPORT'));
+      if (transportItem) {
+        const tAmount = Number(transportItem.final_amount);
+        if (inv.status === 'PAID') {
+          transportTotalPaid += tAmount;
+        } else if (inv.status === 'PARTIALLY_PAID' || inv.status === 'PARTIAL') {
+          const ratio = Number(inv.paid_amount) / (Number(inv.net_amount) || 1);
+          transportTotalPaid += tAmount * ratio;
+          transportTotalDue += tAmount * (1 - ratio);
+        } else {
+          transportTotalDue += tAmount;
+        }
+      }
+    }
+  });
+
   const attendanceRate = attendance.length > 0 
     ? Math.round((attendance.filter(a => ['PRESENT', 'LATE', 'HALF_DAY'].includes(a.status?.toUpperCase())).length / attendance.length) * 100) 
     : 0;
   const pendingHw = homework.filter(h => new Date(h.due_date) >= new Date()).length;
 
-  const tabs = [
+  const baseTabs = [
     { id: 'overview', label: 'Overview', icon: Users },
     { id: 'fees', label: 'Fees', icon: Receipt },
     { id: 'attendance', label: 'Attendance', icon: Calendar },
     { id: 'homework', label: 'Homework', icon: PenTool },
   ];
+
+  const tabs = currentChild?.transport_opted 
+    ? [...baseTabs, { id: 'transport', label: 'Transport', icon: Bus }]
+    : baseTabs;
 
   const paymentModeIcon = (mode: string) => {
     switch (mode) {
@@ -308,19 +366,43 @@ export default function ParentDashboard({ user }: { user: any }) {
           </div>
           
           {/* Fee Summary */}
-          <div className="flex gap-3">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 min-w-[140px]">
-              <p className="text-blue-200 text-[10px] font-black uppercase tracking-widest mb-1">Total Fee</p>
-              <p className="text-2xl font-black tracking-tighter">₹{currentChild?.committed_fee?.toLocaleString() || '0'}</p>
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 min-w-[140px]">
+                <p className="text-blue-200 text-[10px] font-black uppercase tracking-widest mb-1">Total Fee</p>
+                <p className="text-2xl font-black tracking-tighter">₹{currentChild?.committed_fee?.toLocaleString() || '0'}</p>
+              </div>
+              <div className="bg-emerald-500/20 backdrop-blur-md rounded-2xl p-4 border border-emerald-400/20 min-w-[140px]">
+                <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest mb-1">Paid</p>
+                <p className="text-2xl font-black tracking-tighter">₹{totalPaid.toLocaleString()}</p>
+              </div>
+              {totalDue > 0 && (
+                <div className="bg-rose-500/20 backdrop-blur-md rounded-2xl p-4 border border-rose-400/20 min-w-[140px]">
+                  <p className="text-rose-200 text-[10px] font-black uppercase tracking-widest mb-1">Due</p>
+                  <p className="text-2xl font-black tracking-tighter">₹{totalDue.toLocaleString()}</p>
+                </div>
+              )}
             </div>
-            <div className="bg-emerald-500/20 backdrop-blur-md rounded-2xl p-4 border border-emerald-400/20 min-w-[140px]">
-              <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest mb-1">Paid</p>
-              <p className="text-2xl font-black tracking-tighter">₹{totalPaid.toLocaleString()}</p>
-            </div>
-            {totalDue > 0 && (
-              <div className="bg-rose-500/20 backdrop-blur-md rounded-2xl p-4 border border-rose-400/20 min-w-[140px]">
-                <p className="text-rose-200 text-[10px] font-black uppercase tracking-widest mb-1">Due</p>
-                <p className="text-2xl font-black tracking-tighter">₹{totalDue.toLocaleString()}</p>
+
+            {/* Transport Fee Breakdown (If applicable) */}
+            {currentChild?.transport_opted && (transportTotalPaid > 0 || transportTotalDue > 0) && (
+              <div className="flex gap-3 mt-2 pt-3 border-t border-white/10">
+                <div className="flex items-center gap-2 mr-2">
+                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                    <Bus size={14} className="text-white" />
+                  </div>
+                  <span className="text-xs font-bold text-blue-100 uppercase tracking-widest">Transport</span>
+                </div>
+                <div className="bg-white/5 rounded-xl px-4 py-2 border border-white/10 flex items-center gap-2">
+                  <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest">Paid:</p>
+                  <p className="text-sm font-black text-white">₹{Math.round(transportTotalPaid).toLocaleString()}</p>
+                </div>
+                {transportTotalDue > 0 && (
+                  <div className="bg-rose-500/10 rounded-xl px-4 py-2 border border-rose-400/20 flex items-center gap-2">
+                    <p className="text-rose-200 text-[10px] font-black uppercase tracking-widest">Pending:</p>
+                    <p className="text-sm font-black text-rose-100">₹{Math.round(transportTotalDue).toLocaleString()}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -449,12 +531,20 @@ export default function ParentDashboard({ user }: { user: any }) {
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-black text-emerald-600 text-lg">₹{p.amount.toLocaleString()}</p>
-                        <p className="text-[10px] text-slate-400 font-medium">
-                          {new Date(p.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          {p.created_at ? ` • ${new Date(p.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="font-black text-emerald-600 text-lg">₹{p.amount.toLocaleString()}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">
+                            {new Date(p.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => downloadReceipt(p.id, p.receipt_number)}
+                          title="Download Receipt"
+                          className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
+                        >
+                          <Download size={14} />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -559,11 +649,20 @@ export default function ParentDashboard({ user }: { user: any }) {
                                   </p>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <p className="font-black text-emerald-600">₹{p.amount.toLocaleString()}</p>
-                                <p className="text-[10px] text-slate-400">
-                                  {new Date(p.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </p>
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <p className="font-black text-emerald-600">₹{p.amount.toLocaleString()}</p>
+                                  <p className="text-[10px] text-slate-400">
+                                    {new Date(p.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => downloadReceipt(p.id, p.receipt_number)}
+                                  title="Download Receipt"
+                                  className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
+                                >
+                                  <Download size={14} />
+                                </button>
                               </div>
                             </div>
                           ))}
@@ -731,6 +830,148 @@ export default function ParentDashboard({ user }: { user: any }) {
           )}
         </div>
       )}
+
+      {/* ─── TRANSPORT TAB ─── */}
+      {activeTab === 'transport' && currentChild?.transport_opted && (
+        <div className="space-y-6">
+          {/* Transport Configuration Summary */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+              <Bus size={16} className="text-blue-500" />
+              <h3 className="font-bold text-gray-900">Current Transport Configuration</h3>
+            </div>
+            {transportInfo ? (
+              <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Route Model</p>
+                  <p className="font-bold text-slate-900">{transportInfo.route_name}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Distance</p>
+                  <p className="font-bold text-slate-900">{transportInfo.distance_km} KM</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Pickup Point</p>
+                  <p className="font-bold text-slate-900">{transportInfo.pickup_point || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Monthly Fee</p>
+                  <p className="font-black text-blue-600">₹{transportInfo.monthly_fee?.toLocaleString()}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 text-center text-slate-400 text-sm">
+                Fetching transport details...
+              </div>
+            )}
+          </div>
+
+          {/* Transport Invoices / Transactions */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Receipt size={16} className="text-emerald-500" />
+                <h3 className="font-bold text-gray-900">Transport Transactions</h3>
+              </div>
+            </div>
+            
+            <div className="divide-y divide-gray-50">
+              {(() => {
+                const transportInvoices = invoices.filter(inv => 
+                  inv.invoice_number?.startsWith('TRN-') || inv.items?.some((i: any) => i.category_name?.toUpperCase().includes('TRANSPORT'))
+                );
+
+                if (transportInvoices.length === 0) {
+                  return (
+                    <div className="p-12 text-center">
+                      <Bus className="mx-auto text-slate-200 mb-3" size={32} />
+                      <p className="text-slate-400 font-bold text-sm">No transport invoices generated yet.</p>
+                    </div>
+                  );
+                }
+
+                return transportInvoices.map(inv => {
+                  const isLegacy = !inv.invoice_number?.startsWith('TRN-');
+                  const transportItem = isLegacy ? inv.items?.find((i: any) => i.category_name?.toUpperCase().includes('TRANSPORT')) : null;
+                  const tAmount = isLegacy ? Number(transportItem?.final_amount || 0) : Number(inv.net_amount);
+                  
+                  let tPaid = 0;
+                  let tDue = tAmount;
+                  if (inv.status === 'PAID') {
+                    tPaid = tAmount;
+                    tDue = 0;
+                  } else if (inv.status === 'PARTIALLY_PAID' || inv.status === 'PARTIAL') {
+                    if (isLegacy) {
+                      const ratio = Number(inv.paid_amount) / (Number(inv.net_amount) || 1);
+                      tPaid = tAmount * ratio;
+                      tDue = tAmount * (1 - ratio);
+                    } else {
+                      tPaid = Number(inv.paid_amount);
+                      tDue = Number(inv.outstanding_amount);
+                    }
+                  } else if (inv.status === 'OVERDUE') {
+                      tPaid = Number(inv.paid_amount) || 0;
+                      tDue = Number(inv.outstanding_amount) || tAmount;
+                  }
+
+                  // Find payments that applied to this invoice
+                  const hasPayments = inv.payments && inv.payments.length > 0;
+
+                  return (
+                    <div key={inv.id} className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-slate-900">{inv.month || 'Current Period'}</h4>
+                            <span className="text-[10px] text-slate-400 font-mono">Invoice #{inv.invoice_number}</span>
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium">Transport Fee: ₹{tAmount.toLocaleString()}</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            {tPaid > 0 && (
+                              <p className="text-sm font-black text-emerald-600">Paid: ₹{Math.round(tPaid).toLocaleString()}</p>
+                            )}
+                            {tDue > 0 && (
+                              <p className="text-sm font-black text-rose-500">Due: ₹{Math.round(tDue).toLocaleString()}</p>
+                            )}
+                          </div>
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${
+                            tDue === 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 
+                            tPaid > 0 ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-rose-50 text-rose-600 border-rose-200'
+                          }`}>
+                            {tDue === 0 ? 'PAID' : tPaid > 0 ? 'PARTIAL' : 'PENDING'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Display relevant payment transactions for this invoice if any */}
+                      {hasPayments && tPaid > 0 && (
+                        <div className="mt-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Payments Applied to this Invoice</p>
+                          <div className="space-y-2">
+                            {inv.payments.map(p => (
+                              <div key={p.id} className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2 text-slate-600 font-medium">
+                                  <CheckCircle2 size={12} className="text-emerald-500" />
+                                  {new Date(p.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • {p.payment_mode}
+                                </div>
+                                <span className="font-bold text-emerald-600">₹{Number(p.amount).toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

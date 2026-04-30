@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import api from '@/lib/axios';
@@ -10,11 +10,12 @@ import GlobalBranchSelector from '@/components/common/GlobalBranchSelector';
 import CommandPalette from '@/components/common/CommandPalette';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import NotificationBell from '@/components/common/NotificationBell';
+import ForcePasswordChange from '@/components/common/ForcePasswordChange';
 import { 
   LayoutDashboard, Users, BookOpen, ClipboardCheck, 
   Calendar, Receipt, TrendingDown, TrendingUp, PenTool, 
   Megaphone, Shield, LogOut, Settings, Building2, Search,
-  Menu, X, Bell, Bus, Eye, BarChart3
+  Menu, X, Bell, Bus, Eye, BarChart3, ArrowUpRight
 } from 'lucide-react';
 
 const getNavGroups = (role: string) => {
@@ -29,6 +30,7 @@ const getNavGroups = (role: string) => {
             { href: '/users', label: 'Global Users', icon: Users },
             { href: '/audit-logs', label: 'System Ledger', icon: ClipboardCheck },
             { href: '/system-settings', label: 'System Settings', icon: Settings },
+            { href: '/system-settings/templates', label: 'Document Templates', icon: PenTool },
           ]
         }
       ];
@@ -55,6 +57,8 @@ const getNavGroups = (role: string) => {
           group: 'Configuration',
           items: [
             { href: '/setup', label: 'School Settings', icon: Settings },
+            { href: '/system-settings/templates', label: 'Document Templates', icon: PenTool },
+            { href: '/academic-transition', label: 'Year Transition', icon: ArrowUpRight },
           ]
         },
 
@@ -88,6 +92,7 @@ const getNavGroups = (role: string) => {
           items: [
             { href: '/fees', label: 'Fee Collection', icon: Receipt },
             { href: '/expenses', label: 'Expenses & Approvals', icon: TrendingDown },
+            { href: '/academic-transition', label: 'Year Transition', icon: ArrowUpRight },
           ]
         },
         {
@@ -146,7 +151,7 @@ const getNavGroups = (role: string) => {
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -159,6 +164,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     }
   };
 
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [loading, user, router]);
+
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-50">
@@ -170,10 +181,22 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Redirect to login if session expired or not authenticated
+  // Hide UI while redirecting
   if (!user) {
-    router.push('/login');
     return null;
+  }
+
+  // ─── Forced Password Change Gate ──────────────────────────────
+  // If the user has must_change_password=true (e.g. parent with Welcome@123),
+  // block ALL navigation and show the password change modal.
+  if (user?.must_change_password) {
+    return (
+      <ForcePasswordChange
+        onPasswordChanged={async () => {
+          await refreshUser();
+        }}
+      />
+    );
   }
 
   const navGroups = user?.role ? getNavGroups(user.role) : [];

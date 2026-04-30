@@ -112,7 +112,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         
         # Smart routing: auto-approve if under threshold
         if amount_val <= 3000:
-            status = 'APPROVED'
+            initial_status = 'APPROVED'
             expense = serializer.save(
                 tenant=user.tenant,
                 branch=branch,
@@ -122,7 +122,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 submitted_by=user,
                 approved_by=user,
                 approved_at=timezone.now(),
-                status=status,
+                status=initial_status,
                 voucher_number=voucher_number
             )
             TransactionLog.objects.create(
@@ -133,7 +133,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 transaction_date=expense.expense_date,
             )
         else:
-            status = 'SUBMITTED'
+            initial_status = 'SUBMITTED'
             expense = serializer.save(
                 tenant=user.tenant,
                 branch=branch,
@@ -141,7 +141,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 category=category,
                 vendor=vendor_obj,
                 submitted_by=user,
-                status=status,
+                status=initial_status,
                 voucher_number=voucher_number
             )
 
@@ -241,10 +241,14 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     def summary(self, request):
         month = request.query_params.get('month')
         if not month:
-            return Response({'detail': 'month is required (YYYY-MM)'}, status=400)
+            return Response({'detail': 'month is required (YYYY-MM)'}, status=status.HTTP_400_BAD_REQUEST)
         year, m = month.split('-')
-        approved = Expense.objects.filter(
-            branch__tenant=request.user.tenant, status='APPROVED',
+        branch_id = get_validated_branch_id(request.user, request.query_params.get('branch_id'))
+        base_qs = Expense.objects.filter(branch__tenant=request.user.tenant)
+        if branch_id:
+            base_qs = base_qs.filter(branch_id=branch_id)
+        approved = base_qs.filter(
+            status='APPROVED',
             expense_date__year=int(year), expense_date__month=int(m)
         )
         total = approved.aggregate(total=Sum('amount'))['total'] or Decimal('0')
@@ -252,8 +256,8 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         cats = [{'category': c['category__name'], 'amount': str(c['amount']),
                  'percentage': round(float(c['amount']) / float(total) * 100, 1) if total > 0 else 0}
                 for c in by_cat]
-        pending = Expense.objects.filter(
-            branch__tenant=request.user.tenant, status__in=['DRAFT', 'SUBMITTED'],
+        pending = base_qs.filter(
+            status__in=['DRAFT', 'SUBMITTED'],
             expense_date__year=int(year), expense_date__month=int(m)
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
         return Response({'success': True, 'data': {

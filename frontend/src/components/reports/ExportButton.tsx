@@ -18,7 +18,7 @@ export default function ExportButton({ reportType, filters }: ExportButtonProps)
     const checkStatus = async () => {
       if (!jobId) return;
       try {
-        const res = await api.get(`/reports/export/${jobId}/status/`);
+        const res = await api.get(`reports/export/${jobId}/status/`);
         const { status, file_url } = res.data;
         
         if (status === 'COMPLETED') {
@@ -51,7 +51,7 @@ export default function ExportButton({ reportType, filters }: ExportButtonProps)
     setIsOpen(false);
     setLoading(true);
     try {
-      const res = await api.post('/reports/export/generate/', {
+      const res = await api.post('reports/export/generate/', {
         report_type: reportType,
         filters,
         format

@@ -1,7 +1,15 @@
 #!/bin/bash
 set -e
 
-# Can add custom startup scripts, pinging DB, or migrations checks here in the future
-# Currently simply hands over the CMD argument passed by docker-compose
+echo "=== School ERP Entrypoint ==="
 
+# Run database migrations
+echo "Running database migrations..."
+python manage.py migrate --noinput
+
+# Collect static files
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
+
+echo "Starting application..."
 exec "$@"

@@ -8,7 +8,8 @@ import {
   User, Mail, Phone, MapPin, Calendar, BookOpen, 
   ChevronLeft, Edit2, LogOut, Shield, GraduationCap,
   Building2, Hash, CreditCard, Activity, FileText,
-  AlertCircle, CheckCircle2, Clock, Trash2, Plus, ArrowRightLeft, History
+  AlertCircle, CheckCircle2, Clock, Trash2, Plus, ArrowRightLeft, History,
+  UserMinus, UserPlus, Loader2, Download
 } from 'lucide-react';
 import StudentForm from '@/components/students/StudentForm';
 import PaymentModal from '@/components/students/PaymentModal';
@@ -29,8 +30,13 @@ export default function StudentProfilePage() {
   const [withdrawing, setWithdrawing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [showDropoutModal, setShowDropoutModal] = useState(false);
+  const [dropoutData, setDropoutData] = useState({ reason: '', stop_future_fees: true });
+  const [droppingOut, setDroppingOut] = useState(false);
+  const [reinstating, setReinstating] = useState(false);
+  const { data: academicRecords, loading: recordsLoading } = useApi<any[]>(`/academic-records/?student_id=${id}`);
 
-  if (loading) return (
+  if (loading && !student) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
       <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
       <p className="text-slate-400 font-medium animate-pulse uppercase tracking-widest text-xs">Loading Profile...</p>
@@ -96,9 +102,75 @@ export default function StudentProfilePage() {
     }
   };
 
+  const handleDropout = async () => {
+    if (!dropoutData.reason || dropoutData.reason.length < 5) {
+      toast.error('Please provide a reason (at least 5 characters).');
+      return;
+    }
+    setDroppingOut(true);
+    try {
+      await api.post(`/student-lifecycle/${id}/dropout/`, dropoutData);
+      toast.success('Student marked as dropout.');
+      setShowDropoutModal(false);
+      refetch();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to mark dropout.');
+    } finally { setDroppingOut(false); }
+  };
+
+  const handleReinstate = async () => {
+    const reason = prompt('Reason for reinstating this student:');
+    if (!reason) return;
+    setReinstating(true);
+    try {
+      await api.post(`/student-lifecycle/${id}/reinstate/`, { reason });
+      toast.success('Student reinstated successfully.');
+      refetch();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to reinstate.');
+    } finally { setReinstating(false); }
+  };
+
+  const downloadReceipt = async (paymentId: string, receiptNumber: string) => {
+    try {
+      const response = await api.get(`/templates/generate/receipt/${paymentId}/`, {
+        responseType: 'blob'
+      });
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Receipt_${receiptNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      const text = await err.response?.data?.text?.();
+      try {
+        const json = JSON.parse(text || '{}');
+        toast.error(json.error || 'Failed to download receipt');
+      } catch {
+        toast.error('No receipt template configured. Set a default FEE_RECEIPT template first.');
+      }
+    }
+  };
+
+  const generateTransportInvoice = async () => {
+    try {
+      await api.post('/fees/invoices/generate-transport/', {
+        academic_year_id: student.academic_year,
+        month: new Date().toISOString().slice(0, 7),
+        student_id: student.id
+      });
+      refetch();
+      toast.success('Transport invoice generated!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to generate transport invoice');
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'academic', label: 'Academic', icon: GraduationCap },
+    { id: 'history', label: 'Year History', icon: History },
     { id: 'parents', label: 'Parents', icon: Shield },
     { id: 'address', label: 'Address & Contact', icon: MapPin },
     { id: 'fees', label: 'Fees & Finance', icon: CreditCard },
@@ -133,11 +205,14 @@ export default function StudentProfilePage() {
            <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest ${
              student.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100' :
              student.status === 'PENDING_APPROVAL' ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100' :
+             student.status === 'DROPOUT' ? 'bg-red-50 text-red-600 shadow-sm shadow-red-100' :
+             student.status === 'TRANSFERRED' ? 'bg-purple-50 text-purple-600 shadow-sm shadow-purple-100' :
              'bg-slate-100 text-slate-600 shadow-sm'
            }`}>
              <span className={`w-2 h-2 rounded-full animate-pulse ${
                student.status === 'ACTIVE' ? 'bg-emerald-500' :
                student.status === 'PENDING_APPROVAL' ? 'bg-blue-500' :
+               student.status === 'DROPOUT' ? 'bg-red-500' :
                'bg-slate-400'
              }`} />
              {student.status.replace('_', ' ')}
@@ -184,11 +259,29 @@ export default function StudentProfilePage() {
               <Edit2 size={16} /> Edit Profile
             </button>
             {student.status === 'ACTIVE' && (
-              <button 
-                onClick={() => setShowWithdrawModal(true)}
-                className="flex items-center gap-2 bg-white text-rose-600 px-6 py-3.5 rounded-2xl text-sm font-black border-2 border-rose-50 hover:bg-rose-50 transition-all shadow-lg shadow-rose-100 uppercase tracking-widest"
+              <>
+                <button 
+                  onClick={() => setShowDropoutModal(true)}
+                  className="flex items-center gap-2 bg-white text-amber-600 px-5 py-3.5 rounded-2xl text-sm font-black border-2 border-amber-50 hover:bg-amber-50 transition-all shadow-lg shadow-amber-100 uppercase tracking-widest"
+                >
+                  <UserMinus size={16} /> Dropout
+                </button>
+                <button 
+                  onClick={() => setShowWithdrawModal(true)}
+                  className="flex items-center gap-2 bg-white text-rose-600 px-5 py-3.5 rounded-2xl text-sm font-black border-2 border-rose-50 hover:bg-rose-50 transition-all shadow-lg shadow-rose-100 uppercase tracking-widest"
+                >
+                  <LogOut size={16} /> Mark Left
+                </button>
+              </>
+            )}
+            {student.status === 'DROPOUT' && (
+              <button
+                onClick={handleReinstate}
+                disabled={reinstating}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3.5 rounded-2xl text-sm font-black hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 uppercase tracking-widest"
               >
-                <LogOut size={16} /> Mark Left
+                {reinstating ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                Reinstate
               </button>
             )}
           </div>
@@ -268,6 +361,76 @@ export default function StudentProfilePage() {
                   <InfoTag label="Previous Academic Year" value={student.previous_school_ay} icon={Calendar} />
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+              <SectionHeader title="Academic Year History" icon={History} />
+              <p className="text-sm text-slate-400 -mt-4">Complete track record of this student's enrollment across academic years.</p>
+
+              {recordsLoading ? (
+                <div className="p-12 text-center">
+                  <Loader2 className="mx-auto animate-spin text-blue-500" size={24} />
+                </div>
+              ) : !academicRecords?.length ? (
+                <div className="p-12 bg-slate-50 rounded-3xl text-center border border-dashed border-slate-200">
+                  <History className="mx-auto text-slate-300 mb-3" size={32} />
+                  <p className="font-bold text-slate-900">No Records Yet</p>
+                  <p className="text-slate-400 text-sm">Academic records will appear after promotion or year transition.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {academicRecords.map((record: any, index: number) => {
+                    const statusStyles: Record<string, string> = {
+                      ACTIVE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                      PROMOTED: 'bg-blue-50 text-blue-700 border-blue-200',
+                      DETAINED: 'bg-amber-50 text-amber-700 border-amber-200',
+                      GRADUATED: 'bg-purple-50 text-purple-700 border-purple-200',
+                      DROPOUT: 'bg-red-50 text-red-600 border-red-200',
+                      TRANSFERRED: 'bg-slate-50 text-slate-600 border-slate-200',
+                    };
+                    const style = statusStyles[record.status] || 'bg-slate-50 text-slate-600 border-slate-200';
+                    const isLatest = index === 0;
+                    
+                    return (
+                      <div key={record.id} className={`bg-white rounded-2xl border-2 p-6 shadow-sm transition-all hover:shadow-md ${isLatest ? 'border-blue-200 ring-2 ring-blue-50' : 'border-slate-100'}`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            {isLatest && (
+                              <span className="px-2 py-0.5 bg-blue-600 text-white text-[9px] font-black uppercase rounded-md tracking-wider">Current</span>
+                            )}
+                            <h4 className="font-black text-lg text-slate-900">{record.academic_year_name}</h4>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight border ${style}`}>
+                            {record.status}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Class & Section</p>
+                            <p className="text-sm font-black text-slate-900 mt-0.5">{record.class_section_display || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Roll Number</p>
+                            <p className="text-sm font-black text-slate-900 mt-0.5">{record.roll_number || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Recorded On</p>
+                            <p className="text-sm font-bold text-slate-500 mt-0.5">{new Date(record.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric'})}</p>
+                          </div>
+                          {record.status_reason && (
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reason</p>
+                              <p className="text-sm text-slate-600 mt-0.5 italic">{record.status_reason}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -402,6 +565,7 @@ export default function StudentProfilePage() {
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Credit (₹)</th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Debit (₹)</th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Receipt</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -419,7 +583,9 @@ export default function StudentProfilePage() {
                           desc: `Payment: ${pay.payment_mode} (${pay.receipt_number})`, 
                           credit: pay.amount, 
                           type: 'PAYMENT',
-                          status: pay.status
+                          status: pay.status,
+                          paymentId: pay.id,
+                          receiptNumber: pay.receipt_number,
                         }))
                       ].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((item, i) => (
                         <tr key={i} className="group hover:bg-slate-50/50 transition-colors">
@@ -443,6 +609,18 @@ export default function StudentProfilePage() {
                               {item.status.replace('_', ' ')}
                             </span>
                           </td>
+                          <td className="px-6 py-4 text-center">
+                            {item.type === 'PAYMENT' ? (
+                              <button
+                                onClick={() => downloadReceipt(item.paymentId, item.receiptNumber)}
+                                title="Download PDF Receipt"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-black uppercase tracking-widest transition-colors"
+                              >
+                                <Download size={11} />
+                                PDF
+                              </button>
+                            ) : '—'}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -459,7 +637,7 @@ export default function StudentProfilePage() {
                       <div className="flex justify-between items-start mb-6">
                         <div>
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{inv.invoice_number}</p>
-                          <h4 className="text-lg font-black text-slate-900 line-clamp-1">{inv.title || 'Academic Fee Invoice'}</h4>
+                          <h4 className="text-lg font-black text-slate-900 line-clamp-1">{inv.invoice_number?.startsWith('TRN-') ? 'Transport Fee Invoice' : (inv.title || 'Academic Fee Invoice')}</h4>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                           inv.status === 'PARTIALLY_PAID' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'
@@ -490,7 +668,33 @@ export default function StudentProfilePage() {
                       </div>
                     </div>
                   ))}
-                  {student.invoices?.filter((i: any) => i.status !== 'PAID').length === 0 && (
+                  {student.transport_info?.opted && !student.invoices?.some((i: any) => i.status !== 'PAID' && i.invoice_number?.startsWith('TRN-')) && (
+                    <div className="bg-white p-6 rounded-3xl border-2 border-slate-50 shadow-sm hover:border-blue-100 transition-all group overflow-hidden relative">
+                      <div className="flex justify-between items-start mb-6">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">UNBILLED</p>
+                          <h4 className="text-lg font-black text-slate-900 line-clamp-1">Transport Fee</h4>
+                        </div>
+                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-500">
+                          NOT INVOICED
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Monthly Fee</p>
+                          <p className="text-2xl font-black text-slate-900 italic tracking-tighter">₹{(student.transport_info.monthly_fee || 0).toLocaleString()}</p>
+                        </div>
+                        <button 
+                          onClick={generateTransportInvoice}
+                          className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all flex items-center gap-2 group-hover:-translate-y-1"
+                        >
+                          <Plus size={14} /> Generate Invoice
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {student.invoices?.filter((i: any) => i.status !== 'PAID').length === 0 && (!student.transport_info?.opted || student.invoices?.some((i: any) => i.status !== 'PAID' && i.invoice_number?.startsWith('TRN-'))) && (
                     <div className="md:col-span-2 p-12 bg-emerald-50/50 rounded-[2.5rem] border border-dashed border-emerald-200 text-center space-y-4">
                       <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto text-emerald-500 shadow-sm border border-emerald-100">
                         <CheckCircle2 size={32} />
@@ -604,6 +808,78 @@ export default function StudentProfilePage() {
           }}
         />
       )}
+
+      {/* Dropout Modal */}
+      <Modal
+        isOpen={showDropoutModal}
+        onClose={() => !droppingOut && setShowDropoutModal(false)}
+        title="Mark Student as Dropout"
+        maxWidth="lg"
+      >
+        <div className="p-8">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
+              <UserMinus size={28} />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Mark Dropout</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                {student.first_name} {student.last_name} — {student.admission_number}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-6 mb-10">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Reason for Dropout</label>
+              <textarea 
+                placeholder="Financial difficulties, family relocation, health issues..."
+                value={dropoutData.reason}
+                onChange={e => setDropoutData({...dropoutData, reason: e.target.value})}
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none min-h-[120px] transition-all"
+              />
+            </div>
+
+            <label className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
+              <input 
+                type="checkbox"
+                checked={dropoutData.stop_future_fees}
+                onChange={e => setDropoutData({...dropoutData, stop_future_fees: e.target.checked})}
+                className="w-4 h-4 rounded"
+              />
+              <div>
+                <p className="text-sm font-bold text-slate-900">Cancel future fee invoices</p>
+                <p className="text-xs text-slate-400">Stop generating new invoices for this student</p>
+              </div>
+            </label>
+
+            <div className="bg-amber-50 p-4 rounded-2xl flex gap-3 text-amber-700">
+              <AlertCircle size={20} className="shrink-0" />
+              <p className="text-xs font-bold uppercase leading-relaxed tracking-tight">
+                Warning: The student will be marked as "DROPOUT". Outstanding dues will be preserved as carry-forward records. 
+                This action can be reversed by a School Admin using the "Reinstate" button.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <button 
+              onClick={() => setShowDropoutModal(false)}
+              disabled={droppingOut}
+              className="flex-1 px-8 py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-all uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleDropout}
+              disabled={droppingOut || !dropoutData.reason}
+              className="flex-[2] bg-amber-600 text-white px-8 py-4 rounded-2xl text-sm font-black hover:bg-amber-700 shadow-xl shadow-amber-200 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {droppingOut ? <><Loader2 size={16} className="animate-spin" /> Processing...</> : 'Confirm Dropout'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

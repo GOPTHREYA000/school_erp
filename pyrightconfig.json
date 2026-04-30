@@ -1,7 +1,8 @@
 {
-  "venvPath": ".",
-  "venv": "backend/venv",
+  "venvPath": "backend",
+  "venv": "venv",
   "pythonVersion": "3.9",
+  "extraPaths": ["backend"],
   "executionEnvironments": [
     {
       "root": "backend",

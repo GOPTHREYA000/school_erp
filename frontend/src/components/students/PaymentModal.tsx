@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, CreditCard, Calendar, Hash, Building, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, CreditCard, Calendar, Hash, Building, CheckCircle2, AlertCircle, Download, FileText, Printer } from 'lucide-react';
 import api from '@/lib/axios';
+import { toast } from 'react-hot-toast';
 
 interface PaymentModalProps {
   invoice: {
@@ -18,6 +19,7 @@ interface PaymentModalProps {
 export default function PaymentModal({ invoice, onClose, onSuccess }: PaymentModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentResult, setPaymentResult] = useState<any>(null);
   const [formData, setFormData] = useState({
     amount: invoice.outstanding_amount.toString(),
     payment_mode: 'CASH',
@@ -32,7 +34,7 @@ export default function PaymentModal({ invoice, onClose, onSuccess }: PaymentMod
     setError(null);
 
     try {
-      await api.post('/fees/payments/offline/', {
+      const res = await api.post('/fees/payments/offline/', {
         invoice_id: invoice.id,
         amount: parseFloat(formData.amount.toString()),
         payment_mode: formData.payment_mode,
@@ -40,8 +42,8 @@ export default function PaymentModal({ invoice, onClose, onSuccess }: PaymentMod
         reference_number: formData.reference_number || null,
         bank_name: formData.bank_name || null
       });
+      setPaymentResult(res.data);
       onSuccess();
-      onClose();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to record payment');
     } finally {
@@ -49,6 +51,103 @@ export default function PaymentModal({ invoice, onClose, onSuccess }: PaymentMod
     }
   };
 
+  const downloadReceipt = async () => {
+    const paymentId = paymentResult?.data?.id;
+    const receiptNumber = paymentResult?.data?.receipt_number || 'receipt';
+    if (!paymentId) return;
+    try {
+      const response = await api.get(`/templates/generate/receipt/${paymentId}/`, {
+        responseType: 'blob'
+      });
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Receipt_${receiptNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Receipt downloaded!');
+    } catch {
+      toast.error('Could not generate receipt. Template may not be configured.');
+    }
+  };
+
+  const printReceipt = async () => {
+    const paymentId = paymentResult?.data?.id;
+    if (!paymentId) return;
+    try {
+      const response = await api.get(`/templates/generate/receipt/${paymentId}/`, {
+        responseType: 'blob'
+      });
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+      // Revoking object URL immediately can sometimes break the new window PDF load in some browsers, 
+      // so we let the browser garbage collect it eventually or revoke after a delay.
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch {
+      toast.error('Could not generate receipt for printing.');
+    }
+  };
+
+  // ─── Success Screen ───
+  if (paymentResult) {
+    const data = paymentResult.data || {};
+    return (
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-slate-100">
+          <div className="p-10 text-center">
+            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-in zoom-in-50 duration-300">
+              <CheckCircle2 size={40} className="text-emerald-600" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-2">Payment Recorded!</h3>
+            <p className="text-slate-500 text-sm mb-6">
+              ₹{Number(data.amount).toLocaleString()} paid for {invoice.invoice_number}
+            </p>
+
+            <div className="bg-slate-50 rounded-2xl p-4 mb-6 text-left space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400 font-bold">Receipt #</span>
+                <span className="font-black text-slate-700">{data.receipt_number}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400 font-bold">Mode</span>
+                <span className="font-black text-slate-700">{data.payment_mode}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400 font-bold">Date</span>
+                <span className="font-black text-slate-700">{data.payment_date}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mb-3">
+              <button
+                onClick={printReceipt}
+                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all flex items-center justify-center gap-2"
+              >
+                <Printer size={18} />
+                Print
+              </button>
+              <button
+                onClick={downloadReceipt}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2"
+              >
+                <Download size={18} />
+                Download
+              </button>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-full text-slate-500 hover:text-slate-700 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Payment Form ───
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100">
@@ -176,7 +275,7 @@ export default function PaymentModal({ invoice, onClose, onSuccess }: PaymentMod
               )}
             </button>
             <p className="text-[10px] text-center text-slate-400 font-bold mt-4 uppercase tracking-widest">
-              This will generate a digital receipt and update the ledger.
+              A digital receipt will be generated automatically.
             </p>
           </div>
         </form>

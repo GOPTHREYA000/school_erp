@@ -1477,3 +1477,234 @@ Quit the server with CONTROL-C.
 2026-04-26 03:56:55,159 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id= HTTP/1.1" 403 63
 2026-04-26 03:56:55,159 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 403 63
 2026-04-26 03:56:55,159 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 06:17:34,684 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-26 06:17:34,684 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-26 09:19:02,755 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-26 09:19:02,756 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-26 09:19:02,770 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-26 09:19:02,771 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 50
+2026-04-26 18:29:43,671 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-26 18:29:43,672 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-26 21:33:04,073 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-26 21:33:04,073 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-26 21:33:04,107 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-26 21:33:04,107 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 50
+2026-04-26 21:33:19,695 INFO accounts.views Login attempt: testschool@gmail.com
+2026-04-26 21:33:19,878 WARNING accounts.views Login failed for testschool@gmail.com: AuthenticationFailed
+2026-04-26 21:33:19,878 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-26 21:33:19,878 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-26 21:33:19,886 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-26 21:33:19,886 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 50
+2026-04-26 21:34:28,324 WARNING django.request Unauthorized: /api/auth/me/
+2026-04-26 21:34:28,325 WARNING django.server "GET /api/auth/me/ HTTP/1.1" 401 58
+2026-04-26 21:34:28,333 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-26 21:34:28,333 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 50
+2026-04-26 21:34:49,197 INFO accounts.views Login attempt: school_admin@demo.com
+2026-04-26 21:34:49,378 INFO accounts.views Login successful: school_admin@demo.com
+2026-04-26 21:34:54,979 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 21:34:54,979 WARNING django.server "GET /api/academic-years/ HTTP/1.1" 404 96104
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'tenants.models.Tenant'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 21:35:54,494 INFO accounts.views Login attempt: branch_admin@demo.com
+2026-04-26 21:35:54,672 INFO accounts.views Login successful: branch_admin@demo.com
+2026-04-26 21:35:56,279 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 21:35:56,281 WARNING django.server "GET /api/academic-years/ HTTP/1.1" 404 96104
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'timetable.models.Subject'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'staff.models.TeacherProfile'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-26 21:36:19,914 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 21:36:19,915 WARNING django.server "GET /api/academic-years/ HTTP/1.1" 404 96104
+2026-04-26 21:36:24,763 WARNING django.request Not Found: /api/reports/academics/attendance/
+2026-04-26 21:36:24,764 WARNING django.server "GET /api/reports/academics/attendance/?page=1 HTTP/1.1" 404 96153
+2026-04-26 21:36:27,766 WARNING django.request Not Found: /api/reports/academics/students/
+2026-04-26 21:36:27,768 WARNING django.server "GET /api/reports/academics/students/?page=1 HTTP/1.1" 404 96147
+2026-04-26 21:36:30,182 WARNING django.request Not Found: /api/reports/academics/students/
+2026-04-26 21:36:30,182 WARNING django.server "GET /api/reports/academics/students/?academic_year_id=e1c52d58-181d-4607-ac59-cc37faf9519a&page=1 HTTP/1.1" 404 96205
+2026-04-26 21:36:31,208 WARNING django.request Not Found: /api/reports/academics/students/
+2026-04-26 21:36:31,209 WARNING django.server "GET /api/reports/academics/students/?academic_year_id=4e7d8e53-96ca-4331-bbc1-5e2d05b6bf68&page=1 HTTP/1.1" 404 96205
+2026-04-26 21:36:32,449 WARNING django.request Not Found: /api/reports/academics/students/
+2026-04-26 21:36:32,449 WARNING django.server "GET /api/reports/academics/students/?page=1 HTTP/1.1" 404 96147
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 03:55:33
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Exception in thread django-main-thread:
+Traceback (most recent call last):
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/threading.py", line 973, in _bootstrap_inner
+    self.run()
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/threading.py", line 910, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/utils/autoreload.py", line 64, in wrapper
+    fn(*args, **kwargs)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/management/commands/runserver.py", line 133, in inner_run
+    self.check(display_num_errors=True)
+  File "/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/django/core/management/base.py", line 556, in check
+    raise SystemCheckError(msg)
+django.core.management.base.SystemCheckError: SystemCheckError: System check identified some issues:
+
+ERRORS:
+fees.FeeCarryForward.source_record: (fields.E300) Field defines a relation with model 'students.StudentAcademicRecord', which is either not installed, or is abstract.
+fees.FeeCarryForward.source_record: (fields.E307) The field fees.FeeCarryForward.source_record was declared with a lazy reference to 'students.studentacademicrecord', but app 'students' doesn't provide model 'studentacademicrecord'.
+
+System check identified 2 issues (0 silenced).
+Performing system checks...
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 21:56:42
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/fields.py:992: UserWarning: min_value should be an integer or Decimal instance.
+  warnings.warn("min_value should be an integer or Decimal instance.")
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 22:15:10
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/fields.py:992: UserWarning: min_value should be an integer or Decimal instance.
+  warnings.warn("min_value should be an integer or Decimal instance.")
+2026-04-26 22:19:45,407 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 22:19:45,408 WARNING django.server "GET /api/academic-years/ HTTP/1.1" 404 107356
+2026-04-26 22:36:08,956 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-26 22:36:08,958 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-26 22:36:19,435 WARNING django.request Forbidden: /api/academic-year-closing/logs/
+2026-04-26 22:36:19,436 WARNING django.server "GET /api/academic-year-closing/logs/ HTTP/1.1" 403 63
+2026-04-26 22:36:19,446 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 22:36:19,446 WARNING django.server "GET /api/academic-years/?branch_id= HTTP/1.1" 404 107367
+2026-04-26 22:36:25,084 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 22:36:25,085 WARNING django.server "GET /api/academic-years/?branch_id= HTTP/1.1" 404 107367
+2026-04-26 22:36:57,395 WARNING django.request Forbidden: /api/academic-year-closing/logs/
+2026-04-26 22:36:57,398 WARNING django.server "GET /api/academic-year-closing/logs/ HTTP/1.1" 403 63
+2026-04-26 22:36:57,417 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 22:36:57,417 WARNING django.server "GET /api/academic-years/?branch_id= HTTP/1.1" 404 107367
+2026-04-26 22:36:58,357 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 22:36:58,357 WARNING django.server "GET /api/academic-years/?branch_id= HTTP/1.1" 404 107367
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 22:15:39
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/fields.py:992: UserWarning: min_value should be an integer or Decimal instance.
+  warnings.warn("min_value should be an integer or Decimal instance.")
+2026-04-26 22:54:52,728 WARNING django.request Forbidden: /api/academic-year-closing/logs/
+2026-04-26 22:54:52,730 WARNING django.server "GET /api/academic-year-closing/logs/ HTTP/1.1" 403 63
+2026-04-26 22:54:52,749 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 22:54:52,749 WARNING django.server "GET /api/academic-years/?branch_id= HTTP/1.1" 404 107367
+2026-04-26 22:54:55,939 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 22:54:55,939 WARNING django.server "GET /api/academic-years/ HTTP/1.1" 404 107356
+2026-04-26 22:55:11,719 INFO accounts.views Login attempt: kaz_acc@gmail.com
+2026-04-26 22:55:11,899 INFO accounts.views Login successful: kaz_acc@gmail.com
+2026-04-26 22:55:12,095 WARNING django.request Forbidden: /api/reports/fees/stats/
+2026-04-26 22:55:12,095 WARNING django.request Forbidden: /api/reports/finance/summary/
+2026-04-26 22:55:12,095 WARNING django.request Forbidden: /api/reports/attendance/stats/
+2026-04-26 22:55:12,096 WARNING django.server "GET /api/reports/fees/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 22:55:12,096 WARNING django.request Forbidden: /api/reports/analytics/attendance-trend/
+2026-04-26 22:55:12,097 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 22:55:12,097 WARNING django.request Forbidden: /api/reports/analytics/fee-aging/
+2026-04-26 22:55:12,097 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-26 22:55:12,097 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-26 22:55:12,098 WARNING django.server "GET /api/reports/analytics/fee-aging/?branch_id= HTTP/1.1" 403 63
+2026-04-26 23:00:29,821 WARNING django.request Not Found: /api/academic-years/
+2026-04-26 23:00:29,822 WARNING django.server "GET /api/academic-years/ HTTP/1.1" 404 107356
+2026-04-27 04:24:39,991 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-27 04:24:39,991 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-27 04:33:56,819 WARNING django.request Forbidden: /api/academic-year-closing/logs/
+2026-04-27 04:33:56,820 WARNING django.server "GET /api/academic-year-closing/logs/ HTTP/1.1" 403 63
+2026-04-27 04:33:56,831 WARNING django.request Not Found: /api/academic-years/
+2026-04-27 04:33:56,831 WARNING django.server "GET /api/academic-years/?branch_id= HTTP/1.1" 404 107367
+2026-04-27 04:34:00,294 WARNING django.request Forbidden: /api/promotion-maps/
+2026-04-27 04:34:00,307 WARNING django.server "GET /api/promotion-maps/?branch_id= HTTP/1.1" 403 63
+2026-04-27 04:34:00,307 WARNING django.request Not Found: /api/academic-years/
+2026-04-27 04:34:00,307 WARNING django.server "GET /api/academic-years/?branch_id= HTTP/1.1" 404 107367
+2026-04-27 04:34:32,237 WARNING django.request Not Found: /api/fees/approval-requests/
+2026-04-27 04:34:32,238 WARNING django.server "GET /api/fees/approval-requests/?status=PENDING&branch_id= HTTP/1.1" 404 107410
+2026-04-27 04:35:13,462 INFO accounts.views Login attempt: super_admin@demo.com
+2026-04-27 04:35:13,643 INFO accounts.views Login successful: super_admin@demo.com
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'tenants.models.Tenant'> QuerySet.
+  paginator = self.django_paginator_class(queryset, page_size)
+2026-04-27 04:37:53,760 INFO accounts.views Login attempt: narayanagroup@gmail.com
+2026-04-27 04:37:53,936 INFO accounts.views Login successful: narayanagroup@gmail.com
+2026-04-27 04:38:30,326 INFO accounts.views Login attempt: testschool@gmail.com
+2026-04-27 04:38:30,504 WARNING accounts.views Login failed for testschool@gmail.com: AuthenticationFailed
+2026-04-27 04:38:30,504 WARNING django.request Unauthorized: /api/auth/login/
+2026-04-27 04:38:30,504 WARNING django.server "POST /api/auth/login/ HTTP/1.1" 401 63
+2026-04-27 04:38:30,515 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-27 04:38:30,515 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 53
+2026-04-27 04:38:52,557 INFO accounts.views Login attempt: injapur_acc@gmail.com
+2026-04-27 04:38:52,737 INFO accounts.views Login successful: injapur_acc@gmail.com
+2026-04-27 04:38:52,923 WARNING django.request Forbidden: /api/reports/fees/stats/
+2026-04-27 04:38:52,924 WARNING django.request Forbidden: /api/reports/attendance/stats/
+2026-04-27 04:38:52,924 WARNING django.server "GET /api/reports/fees/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-27 04:38:52,924 WARNING django.request Forbidden: /api/reports/analytics/attendance-trend/
+2026-04-27 04:38:52,924 WARNING django.request Forbidden: /api/reports/finance/summary/
+2026-04-27 04:38:52,924 WARNING django.server "GET /api/reports/attendance/stats/?branch_id= HTTP/1.1" 403 63
+2026-04-27 04:38:52,925 WARNING django.request Forbidden: /api/reports/analytics/fee-aging/
+2026-04-27 04:38:52,927 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-27 04:38:52,931 WARNING django.request Forbidden: /api/reports/finance/summary/
+2026-04-27 04:38:52,931 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id= HTTP/1.1" 403 63
+2026-04-27 04:38:52,931 WARNING django.server "GET /api/reports/analytics/fee-aging/?branch_id= HTTP/1.1" 403 63
+2026-04-27 04:38:52,931 WARNING django.server "GET /api/reports/finance/summary/?days=30&branch_id=7573449c-e6e6-4f5e-bea1-1589f832d70b HTTP/1.1" 403 63
+2026-04-27 04:38:52,935 WARNING django.request Forbidden: /api/reports/fees/stats/
+2026-04-27 04:38:52,936 WARNING django.request Forbidden: /api/reports/analytics/attendance-trend/
+2026-04-27 04:38:52,936 WARNING django.request Forbidden: /api/reports/attendance/stats/
+2026-04-27 04:38:52,936 WARNING django.server "GET /api/reports/fees/stats/?branch_id=7573449c-e6e6-4f5e-bea1-1589f832d70b HTTP/1.1" 403 63
+2026-04-27 04:38:52,936 WARNING django.server "GET /api/reports/attendance/stats/?branch_id=7573449c-e6e6-4f5e-bea1-1589f832d70b HTTP/1.1" 403 63
+2026-04-27 04:38:52,936 WARNING django.server "GET /api/reports/analytics/attendance-trend/?days=30&branch_id=7573449c-e6e6-4f5e-bea1-1589f832d70b HTTP/1.1" 403 63
+2026-04-27 04:38:52,937 WARNING django.request Forbidden: /api/reports/analytics/fee-aging/
+2026-04-27 04:38:52,937 WARNING django.server "GET /api/reports/analytics/fee-aging/?branch_id=7573449c-e6e6-4f5e-bea1-1589f832d70b HTTP/1.1" 403 63
+2026-04-27 04:38:55,844 WARNING django.request Not Found: /api/academic-years/
+2026-04-27 04:38:55,845 WARNING django.server "GET /api/academic-years/ HTTP/1.1" 404 107356
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 26, 2026 - 22:43:56
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/fields.py:992: UserWarning: min_value should be an integer or Decimal instance.
+  warnings.warn("min_value should be an integer or Decimal instance.")
+Performing system checks...
+
+System check identified no issues (0 silenced).
+April 27, 2026 - 04:45:01
+Django version 4.2.29, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/vkshivakumar/school-erp/school_erp/backend/venv/lib/python3.9/site-packages/rest_framework/fields.py:992: UserWarning: min_value should be an integer or Decimal instance.
+  warnings.warn("min_value should be an integer or Decimal instance.")
+2026-04-27 15:52:17,588 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-27 15:52:17,589 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-27 23:56:24,706 WARNING django.request Unauthorized: /api/notifications/mine/
+2026-04-27 23:56:24,707 WARNING django.server "GET /api/notifications/mine/ HTTP/1.1" 401 58
+2026-04-27 23:56:24,810 WARNING django.request Unauthorized: /api/auth/refresh/
+2026-04-27 23:56:24,810 WARNING django.server "POST /api/auth/refresh/ HTTP/1.1" 401 50

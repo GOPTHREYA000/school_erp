@@ -248,6 +248,24 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
             'data': result
         })
 
+    @action(detail=False, methods=['post'], url_path='generate-transport')
+    def generate_transport(self, request):
+        """Generate ONLY a transport invoice for a specific student."""
+        student_id = request.data.get('student_id')
+        academic_year_id = request.data.get('academic_year_id')
+        month = request.data.get('month')
+
+        if not all([student_id, academic_year_id, month]):
+            return Response({'detail': 'student_id, academic_year_id, and month are required.'}, status=400)
+
+        from .services import generate_transport_invoice_only
+        result = generate_transport_invoice_only(student_id, academic_year_id, month)
+
+        if result.get('error'):
+            return Response({'detail': result['error']}, status=400)
+
+        return Response({'success': True, 'data': result})
+
     @action(detail=True, methods=['patch'], url_path='cancel')
     def cancel(self, request, pk=None):
         invoice = self.get_object()
@@ -458,9 +476,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 }
             )
 
+            # Auto-populate receipt download URL
+            payment.receipt_url = f"/api/templates/generate/receipt/{payment.id}/"
+            payment.save(update_fields=['receipt_url'])
+
         return Response({
             'success': True,
-            'data': PaymentSerializer(payment).data
+            'data': PaymentSerializer(payment).data,
+            'receipt_url': payment.receipt_url,
         }, status=status.HTTP_201_CREATED)
 
     @transaction.atomic

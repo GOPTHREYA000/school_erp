@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from django.conf import settings
 from django.utils.text import slugify
 
 class Plan(models.Model):
@@ -72,12 +73,25 @@ class Branch(models.Model):
         return f"{self.name} ({self.tenant.name})"
 
 class AcademicYear(models.Model):
+    YEAR_STATUS_CHOICES = [
+        ('PLANNING', 'Planning'),
+        ('ACTIVE', 'Active'),
+        ('CLOSING', 'Closing'),
+        ('CLOSED', 'Closed'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='academic_years')
     name = models.CharField(max_length=50) # e.g. "2024-2025"
     start_date = models.DateField()
     end_date = models.DateField()
     is_active = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=YEAR_STATUS_CHOICES, default='PLANNING')
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='closed_academic_years'
+    )
 
     class Meta:
         unique_together = ('tenant', 'name')

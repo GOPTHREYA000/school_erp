@@ -22,9 +22,7 @@ export default function EnrollStudentModal({ isOpen, onClose, onSuccess }: Enrol
   const [students, setStudents] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   
-  const [routes, setRoutes] = useState<any[]>([]);
   const [formData, setFormData] = useState({
-    route_id: '',
     distance_km: '',
     pickup_point: ''
   });
@@ -40,23 +38,14 @@ export default function EnrollStudentModal({ isOpen, onClose, onSuccess }: Enrol
     }
   }, [searchQuery, selectedBranch]);
 
-  // Fetch routes
-  useEffect(() => {
-    if (isOpen) {
-      api.get(`/transport/routes/?branch_id=${selectedBranch}`)
-        .then(res => setRoutes(res.data?.results || res.data?.data || res.data || []));
-    }
-  }, [isOpen, selectedBranch]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudent || !formData.route_id || !formData.distance_km) return;
+    if (!selectedStudent || !formData.distance_km) return;
 
     setLoading(true);
     try {
       await api.post('/transport/opt-in/', {
         student_id: selectedStudent.id,
-        route_id: formData.route_id,
         distance_km: parseFloat(formData.distance_km),
         pickup_point: formData.pickup_point
       });
@@ -65,11 +54,11 @@ export default function EnrollStudentModal({ isOpen, onClose, onSuccess }: Enrol
         setSuccess(false);
         setSearchQuery('');
         setSelectedStudent(null);
-        setFormData({ route_id: '', distance_km: '', pickup_point: '' });
+        setFormData({ distance_km: '', pickup_point: '' });
         onSuccess();
       }, 1500);
     } catch (err: any) {
-      toast.error("Registration failed: " + (err.response?.data?.message || "Internal error"));
+      toast.error("Registration failed: " + (err.response?.data?.detail || "Internal error"));
     } finally {
       setLoading(false);
     }
@@ -103,7 +92,7 @@ export default function EnrollStudentModal({ isOpen, onClose, onSuccess }: Enrol
                   <CheckCircle2 size={48} />
                </div>
                <h3 className="text-2xl font-black text-slate-900">Successfully Registered!</h3>
-               <p className="text-slate-500 mt-2">The student's fee structure has been updated.</p>
+               <p className="text-slate-500 mt-2">Transport fee will be automatically added to monthly invoices.</p>
             </div>
           ) : (
             <>
@@ -155,37 +144,10 @@ export default function EnrollStudentModal({ isOpen, onClose, onSuccess }: Enrol
                 )}
               </div>
 
-              {/* Route Selection */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">2. Assign Route</label>
-                <div className="relative">
-                   <Navigation className="absolute left-4 top-3.5 text-slate-400" size={18} />
-                   <select 
-                     className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 ring-blue-500 transition-all font-bold appearance-none cursor-pointer"
-                     value={formData.route_id}
-                     onChange={e => {
-                       const routeId = e.target.value;
-                       const routeInfo = routes?.find(r => r.id === routeId);
-                       setFormData({ 
-                         ...formData, 
-                         route_id: routeId,
-                         distance_km: routeInfo ? String(routeInfo.distance_km) : ''
-                       });
-                     }}
-                     required
-                   >
-                     <option value="" disabled>Select a bus route...</option>
-                     {routes?.map(r => (
-                       <option key={r.id} value={r.id}>{r.name} ({r.start_point} → {r.end_point})</option>
-                     ))}
-                   </select>
-                </div>
-              </div>
-
-              {/* Distance & Pickup */}
+              {/* Distance and Pickup Point */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Distance (KM)</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">2. Distance (KM)</label>
                   <input 
                     type="number" 
                     step="0.1" 
@@ -197,7 +159,7 @@ export default function EnrollStudentModal({ isOpen, onClose, onSuccess }: Enrol
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Pickup Point</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">3. Pickup Point</label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3.5 text-slate-400" size={16} />
                     <input 
@@ -210,24 +172,18 @@ export default function EnrollStudentModal({ isOpen, onClose, onSuccess }: Enrol
                 </div>
               </div>
 
-              {/* Footer Actions */}
-              <div className="pt-4 flex gap-3">
-                <button 
-                  type="button" 
-                  onClick={onClose}
-                  className="flex-1 py-4 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100"
-                >
-                  Cancel
-                </button>
+              <div className="pt-4">
                 <button 
                   type="submit"
-                  disabled={loading || !selectedStudent || !formData.route_id}
-                  className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl text-sm font-black shadow-xl shadow-slate-900/10 hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                  disabled={loading || !selectedStudent || !formData.distance_km}
+                  className="w-full py-4 bg-blue-600 text-white rounded-2xl text-sm font-black shadow-xl shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    <>Confirm Enrollment</>
+                    <>
+                      <CheckCircle2 size={18} /> Complete Registration
+                    </>
                   )}
                 </button>
               </div>

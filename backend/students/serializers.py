@@ -105,7 +105,7 @@ class StudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at', 'enrollment_date', 'tenant', 'proposed_fee', 'fee_stats', 'invoices', 'payments']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'enrollment_date', 'tenant', 'proposed_fee', 'fee_stats', 'invoices', 'payments', 'transport_info']
         extra_kwargs = {
             'admission_number': {'required': False, 'allow_blank': True}
         }
@@ -138,6 +138,20 @@ class StudentSerializer(serializers.ModelSerializer):
             'total_paid': float(total_paid),
             'balance': float(total_fee - total_paid)
         }
+
+    transport_info = serializers.SerializerMethodField()
+
+    def get_transport_info(self, obj):
+        from transport.models import StudentTransport
+        active_transport = StudentTransport.objects.filter(student=obj, is_active=True).first()
+        if active_transport:
+            return {
+                'opted': True,
+                'monthly_fee': float(active_transport.monthly_fee),
+                'distance_km': float(active_transport.distance_km),
+                'pickup_point': active_transport.pickup_point
+            }
+        return {'opted': False}
 
     def get_invoices(self, obj):
         from fees.models import FeeInvoice

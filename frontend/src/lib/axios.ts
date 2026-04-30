@@ -1,12 +1,24 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1/',
   withCredentials: true,
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
+});
+
+api.interceptors.request.use((config) => {
+  if (typeof document !== 'undefined') {
+    const match = document.cookie.match(/(^|;\s*)csrftoken=([^;]*)/);
+    if (match && match[2]) {
+      config.headers['X-CSRFToken'] = match[2];
+    }
+  }
+  return config;
 });
 
 api.interceptors.response.use(
@@ -26,7 +38,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/'}auth/refresh/`,
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1/'}auth/refresh/`,
           {},
           { withCredentials: true }
         );

@@ -29,7 +29,7 @@ export default function AdminApprovalsQueue() {
   const [activeTab, setActiveTab] = useState<ApprovalStatus>('PENDING');
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const confirm = useConfirm();
+  const { confirm } = useConfirm();
 
   const fetchApprovals = useCallback(() => {
     setLoading(true);
@@ -48,7 +48,7 @@ export default function AdminApprovalsQueue() {
     const ok = await confirm({
       title: 'Approve Fee Reduction',
       message: `Are you sure you want to approve the fee reduction for ${studentName}? This will activate the student's enrollment.`,
-      confirmLabel: 'Approve',
+      confirmText: 'Approve',
       isDestructive: false,
     });
     if (!ok) return;
@@ -66,7 +66,7 @@ export default function AdminApprovalsQueue() {
     const ok = await confirm({
       title: 'Reject Fee Reduction',
       message: `Are you sure you want to reject the fee reduction request for ${studentName}? The student's status will remain unchanged.`,
-      confirmLabel: 'Reject',
+      confirmText: 'Reject',
       isDestructive: true,
     });
     if (!ok) return;

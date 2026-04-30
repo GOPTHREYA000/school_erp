@@ -23,6 +23,8 @@ if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi
 source venv/bin/activate
+# macOS Apple Silicon fix for WeasyPrint finding pango/glib libraries
+export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib:/usr/local/lib:$DYLD_FALLBACK_LIBRARY_PATH
 python manage.py runserver 0.0.0.0:8000 &
 BACKEND_PID=$!
 cd ..

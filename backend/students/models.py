@@ -42,6 +42,7 @@ APPLICATION_STATUS = [
 STUDENT_STATUS = [
     ("ACTIVE", "Active"), ("PENDING_APPROVAL", "Pending Approval"), ("INACTIVE", "Inactive"),
     ("TRANSFERRED", "Transferred"), ("GRADUATED", "Graduated"), ("DETAINED", "Detained"),
+    ("DROPOUT", "Dropout"),
 ]
 RELATION_TYPE = [
     ("FATHER", "Father"), ("MOTHER", "Mother"), ("GUARDIAN", "Guardian"),
@@ -391,3 +392,70 @@ class ParentStudentRelation(models.Model):
 
     def __str__(self):
         return f"{self.parent.email} → {self.student.first_name} ({self.relation_type})"
+
+
+# ─── StudentAcademicRecord ───────────────────────────────────────
+class StudentAcademicRecord(models.Model):
+    """Per-year snapshot of a student's academic placement. Never overwritten."""
+    RECORD_STATUS = [
+        ('ACTIVE', 'Active'),
+        ('PROMOTED', 'Promoted'),
+        ('DETAINED', 'Detained'),
+        ('DROPOUT', 'Dropout'),
+        ('TRANSFERRED', 'Transferred'),
+        ('GRADUATED', 'Graduated'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='academic_records')
+    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.PROTECT, related_name='student_records')
+    class_section = models.ForeignKey(ClassSection, on_delete=models.PROTECT, null=True, blank=True, related_name='academic_records')
+    roll_number = models.PositiveIntegerField(null=True, blank=True)
+
+    status = models.CharField(max_length=20, choices=RECORD_STATUS, default='ACTIVE')
+
+    # Promotion chain — links to the record this was promoted FROM
+    promoted_from = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='promoted_to'
+    )
+
+    # Audit
+    status_changed_at = models.DateTimeField(null=True, blank=True)
+    status_changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='status_changes'
+    )
+    status_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['student', 'academic_year']
+        ordering = ['-academic_year__start_date']
+        indexes = [
+            models.Index(fields=['academic_year', 'status']),
+            models.Index(fields=['class_section', 'status']),
+            models.Index(fields=['student', 'academic_year']),
+        ]
+
+    def __str__(self):
+        cs = self.class_section.display_name if self.class_section else 'Unassigned'
+        return f"{self.student.admission_number} — {self.academic_year.name} — {cs} ({self.status})"
+
+
+# ─── ClassPromotionMap ─────────────────────────────────────────
+class ClassPromotionMap(models.Model):
+    """Defines grade-to-grade promotion mapping for a branch and year."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='promotion_maps')
+    branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='promotion_maps')
+    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='promotion_maps')
+    from_grade = models.CharField(max_length=20, choices=GRADE_CHOICES)
+    to_grade = models.CharField(max_length=20, choices=GRADE_CHOICES)
+
+    class Meta:
+        unique_together = ['branch', 'academic_year', 'from_grade']
+        ordering = ['from_grade']
+
+    def __str__(self):
+        return f"{self.from_grade} → {self.to_grade} ({self.academic_year.name})"

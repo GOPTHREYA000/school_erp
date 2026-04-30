@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from rest_framework import serializers
 from .models import User, AuditLog
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -39,7 +38,8 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'phone', 'role', 'is_active', 
-            'password', 'tenant', 'branch', 'branch_name', 'tenant_name', 'tenant_logo'
+            'password', 'tenant', 'branch', 'branch_name', 'tenant_name', 'tenant_logo',
+            'must_change_password',
         ]
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},

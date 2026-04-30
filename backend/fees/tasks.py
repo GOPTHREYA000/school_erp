@@ -43,6 +43,31 @@ def bulk_allocate_fees(branch_id, academic_year_id, class_section_id, fee_struct
                 invoice_number = DocumentSequence.get_next_sequence(branch, 'INVOICE', f"INV-{branch.branch_code}-{month}")
                 
                 gross = sum(item.amount for item in fee_structure.items.all())
+                invoice_items_data = list(fee_structure.items.all())
+
+                # ── Dynamic Transport Fee Injection ──
+                from transport.models import StudentTransport
+                from fees.models import FeeCategory
+                active_transport = StudentTransport.objects.filter(
+                    student=student, is_active=True
+                ).select_related('route').first()
+
+                transport_cat = None
+                transport_amount = None
+                if active_transport:
+                    transport_cat, _ = FeeCategory.objects.get_or_create(
+                        branch=branch,
+                        code='TRANSPORT',
+                        defaults={
+                            'tenant': branch.tenant,
+                            'name': 'Transport Fee',
+                            'description': 'Monthly school transport fee',
+                            'is_active': True,
+                            'order': 99,
+                        }
+                    )
+                    transport_amount = active_transport.monthly_fee
+                    gross += transport_amount
                 
                 invoice = FeeInvoice.objects.create(
                     tenant=branch.tenant,
@@ -58,12 +83,22 @@ def bulk_allocate_fees(branch_id, academic_year_id, class_section_id, fee_struct
                     status='DRAFT' 
                 )
                 
-                for item in fee_structure.items.all():
+                for item in invoice_items_data:
                     FeeInvoiceItem.objects.create(
                         invoice=invoice,
                         category=item.category,
                         original_amount=item.amount,
                         final_amount=item.amount
+                    )
+
+                # Add transport line item if applicable
+                if active_transport and transport_cat and transport_amount:
+                    FeeInvoiceItem.objects.create(
+                        invoice=invoice,
+                        category=transport_cat,
+                        original_amount=transport_amount,
+                        final_amount=transport_amount,
+                        description=f"Transport: {active_transport.route.name} ({active_transport.distance_km} km)",
                     )
                 
                 generated_count += 1

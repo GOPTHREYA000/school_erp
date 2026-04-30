@@ -4,39 +4,20 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db import transaction
 
-from accounts.permissions import IsBranchAdminOrAbove
-from accounts.utils import get_validated_branch_id, get_active_academic_year
+from accounts.permissions import IsAccountantOrAbove
+from accounts.utils import get_validated_branch_id
 from students.models import Student
-from fees.models import FeeCategory, StudentFeeItem
 
-from .models import TransportRoute, TransportRateSlab, StudentTransport
+from .models import TransportRateSlab, StudentTransport
 from .serializers import (
-    TransportRouteSerializer, TransportRateSlabSerializer,
+    TransportRateSlabSerializer,
     StudentTransportSerializer, StudentTransportOptInSerializer,
 )
 
 
-class TransportRouteViewSet(viewsets.ModelViewSet):
-    serializer_class = TransportRouteSerializer
-    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
-
-    def get_queryset(self):
-        qs = TransportRoute.objects.filter(branch__tenant=self.request.user.tenant)
-        branch_id = get_validated_branch_id(
-            self.request.user,
-            self.request.query_params.get('branch') or self.request.query_params.get('branch_id')
-        )
-        if branch_id:
-            qs = qs.filter(branch_id=branch_id)
-        return qs
-
-    def perform_create(self, serializer):
-        serializer.save(tenant=self.request.user.tenant)
-
-
 class TransportRateSlabViewSet(viewsets.ModelViewSet):
     serializer_class = TransportRateSlabSerializer
-    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         qs = TransportRateSlab.objects.filter(branch__tenant=self.request.user.tenant)
@@ -54,46 +35,40 @@ class TransportRateSlabViewSet(viewsets.ModelViewSet):
 
 class StudentTransportViewSet(viewsets.ModelViewSet):
     serializer_class = StudentTransportSerializer
-    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
         qs = StudentTransport.objects.filter(
             student__tenant=self.request.user.tenant
-        ).select_related('student', 'student__class_section', 'route')
+        ).select_related('student', 'student__class_section')
         branch_id = get_validated_branch_id(
             self.request.user,
             self.request.query_params.get('branch') or self.request.query_params.get('branch_id')
         )
         if branch_id:
             qs = qs.filter(student__branch_id=branch_id)
-        route_id = self.request.query_params.get('route')
-        if route_id:
-            qs = qs.filter(route_id=route_id)
         return qs
 
     @transaction.atomic
     def perform_update(self, serializer):
+        """On distance change, just recalculate the monthly_fee on the subscription record.
+        The invoice generator picks up the current monthly_fee at billing time."""
         st = serializer.save()
-        # Recalculate monthly rate if distance changes
         monthly_rate = TransportRateSlab.get_rate_for_distance(st.student.branch, st.distance_km)
-        if monthly_rate is not None:
-            if st.monthly_fee != monthly_rate:
-                st.monthly_fee = monthly_rate
-                st.save(update_fields=['monthly_fee'])
-                
-            # Always ensure fee item matches current rate
-            annual_transport = monthly_rate * 12
-            StudentFeeItem.objects.filter(
-                student=st.student,
-                academic_year=st.student.academic_year,
-                category__code='TRANSPORT'
-            ).update(amount=annual_transport)
+        if monthly_rate is not None and st.monthly_fee != monthly_rate:
+            st.monthly_fee = monthly_rate
+            st.save(update_fields=['monthly_fee'])
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsBranchAdminOrAbove])
+@permission_classes([IsAuthenticated, IsAccountantOrAbove])
 def student_transport_opt_in(request):
-    """Opt a student into transport. Resolves fee from rate slabs and creates StudentFeeItem."""
+    """Opt a student into transport based on distance.
+    
+    Creates a StudentTransport subscription record. The monthly fee is resolved
+    from the branch's distance-based rate slabs. No StudentFeeItem is created;
+    the invoice generator dynamically injects the transport line item each month.
+    """
     serializer = StudentTransportOptInSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
@@ -103,12 +78,6 @@ def student_transport_opt_in(request):
     ).first()
     if not student:
         return Response({'detail': 'Student not found.'}, status=404)
-
-    route = TransportRoute.objects.filter(
-        id=data['route_id'], branch=student.branch, is_active=True
-    ).first()
-    if not route:
-        return Response({'detail': 'Transport route not found for this branch.'}, status=404)
 
     # Check if already opted in
     existing = StudentTransport.objects.filter(student=student, is_active=True).first()
@@ -124,53 +93,29 @@ def student_transport_opt_in(request):
         }, status=400)
 
     with transaction.atomic():
-        # Create StudentTransport record
         st = StudentTransport.objects.create(
             student=student,
-            route=route,
             distance_km=data['distance_km'],
             pickup_point=data.get('pickup_point', ''),
             monthly_fee=monthly_rate,
             opted_by=request.user,
         )
 
-        # Ensure a TRANSPORT fee category exists for this branch
-        transport_cat, _ = FeeCategory.objects.get_or_create(
-            branch=student.branch,
-            code='TRANSPORT',
-            defaults={
-                'tenant': student.tenant,
-                'name': 'Transport Fee',
-                'description': 'Monthly school transport fee',
-                'is_active': True,
-                'order': 99,
-            }
-        )
-
-        # Create/update the StudentFeeItem for transport
-        # Annual amount = monthly_rate × 12
-        annual_transport = monthly_rate * 12
-        StudentFeeItem.objects.update_or_create(
-            student=student,
-            academic_year=student.academic_year,
-            category=transport_cat,
-            defaults={
-                'amount': annual_transport,
-                'is_locked': True,
-            }
-        )
-
     return Response({
         'success': True,
         'data': StudentTransportSerializer(st).data,
-        'message': f'Student opted into transport. Monthly fee: ₹{monthly_rate}, Annual: ₹{annual_transport}'
+        'message': f'Student opted into transport. Monthly fee: ₹{monthly_rate}'
     }, status=201)
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsBranchAdminOrAbove])
+@permission_classes([IsAuthenticated, IsAccountantOrAbove])
 def student_transport_opt_out(request):
-    """Opt a student out of transport. Deactivates record and removes fee item."""
+    """Opt a student out of transport.
+    
+    Simply deactivates the StudentTransport record. Future invoices will no
+    longer include a transport line item. No financial records are deleted.
+    """
     student_id = request.data.get('student_id')
     if not student_id:
         return Response({'detail': 'student_id is required.'}, status=400)
@@ -182,15 +127,7 @@ def student_transport_opt_out(request):
     if not st:
         return Response({'detail': 'No active transport opt-in found.'}, status=404)
 
-    with transaction.atomic():
-        st.is_active = False
-        st.save()
+    st.is_active = False
+    st.save(update_fields=['is_active'])
 
-        # Remove the transport fee item
-        StudentFeeItem.objects.filter(
-            student_id=student_id,
-            category__code='TRANSPORT',
-            academic_year=st.student.academic_year,
-        ).delete()
-
-    return Response({'success': True, 'message': 'Student opted out of transport.'})
+    return Response({'success': True, 'message': 'Student opted out of transport. Future invoices will not include transport fees.'})

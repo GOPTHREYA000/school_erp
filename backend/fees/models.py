@@ -66,6 +66,22 @@ class DocumentSequence(models.Model):
                     seq.last_sequence = count
 
             seq.last_sequence += 1
+            
+            # Ensure the generated sequence doesn't conflict with manually created records
+            while True:
+                candidate = f"{prefix}-{seq.last_sequence:04d}"
+                if document_type == 'INVOICE':
+                    from .models import FeeInvoice
+                    if not FeeInvoice.objects.filter(branch=branch, invoice_number=candidate).exists():
+                        break
+                elif document_type == 'RECEIPT':
+                    from .models import Payment
+                    if not Payment.objects.filter(branch=branch, receipt_number=candidate).exists():
+                        break
+                else:
+                    break
+                seq.last_sequence += 1
+
             seq.save()
             return f"{prefix}-{seq.last_sequence:04d}"
 
@@ -99,6 +115,12 @@ class FeeStructure(models.Model):
     grade = models.CharField(max_length=20, db_index=True)
     name = models.CharField(max_length=200)
     is_active = models.BooleanField(default=True)
+    is_finalized = models.BooleanField(default=False)
+    finalized_at = models.DateTimeField(null=True, blank=True)
+    finalized_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='finalized_fee_structures'
+    )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_fee_structures')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -336,3 +358,166 @@ class FeeApprovalRequest(models.Model):
 
     def __str__(self):
         return f"Fee Approval: {self.student} (₹{self.offered_total} < ₹{self.standard_total})"
+
+
+# ─── FeeCarryForward ────────────────────────────────────────────
+class FeeCarryForward(models.Model):
+    """Immutable record of dues carried from one academic year to the next."""
+    CARRY_FORWARD_STATUS = [
+        ('PENDING', 'Pending'), ('PARTIALLY_PAID', 'Partially Paid'),
+        ('PAID', 'Paid'), ('WRITTEN_OFF', 'Written Off'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='fee_carry_forwards')
+    branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='fee_carry_forwards')
+    student = models.ForeignKey('students.Student', on_delete=models.CASCADE, related_name='carry_forwards')
+    source_academic_year = models.ForeignKey(
+        'tenants.AcademicYear', on_delete=models.PROTECT, related_name='outgoing_carry_forwards'
+    )
+    target_academic_year = models.ForeignKey(
+        'tenants.AcademicYear', on_delete=models.PROTECT, related_name='incoming_carry_forwards'
+    )
+    source_record = models.ForeignKey(
+        'students.StudentAcademicRecord', on_delete=models.PROTECT,
+        related_name='carry_forwards', null=True, blank=True
+    )
+
+    # Financial snapshot — immutable after creation
+    total_fee_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    total_paid_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    carry_forward_amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    # Resolution tracking
+    status = models.CharField(max_length=20, choices=CARRY_FORWARD_STATUS, default='PENDING')
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    written_off_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name='created_carry_forwards'
+    )
+
+    class Meta:
+        unique_together = ['student', 'source_academic_year', 'target_academic_year']
+        ordering = ['source_academic_year__start_date']
+        indexes = [
+            models.Index(fields=['student', 'status']),
+            models.Index(fields=['target_academic_year', 'status']),
+        ]
+
+    def __str__(self):
+        return f"CF: {self.student} {self.source_academic_year} → {self.target_academic_year} (₹{self.carry_forward_amount})"
+
+    @property
+    def remaining_amount(self):
+        return self.carry_forward_amount - self.paid_amount - self.written_off_amount
+
+
+# ─── PaymentAllocation ──────────────────────────────────────────
+class PaymentAllocation(models.Model):
+    """Tracks exactly where each rupee of a payment was allocated."""
+    ALLOCATION_TYPE = [
+        ('CURRENT_YEAR', 'Current Year Fee'),
+        ('PREVIOUS_YEAR_DUES', 'Previous Year Dues'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='allocations')
+    invoice = models.ForeignKey(FeeInvoice, on_delete=models.CASCADE, null=True, blank=True, related_name='payment_allocations')
+    carry_forward = models.ForeignKey(FeeCarryForward, on_delete=models.CASCADE, null=True, blank=True, related_name='payment_allocations')
+    allocated_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    allocation_type = models.CharField(max_length=25, choices=ALLOCATION_TYPE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['payment']),
+            models.Index(fields=['invoice']),
+            models.Index(fields=['carry_forward']),
+        ]
+
+    def __str__(self):
+        target = self.invoice or self.carry_forward
+        return f"Alloc: ₹{self.allocated_amount} → {target}"
+
+
+# ─── FeeWriteOff ────────────────────────────────────────────────
+class FeeWriteOff(models.Model):
+    """Tracked, approved write-off of unpaid fees — never silently removed."""
+    WRITEOFF_STATUS = [
+        ('PENDING', 'Pending Approval'), ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'), ('EXECUTED', 'Executed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='fee_write_offs')
+    branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='fee_write_offs')
+    student = models.ForeignKey('students.Student', on_delete=models.CASCADE, related_name='write_offs')
+    invoice = models.ForeignKey(FeeInvoice, on_delete=models.CASCADE, null=True, blank=True, related_name='write_offs')
+    carry_forward = models.ForeignKey(FeeCarryForward, on_delete=models.CASCADE, null=True, blank=True, related_name='write_offs')
+
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.TextField()
+
+    status = models.CharField(max_length=15, choices=WRITEOFF_STATUS, default='PENDING')
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name='requested_writeoffs'
+    )
+    requested_at = models.DateTimeField(auto_now_add=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='approved_writeoffs'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    executed_at = models.DateTimeField(null=True, blank=True)
+    admin_remarks = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+
+    def __str__(self):
+        return f"WriteOff: {self.student} ₹{self.amount} ({self.status})"
+
+
+# ─── AcademicYearClosingLog ─────────────────────────────────────
+class AcademicYearClosingLog(models.Model):
+    """Audit trail for academic year closing process."""
+    CLOSING_STATUS = [
+        ('IN_PROGRESS', 'In Progress'), ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'), ('ROLLED_BACK', 'Rolled Back'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='closing_logs')
+    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='closing_logs')
+    target_academic_year = models.ForeignKey(
+        'tenants.AcademicYear', on_delete=models.CASCADE, related_name='incoming_closing_logs'
+    )
+
+    status = models.CharField(max_length=20, choices=CLOSING_STATUS, default='IN_PROGRESS')
+
+    # Statistics
+    total_students = models.IntegerField(default=0)
+    promoted_count = models.IntegerField(default=0)
+    detained_count = models.IntegerField(default=0)
+    dropout_count = models.IntegerField(default=0)
+    graduated_count = models.IntegerField(default=0)
+    carry_forwards_created = models.IntegerField(default=0)
+    total_carry_forward_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    initiated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name='initiated_closings'
+    )
+    initiated_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    error_details = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ['-initiated_at']
+
+    def __str__(self):
+        return f"Closing: {self.academic_year} ({self.status})"

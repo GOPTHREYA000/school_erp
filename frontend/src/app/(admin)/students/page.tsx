@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import Link from 'next/link';
-import { Plus, Search, Users, Filter, Receipt, Building2, UserPlus, CheckCircle, Trash2, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Users, Filter, Receipt, Building2, UserPlus, CheckCircle, Trash2, ShieldCheck, AlertTriangle, UserMinus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import StudentForm from '@/components/students/StudentForm';
 import { useBranch } from '@/components/common/BranchContext';
@@ -68,6 +68,34 @@ export default function StudentsPage() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const generateBulkIdCards = async () => {
+    if (selectedIds.length === 0) return;
+    const loadingToast = toast.loading('Generating ID cards...', { icon: '🪪' });
+    try {
+      const response = await api.post('/templates/generate/bulk-id-cards/', {
+        student_ids: selectedIds
+      }, { responseType: 'blob' });
+      
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ID_Cards_Bulk_${selectedIds.length}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.dismiss(loadingToast);
+      toast.success('ID cards generated!');
+    } catch (err: any) {
+      toast.dismiss(loadingToast);
+      const text = await err.response?.data?.text?.();
+      try {
+        const json = JSON.parse(text || '{}');
+        toast.error(json.error || 'Failed to generate ID cards.');
+      } catch {
+        toast.error('Failed to generate ID cards. Check template configuration.');
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -104,10 +132,10 @@ export default function StudentsPage() {
            />
         </div>
         
-        <div className="flex gap-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-sm">
-           {['ACTIVE', 'PENDING_APPROVAL', 'ARCHIVED'].map(s => (
+        <div className="flex gap-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-sm overflow-x-auto scrollbar-hide">
+           {['ACTIVE', 'PENDING_APPROVAL', 'DROPOUT', 'ARCHIVED'].map(s => (
              <button key={s} onClick={() => setStatusFilter(s)}
-               className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+               className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${
                  statusFilter === s ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'
                }`}>
                {s.replace('_', ' ')}
@@ -180,6 +208,8 @@ export default function StudentsPage() {
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight ${
                       s.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 
                       s.status === 'PENDING_APPROVAL' ? 'bg-blue-50 text-blue-700' :
+                      s.status === 'DROPOUT' ? 'bg-red-50 text-red-600' :
+                      s.status === 'TRANSFERRED' ? 'bg-purple-50 text-purple-600' :
                       'bg-slate-100 text-slate-600'
                     }`}>
                       {s.status.replace('_', ' ')}
@@ -226,8 +256,26 @@ export default function StudentsPage() {
         count={selectedIds.length}
         onClear={() => setSelectedIds([])}
         actions={[
-          { label: 'Bulk ID Generation', icon: Receipt, onClick: () => toast('Generating IDs...', { icon: '🪪' }) },
-          { label: 'Archive Selected', icon: Trash2, variant: 'danger', onClick: () => toast('Archive coming soon', { icon: '📦' }) },
+          { label: 'Bulk ID Generation', icon: Receipt, onClick: generateBulkIdCards },
+          { label: 'Mark Dropout', icon: UserMinus, variant: 'danger' as const, onClick: async () => {
+            const reason = prompt('Enter dropout reason for selected students:');
+            if (!reason) return;
+            let success = 0;
+            for (const sid of selectedIds) {
+              try {
+                await api.post(`/student-lifecycle/${sid}/dropout/`, { reason });
+                success++;
+              } catch (err: any) {
+                toast.error(`Failed for student: ${err.response?.data?.error || 'Unknown error'}`);
+              }
+            }
+            if (success > 0) {
+              toast.success(`${success} student(s) marked as dropout.`);
+              setSelectedIds([]);
+              refetch();
+            }
+          }},
+          { label: 'Archive Selected', icon: Trash2, variant: 'danger' as const, onClick: () => toast('Archive coming soon', { icon: '📦' }) },
         ]}
       />
     </div>

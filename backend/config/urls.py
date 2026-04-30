@@ -16,20 +16,23 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from common.health import health_check
 
 urlpatterns = [
+    path('api/health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
-    path('api/', include('accounts.urls')),
-    path('api/tenants/', include('tenants.urls')),
-    path('api/', include('students.urls')),
-    path('api/', include('attendance.urls')),
-    path('api/', include('timetable.urls')),
-    path('api/', include('fees.urls')),
-    path('api/', include('expenses.urls')),
-    path('api/', include('homework.urls')),
-    path('api/', include('notifications.urls')),
-    path('api/', include('announcements.urls')),
-    path('api/', include('reports.urls')),
-    path('api/', include('staff.urls')),
-    path('api/', include('transport.urls')),
+    path('api/v1/', include('accounts.urls')),
+    path('api/v1/tenants/', include('tenants.urls')),
+    path('api/v1/', include('students.urls')),
+    path('api/v1/', include('attendance.urls')),
+    path('api/v1/', include('timetable.urls')),
+    path('api/v1/', include('fees.urls')),
+    path('api/v1/', include('expenses.urls')),
+    path('api/v1/', include('homework.urls')),
+    path('api/v1/', include('notifications.urls')),
+    path('api/v1/', include('announcements.urls')),
+    path('api/v1/', include('reports.urls')),
+    path('api/v1/', include('staff.urls')),
+    path('api/v1/', include('transport.urls')),
+    path('api/v1/', include('document_templates.urls')),
 ]

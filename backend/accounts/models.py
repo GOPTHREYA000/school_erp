@@ -42,6 +42,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    must_change_password = models.BooleanField(
+        default=False,
+        help_text='Forces the user to change their password on next login.'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = UserManager()

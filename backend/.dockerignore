@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Database
+db.sqlite3
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Node (frontend)
+node_modules/
+.next/
+
+# Logs & temp files
+logs/
+*.log
+server_output_log.txt
+server_pid.txt
+tmp/
+
+# Test & seed scripts (not needed in image)
+test_*.py
+seed_*.py
+check_urls.py
+split_invoices.py
+generate_mock_dash_data.py
+validate_system.py
+
+# Documentation
+*.md
+docs/
+
+# Planning & agent files
+.planning/
+.agent/
+.gemini/

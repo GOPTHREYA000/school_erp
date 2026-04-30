@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from accounts.permissions import IsBranchAdminOrAbove, IsSuperAdmin
+from accounts.permissions import IsAccountantOrAbove, IsSuperAdmin
 from accounts.utils import get_validated_branch_id, get_active_academic_year
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -19,7 +19,7 @@ from decimal import Decimal
 
 
 class ReportingViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     # ─── Helpers ────────────────────────────────────────────────
     def _get_branch_id(self, request):

@@ -4,32 +4,25 @@ import React, { useState } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import { 
-  Bus, MapPin, Navigation, IndianRupee, 
-  Search, Plus, Users, Filter, Trash2, 
+  Bus, Navigation, IndianRupee, 
+  Search, Plus, Users, Trash2, 
   CheckCircle, AlertTriangle, UserPlus, 
-  Settings2, MoreVertical
+  Settings2, MoreVertical, X
 } from 'lucide-react';
 import { useBranch } from '@/components/common/BranchContext';
 import EnrollStudentModal from '@/components/transport/EnrollStudentModal';
-import RouteFormModal from '@/components/transport/RouteFormModal';
-import UpdateStudentRouteModal from '@/components/transport/UpdateStudentRouteModal';
+import UpdateStudentDistanceModal from '@/components/transport/UpdateStudentDistanceModal';
 
 export default function TransportPage() {
   const { selectedBranch } = useBranch();
-  const [activeTab, setActiveTab] = useState<'students' | 'routes' | 'rates'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'rates'>('students');
   const [search, setSearch] = useState('');
-  const [routeFilter, setRouteFilter] = useState('');
   const [showEnrollModal, setShowEnrollModal] = useState(false);
-  const [showRouteModal, setShowRouteModal] = useState(false);
   const [selectedStudentForUpdate, setSelectedStudentForUpdate] = useState<any>(null);
 
   // Data fetching
   const { data: students, loading: studentsLoading, refetch: refetchStudents } = useApi<any[]>(
-    `/transport/students/?branch_id=${selectedBranch}&search=${search}${routeFilter ? '&route='+routeFilter : ''}`
-  );
-  
-  const { data: routes, loading: routesLoading, refetch: refetchRoutes } = useApi<any[]>(
-    `/transport/routes/?branch_id=${selectedBranch}`
+    `/transport/students/?branch_id=${selectedBranch}&search=${search}`
   );
   
   const { data: rates, loading: ratesLoading, refetch: refetchRates } = useApi<any[]>(
@@ -45,7 +38,7 @@ export default function TransportPage() {
              <Bus className="text-blue-600" />
              Transport Management
            </h1>
-           <p className="text-gray-500 text-sm mt-1">Manage bus routes, student allocation, and distance-based fee slabs.</p>
+           <p className="text-gray-500 text-sm mt-1">Manage student transport allocation and distance-based fee slabs.</p>
         </div>
         <div className="flex gap-3">
           <button 
@@ -62,7 +55,6 @@ export default function TransportPage() {
       <div className="flex gap-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-sm w-fit">
         {[
           { id: 'students', label: 'Enrolled Students', icon: Users },
-          { id: 'routes', label: 'Routes', icon: Navigation },
           { id: 'rates', label: 'Rate Slabs', icon: IndianRupee },
         ].map(tab => (
           <button 
@@ -94,21 +86,12 @@ export default function TransportPage() {
                    onChange={e => setSearch(e.target.value)}
                  />
                </div>
-               {routeFilter && (
-                 <button 
-                   onClick={() => setRouteFilter('')}
-                   className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100"
-                 >
-                   Filtered by Route <X size={12} />
-                 </button>
-               )}
             </div>
             
             <table className="w-full text-sm text-left">
                <thead className="bg-slate-50/50 border-b border-gray-100 uppercase text-[10px] font-black text-slate-500 tracking-wider">
                   <tr>
                     <th className="px-6 py-4">Student</th>
-                    <th className="px-6 py-4">Route</th>
                     <th className="px-6 py-4">Pickup Point</th>
                     <th className="px-6 py-4 text-center">Distance</th>
                     <th className="px-6 py-4 text-right">Monthly Fee</th>
@@ -129,15 +112,7 @@ export default function TransportPage() {
                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">{s.admission_number} • {s.class_section}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-medium text-slate-700">
-                        <div className="flex items-center gap-2">
-                           <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                             <Navigation size={12} />
-                           </div>
-                           {s.route_name}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 truncate max-w-[150px]">
+                      <td className="px-6 py-4 text-slate-500 truncate max-w-[200px]">
                         {s.pickup_point || 'Not specified'}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -165,64 +140,6 @@ export default function TransportPage() {
                   ))}
                </tbody>
             </table>
-          </div>
-        )}
-
-        {activeTab === 'routes' && (
-          <div className="p-8 animate-in fade-in duration-300">
-             <div className="flex items-center justify-between mb-8">
-               <h3 className="font-bold text-slate-900">Configured Routes</h3>
-               <button 
-                 onClick={() => setShowRouteModal(true)}
-                 className="text-blue-600 text-xs font-bold flex items-center gap-1 hover:underline"
-               >
-                 <Plus size={14} /> Add New Route
-               </button>
-             </div>
-             
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {routes?.map(route => (
-                  <div key={route.id} 
-                    onClick={() => {
-                        setRouteFilter(route.id);
-                        setActiveTab('students');
-                    }}
-                    className="group p-5 rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/5 transition-all relative overflow-hidden cursor-pointer"
-                  >
-                     <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoreVertical size={16} className="text-slate-400" />
-                     </div>
-                     <div className="flex items-start gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30">
-                           <Bus size={24} />
-                        </div>
-                        <div>
-                           <h4 className="font-bold text-slate-900">{route.name}</h4>
-                           <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{route.distance_km} KM Total</span>
-                        </div>
-                     </div>
-                     
-                     <div className="space-y-3 relative before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                        <div className="flex items-center gap-3 pl-6 relative">
-                           <div className="absolute left-0 w-4 h-4 rounded-full border-2 border-slate-200 bg-white" />
-                           <span className="text-xs text-slate-500">{route.start_point}</span>
-                        </div>
-                        <div className="flex items-center gap-3 pl-6 relative">
-                           <div className="absolute left-0 w-4 h-4 rounded-full border-2 border-blue-500 bg-white" />
-                           <span className="text-xs font-bold text-slate-900">{route.end_point}</span>
-                        </div>
-                     </div>
-                     
-                     <div className="mt-5 pt-4 border-t border-slate-50 flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase">
-                           <Users size={12} />
-                           {route.student_count} Enrolled
-                        </div>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase">Active</span>
-                     </div>
-                  </div>
-                ))}
-             </div>
           </div>
         )}
 
@@ -261,7 +178,7 @@ export default function TransportPage() {
                    </div>
                    <div>
                       <h4 className="text-sm font-bold text-amber-900 mb-1">Pricing Constraint Warning</h4>
-                      <p className="text-xs text-amber-700 opacity-80 leading-relaxed">Ensure rate slabs cover all possible distances. If a student's distance falls outside defined slabs, the system will default to the highest available rate for that branch.</p>
+                      <p className="text-xs text-amber-700 opacity-80 leading-relaxed">Ensure rate slabs cover all possible distances. If a student's distance falls outside defined slabs, the enrollment will be rejected until a matching slab is configured.</p>
                    </div>
                 </div>
              </div>
@@ -276,25 +193,15 @@ export default function TransportPage() {
         onSuccess={() => {
           setShowEnrollModal(false);
           refetchStudents();
-          refetchRoutes();
         }}
       />
-      <RouteFormModal 
-        isOpen={showRouteModal}
-        onClose={() => setShowRouteModal(false)}
-        onSuccess={() => {
-          setShowRouteModal(false);
-          refetchRoutes();
-        }}
-      />
-      <UpdateStudentRouteModal
+      <UpdateStudentDistanceModal
         isOpen={!!selectedStudentForUpdate}
         onClose={() => setSelectedStudentForUpdate(null)}
         studentData={selectedStudentForUpdate}
         onSuccess={() => {
           setSelectedStudentForUpdate(null);
           refetchStudents();
-          refetchRoutes();
         }}
       />
     </div>

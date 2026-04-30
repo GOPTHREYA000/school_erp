@@ -53,7 +53,7 @@ def parent_children(request):
              total = pending.offered_total if pending else 0
              
         # Transport info
-        transport = StudentTransport.objects.filter(student=s, is_active=True).select_related('route').first()
+        transport = StudentTransport.objects.filter(student=s, is_active=True).first()
 
         data.append({
             'id': str(s.id),
@@ -65,7 +65,7 @@ def parent_children(request):
             'committed_fee': float(total or 0),
             'transport_opted': transport is not None,
             'transport_fee': float(transport.monthly_fee) if transport else 0,
-            'transport_route': transport.route.name if transport else None,
+            'transport_route': None, # Route concept removed
             'photo_url': s.photo_url,
             'relation_type': r.relation_type,
         })
@@ -261,11 +261,11 @@ def parent_child_transport(request, student_id):
     student = get_parent_student(request.user, student_id)
     if not student:
         return Response({'detail': 'Permission denied'}, status=403)
-    transport = StudentTransport.objects.filter(student=student, is_active=True).select_related('route').first()
+    transport = StudentTransport.objects.filter(student=student, is_active=True).first()
     if not transport:
         return Response({'success': True, 'data': None})
     return Response({'success': True, 'data': {
-        'route_name': transport.route.name,
+        'route_name': 'Distance-Based Transport', # Fallback string for UI
         'pickup_point': transport.pickup_point,
         'distance_km': float(transport.distance_km),
         'monthly_fee': float(transport.monthly_fee),

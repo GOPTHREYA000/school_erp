@@ -3,27 +3,6 @@ from django.db import models
 from django.conf import settings
 
 
-class TransportRoute(models.Model):
-    """A named transport route managed by the school."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='transport_routes')
-    branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='transport_routes')
-    name = models.CharField(max_length=200)  # e.g. "Route A: School → Uppal → LB Nagar"
-    start_point = models.CharField(max_length=200, default='School')
-    end_point = models.CharField(max_length=200)
-    distance_km = models.DecimalField(max_digits=6, decimal_places=2, help_text="Total route distance in km")
-    stops = models.JSONField(default=list, blank=True, help_text="Ordered list of stop names")
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['name']
-        unique_together = ['branch', 'name']
-
-    def __str__(self):
-        return f"{self.name} ({self.distance_km} km)"
-
-
 class TransportRateSlab(models.Model):
     """Distance-based pricing slab set by the school admin per branch."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -54,10 +33,9 @@ class TransportRateSlab(models.Model):
 
 
 class StudentTransport(models.Model):
-    """Records a student's opt-in to a transport route."""
+    """Records a student's opt-in to transport, based purely on distance."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.OneToOneField('students.Student', on_delete=models.CASCADE, related_name='transport')
-    route = models.ForeignKey(TransportRoute, on_delete=models.CASCADE, related_name='students')
     distance_km = models.DecimalField(max_digits=6, decimal_places=2, help_text="Student's specific distance from school")
     pickup_point = models.CharField(max_length=200, blank=True)
     monthly_fee = models.DecimalField(max_digits=10, decimal_places=2, help_text="Resolved monthly fee from rate slab")
@@ -72,4 +50,4 @@ class StudentTransport(models.Model):
         ordering = ['-opted_at']
 
     def __str__(self):
-        return f"{self.student} → {self.route.name} ({self.distance_km} km, ₹{self.monthly_fee}/mo)"
+        return f"{self.student} ({self.distance_km} km, ₹{self.monthly_fee}/mo)"

@@ -35,8 +35,14 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
 
     with transaction.atomic():
         for student in students:
-            # Skip if invoice already exists for this student/month
-            if FeeInvoice.objects.filter(student=student, month=month).exists():
+            # Skip if academic invoice already exists for this student/month
+            has_academic = FeeInvoice.objects.filter(student=student, month=month).exclude(invoice_number__startswith='TRN-').exists()
+            has_transport = FeeInvoice.objects.filter(student=student, month=month, invoice_number__startswith='TRN-').exists()
+
+            from transport.models import StudentTransport
+            active_transport = StudentTransport.objects.filter(student=student, is_active=True).first()
+
+            if has_academic and (has_transport or not active_transport):
                 skipped += 1
                 continue
 
@@ -54,11 +60,6 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
                 continue
 
             from .models import DocumentSequence
-            invoice_number = DocumentSequence.get_next_sequence(
-                branch=student.branch, 
-                document_type='INVOICE', 
-                prefix=f"INV-{student.branch.branch_code}-{month}"
-            )
 
             gross = Decimal('0.00')
             invoice_items = []
@@ -84,32 +85,39 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
                         final_amount=item.amount,
                     ))
 
-            # Optional: Add class specific fees or student specific overrides here
-            
             # Apply Concessions (Simplify for now: hard-code 0)
             discount = Decimal('0.00')
-            net_amount = gross - discount
+            academic_net = gross - discount
 
-            invoice = FeeInvoice.objects.create(
-                tenant=student.tenant,
-                branch=student.branch,
-                academic_year_id=academic_year_id,
-                student=student,
-                month=month,
-                invoice_number=invoice_number,
-                due_date=date.today().replace(day=10), # Due by 10th of the month
-                gross_amount=gross,
-                concession_amount=discount,
-                net_amount=net_amount,
-                outstanding_amount=net_amount,
-                status='SENT',
-                generated_by='AUTO'
-            )
+            if invoice_items and not has_academic:
+                invoice_number = DocumentSequence.get_next_sequence(
+                    branch=student.branch, 
+                    document_type='INVOICE', 
+                    prefix=f"INV-{student.branch.branch_code}-{month}"
+                )
+                invoice = FeeInvoice.objects.create(
+                    tenant=student.tenant,
+                    branch=student.branch,
+                    academic_year_id=academic_year_id,
+                    student=student,
+                    month=month,
+                    invoice_number=invoice_number,
+                    due_date=date.today().replace(day=10),
+                    gross_amount=gross,
+                    concession_amount=discount,
+                    net_amount=academic_net,
+                    outstanding_amount=academic_net,
+                    status='SENT',
+                    generated_by='AUTO'
+                )
 
-            # Link items using bulk_create since we generated the invoice primary key
-            for item in invoice_items:
-                item.invoice = invoice
-            FeeInvoiceItem.objects.bulk_create(invoice_items)
+                for item in invoice_items:
+                    item.invoice = invoice
+                FeeInvoiceItem.objects.bulk_create(invoice_items)
+
+            # Also generate transport invoice if needed
+            if active_transport and not has_transport:
+                _create_transport_invoice(student, academic_year_id, month, active_transport)
 
             generated += 1
 
@@ -126,6 +134,83 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
         'skipped': skipped,
         'errors': errors
     }
+
+
+def generate_transport_invoice_only(student_id, academic_year_id, month):
+    """
+    Generate ONLY a transport invoice for a specific student.
+    Called from the Student Profile "Generate Invoice" button.
+    Does NOT create academic invoices.
+    """
+    student = Student.objects.filter(id=student_id, status='ACTIVE').first()
+    if not student:
+        return {'error': 'Student not found or not active.'}
+
+    from transport.models import StudentTransport
+    active_transport = StudentTransport.objects.filter(student=student, is_active=True).first()
+    if not active_transport:
+        return {'error': 'Student is not enrolled in transport.'}
+
+    # Check if transport invoice already exists for this month
+    has_transport = FeeInvoice.objects.filter(
+        student=student, month=month, invoice_number__startswith='TRN-'
+    ).exists()
+    if has_transport:
+        return {'error': f'Transport invoice already exists for {month}.'}
+
+    with transaction.atomic():
+        _create_transport_invoice(student, academic_year_id, month, active_transport)
+
+    return {'success': True}
+
+
+def _create_transport_invoice(student, academic_year_id, month, active_transport):
+    """Internal helper: creates a single transport invoice + line item."""
+    from .models import FeeCategory as FC, DocumentSequence
+
+    transport_cat, _ = FC.objects.get_or_create(
+        branch=student.branch,
+        code='TRANSPORT',
+        defaults={
+            'tenant': student.tenant,
+            'name': 'Transport Fee',
+            'description': 'Monthly school transport fee',
+            'is_active': True,
+            'order': 99,
+        }
+    )
+    transport_amount = active_transport.monthly_fee
+    transport_invoice_number = DocumentSequence.get_next_sequence(
+        branch=student.branch,
+        document_type='INVOICE',
+        prefix=f"TRN-{student.branch.branch_code}-{month}"
+    )
+
+    transport_invoice = FeeInvoice.objects.create(
+        tenant=student.tenant,
+        branch=student.branch,
+        academic_year_id=academic_year_id,
+        student=student,
+        month=month,
+        invoice_number=transport_invoice_number,
+        due_date=date.today().replace(day=10),
+        gross_amount=transport_amount,
+        concession_amount=Decimal('0.00'),
+        net_amount=transport_amount,
+        outstanding_amount=transport_amount,
+        status='SENT',
+        generated_by='AUTO'
+    )
+
+    FeeInvoiceItem.objects.create(
+        invoice=transport_invoice,
+        category=transport_cat,
+        original_amount=transport_amount,
+        concession=Decimal('0.00'),
+        final_amount=transport_amount,
+        description=f"Transport: {active_transport.pickup_point} ({active_transport.distance_km} km)"
+    )
+    return transport_invoice
 
 
 def process_initial_payment(user, student, admission_fee, tuition_payment, payment_mode, payment_date, reference_number=None):

@@ -11,7 +11,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 logger = logging.getLogger(__name__)
 
 from .serializers import CustomTokenObtainPairSerializer
-
+from django.middleware.csrf import get_token
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     from .throttles import LoginRateThrottle
@@ -28,7 +28,15 @@ class LoginView(TokenObtainPairView):
             raise e
 
         is_secure = not settings.DEBUG
-        response = Response({"success": True, "message": "Login successful"}, status=status.HTTP_200_OK)
+        # Force setting the CSRF token cookie on login
+        get_token(request)
+        # Resolve user from serializer to check flags
+        user = serializer.user
+        response = Response({
+            "success": True,
+            "message": "Login successful",
+            "must_change_password": getattr(user, 'must_change_password', False),
+        }, status=status.HTTP_200_OK)
         # Set cookies
         response.set_cookie(
             'access_token',
@@ -62,6 +70,8 @@ class RefreshView(TokenRefreshView):
             return Response({"success": False, "error": {"code": "TOKEN_EXPIRED"}}, status=status.HTTP_401_UNAUTHORIZED)
 
         is_secure = not settings.DEBUG
+        # Force setting the CSRF token cookie on refresh
+        get_token(request)
         response = Response({"success": True}, status=status.HTTP_200_OK)
         response.set_cookie(
             'access_token',
@@ -93,7 +103,9 @@ class MeView(APIView):
 
     def get(self, request):
         serializer = UserSerializer(request.user)
-        return Response({"success": True, "data": serializer.data})
+        data = serializer.data
+        data['must_change_password'] = request.user.must_change_password
+        return Response({"success": True, "data": data})
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
@@ -105,6 +117,8 @@ class ChangePasswordView(APIView):
             if not request.user.check_password(serializer.data.get("old_password")):
                 return Response({"error": "Wrong password."}, status=status.HTTP_400_BAD_REQUEST)
             request.user.set_password(serializer.data.get("new_password"))
+            # Clear the forced password change flag after successful update
+            request.user.must_change_password = False
             request.user.save()
             return Response({"success": True, "message": "Password updated successfully"}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

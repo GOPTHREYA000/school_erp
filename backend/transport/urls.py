@@ -3,7 +3,6 @@ from rest_framework.routers import DefaultRouter
 from . import views
 
 router = DefaultRouter()
-router.register(r'routes', views.TransportRouteViewSet, basename='transport-route')
 router.register(r'rate-slabs', views.TransportRateSlabViewSet, basename='transport-rate-slab')
 router.register(r'students', views.StudentTransportViewSet, basename='student-transport')
 

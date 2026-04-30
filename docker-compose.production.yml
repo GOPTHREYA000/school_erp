@@ -1,0 +1,81 @@
+# docker-compose.production.yml
+#
+# Self-hosted production deployment (e.g., Hetzner, DigitalOcean Droplet).
+# NOT needed for DO App Platform (which uses Procfile).
+#
+# Usage:
+#   docker-compose -f docker-compose.production.yml up -d --build
+#
+# Required: Create a .env.production file with all production env vars.
+
+services:
+  web:
+    build: ./backend
+    container_name: scoolerp_web
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 120
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    volumes:
+      - static-files:/app/staticfiles
+
+  worker:
+    build: ./backend
+    container_name: scoolerp_worker
+    command: celery -A config worker --loglevel=info --concurrency=2
+    env_file:
+      - ./backend/.env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  beat:
+    build: ./backend
+    container_name: scoolerp_beat
+    command: celery -A config beat --loglevel=info
+    env_file:
+      - ./backend/.env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: scoolerp_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-scoolerp_db}
+      POSTGRES_USER: ${POSTGRES_USER:-scoolerp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: scoolerp_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  pg-data:
+  redis-data:
+  static-files:
