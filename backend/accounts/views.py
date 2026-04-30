@@ -44,7 +44,7 @@ class LoginView(TokenObtainPairView):
             max_age=3600,
             httponly=True,
             secure=is_secure,
-            samesite='Lax'
+            samesite=settings.SIMPLE_JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
         )
         response.set_cookie(
             'refresh_token',
@@ -52,7 +52,7 @@ class LoginView(TokenObtainPairView):
             max_age=86400 * 7,
             httponly=True,
             secure=is_secure,
-            samesite='Lax'
+            samesite=settings.SIMPLE_JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
         )
         return response
 
@@ -79,7 +79,7 @@ class RefreshView(TokenRefreshView):
             max_age=3600,
             httponly=True,
             secure=is_secure,
-            samesite='Lax'
+            samesite=settings.SIMPLE_JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
         )
         return response
 
