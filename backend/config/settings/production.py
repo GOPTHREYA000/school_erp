@@ -50,10 +50,11 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 X_FRAME_OPTIONS = 'DENY'
 
-# JWT cookies must be secure in production
+# JWT cookies must be secure and cross-domain in production
 SIMPLE_JWT['AUTH_COOKIE_SECURE'] = True
-
-
+SIMPLE_JWT['AUTH_COOKIE_SAMESITE'] = 'None'
+SESSION_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SAMESITE = 'None'
 # ─── Storage (DigitalOcean Spaces / S3) ────────────────────────
 USE_S3 = os.environ.get('USE_S3', 'True') == 'True'
 
