@@ -464,6 +464,7 @@ function BranchManager() {
 }
 
 function ClassAndFeeSetup() {
+  const { confirm } = useConfirm();
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedAY, setSelectedAY] = useState('');
   const { data: branches } = useApi<any[]>('/tenants/branches/');
@@ -499,6 +500,50 @@ function ClassAndFeeSetup() {
       await api.post('classes/', { grade, section: 'A', branch: selectedBranch, academic_year: selectedAY, max_capacity: 40 });
       refetch();
     } catch (err) { toast.error("Error creating class"); }
+  };
+
+  const handleEditGrade = async (grade: string) => {
+    const newGrade = prompt(`Edit Grade Name for ${grade}:`, grade);
+    if (!newGrade || newGrade === grade) return;
+    
+    const gradeClasses = classes?.filter(c => c.grade === grade) || [];
+    try {
+      await Promise.all(gradeClasses.map(c => api.patch(`classes/${c.id}/`, { grade: newGrade })));
+      // Update fee structure name and grade
+      const structure = structures?.find(s => s.grade === grade);
+      if (structure) {
+        await api.patch(`fees/structures/${structure.id}/`, { grade: newGrade, name: `Fees for ${newGrade}` });
+      }
+      toast.success("Grade updated successfully");
+      refetch();
+      refetchStructures();
+    } catch (err) {
+      toast.error("Error updating grade");
+    }
+  };
+
+  const handleDeleteGrade = async (grade: string) => {
+    const isConfirmed = await confirm({
+      title: "Delete Grade",
+      message: `Are you sure you want to delete Grade ${grade}? This will also remove its classes and fee structures.`,
+      isDestructive: true
+    });
+    
+    if (isConfirmed) {
+      const gradeClasses = classes?.filter(c => c.grade === grade) || [];
+      try {
+        await Promise.all(gradeClasses.map(c => api.delete(`classes/${c.id}/`)));
+        const structure = structures?.find(s => s.grade === grade);
+        if (structure) {
+          await api.delete(`fees/structures/${structure.id}/`);
+        }
+        toast.success("Grade deleted successfully");
+        refetch();
+        refetchStructures();
+      } catch (err) {
+        toast.error("Error deleting grade");
+      }
+    }
   };
 
   // ─── Transport Rate Slab Handler (uses dedicated transport/rate-slabs/ API) ───
@@ -691,9 +736,12 @@ function ClassAndFeeSetup() {
                         <button onClick={() => handleUpdateFee(grade, 'Tuition', 0)} className="text-blue-600 hover:underline">Set Tuition</button>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleUpdateFee(grade, 'Tuition', tuitionItem?.amount || 0)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                    <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                      <button onClick={() => handleEditGrade(grade)} title="Rename Grade" className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
                         <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => handleDeleteGrade(grade)} title="Delete Grade" className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                        <Trash2 size={16} />
                       </button>
                     </td>
                   </tr>

@@ -56,8 +56,8 @@ class ClassSection(models.Model):
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='class_sections')
     branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='class_sections')
     academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='class_sections', db_index=True)
-    grade = models.CharField(max_length=20, choices=GRADE_CHOICES, db_index=True)
-    section = models.CharField(max_length=5)
+    grade = models.CharField(max_length=50, choices=GRADE_CHOICES, db_index=True)
+    section = models.CharField(max_length=50)
     display_name = models.CharField(max_length=50, blank=True)
     class_teacher = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='class_teacher_of'
@@ -450,8 +450,8 @@ class ClassPromotionMap(models.Model):
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='promotion_maps')
     branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='promotion_maps')
     academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='promotion_maps')
-    from_grade = models.CharField(max_length=20, choices=GRADE_CHOICES)
-    to_grade = models.CharField(max_length=20, choices=GRADE_CHOICES)
+    from_grade = models.CharField(max_length=50, choices=GRADE_CHOICES)
+    to_grade = models.CharField(max_length=50, choices=GRADE_CHOICES)
 
     class Meta:
         unique_together = ['branch', 'academic_year', 'from_grade']

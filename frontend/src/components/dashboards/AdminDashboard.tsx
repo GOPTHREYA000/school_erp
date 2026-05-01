@@ -22,29 +22,43 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    const params = `branch_id=${selectedBranch || ''}`;
-    
-    Promise.all([
-      api.get(`reports/finance/summary/?days=30&${params}`).catch(() => ({ data: { data: [] } })),
-      api.get(`reports/fees/stats/?${params}`).catch(() => ({ data: { data: {} } })),
-      api.get(`reports/attendance/stats/?${params}`).catch(() => ({ data: { data: [] } })),
-      api.get(`reports/analytics/branch-distribution/?${params}`).catch(() => ({ data: { data: [] } })),
-      api.get(`reports/analytics/fee-collection-by-branch/?${params}`).catch(() => ({ data: { data: [] } })),
-      api.get(`reports/analytics/expense-breakdown/?days=30&${params}`).catch(() => ({ data: { data: [] } })),
-      api.get(`reports/analytics/admission-funnel/?${params}`).catch(() => ({ data: { data: [] } })),
-    ]).then(([financeRes, feeRes, attRes, branchRes, feeBranchRes, expRes, funnelRes]) => {
-      setData({
-        finance: financeRes.data.data || [],
-        stats: feeRes.data.data || {},
-        attendance: attRes.data.data || [],
-        branchDistribution: branchRes.data.data || [],
-        feeCollectionByBranch: feeBranchRes.data.data || [],
-        expenseBreakdown: expRes.data.data || [],
-        admissionFunnel: funnelRes.data.data || []
+    let isMounted = true;
+
+    const fetchData = (isInitial = false) => {
+      if (isInitial) setLoading(true);
+      const params = `branch_id=${selectedBranch || ''}`;
+      
+      Promise.all([
+        api.get(`reports/finance/summary/?days=30&${params}`).catch(() => ({ data: { data: [] } })),
+        api.get(`reports/fees/stats/?${params}`).catch(() => ({ data: { data: {} } })),
+        api.get(`reports/attendance/stats/?${params}`).catch(() => ({ data: { data: [] } })),
+        api.get(`reports/analytics/branch-distribution/?${params}`).catch(() => ({ data: { data: [] } })),
+        api.get(`reports/analytics/fee-collection-by-branch/?${params}`).catch(() => ({ data: { data: [] } })),
+        api.get(`reports/analytics/expense-breakdown/?days=30&${params}`).catch(() => ({ data: { data: [] } })),
+        api.get(`reports/analytics/admission-funnel/?${params}`).catch(() => ({ data: { data: [] } })),
+      ]).then(([financeRes, feeRes, attRes, branchRes, feeBranchRes, expRes, funnelRes]) => {
+        if (!isMounted) return;
+        setData({
+          finance: financeRes.data.data || [],
+          stats: feeRes.data.data || {},
+          attendance: attRes.data.data || [],
+          branchDistribution: branchRes.data.data || [],
+          feeCollectionByBranch: feeBranchRes.data.data || [],
+          expenseBreakdown: expRes.data.data || [],
+          admissionFunnel: funnelRes.data.data || []
+        });
+        if (isInitial) setLoading(false);
       });
-      setLoading(false);
-    });
+    };
+
+    fetchData(true);
+    // Poll for real-time updates every 30 seconds
+    const interval = setInterval(() => fetchData(false), 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [selectedBranch]);
 
   if (loading) return <div className="animate-pulse h-96 bg-gray-100 rounded-2xl w-full"></div>;

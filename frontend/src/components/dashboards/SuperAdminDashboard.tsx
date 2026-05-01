@@ -15,19 +15,33 @@ export default function SuperAdminDashboard({ user }: { user: any }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      api.get(`reports/platform/summary/`).catch(() => ({ data: { data: {} } })),
-      api.get(`reports/platform/growth/`).catch(() => ({ data: { data: [] } })),
-      api.get(`reports/platform/roles/`).catch(() => ({ data: { data: [] } })),
-    ]).then(([summaryRes, growthRes, rolesRes]) => {
-      setData({
-        summary: summaryRes.data?.data || {},
-        growth: growthRes.data?.data || [],
-        roles: rolesRes.data?.data || [],
+    let isMounted = true;
+
+    const fetchData = (isInitial = false) => {
+      if (isInitial) setLoading(true);
+      Promise.all([
+        api.get(`reports/platform/summary/`).catch(() => ({ data: { data: {} } })),
+        api.get(`reports/platform/growth/`).catch(() => ({ data: { data: [] } })),
+        api.get(`reports/platform/roles/`).catch(() => ({ data: { data: [] } })),
+      ]).then(([summaryRes, growthRes, rolesRes]) => {
+        if (!isMounted) return;
+        setData({
+          summary: summaryRes.data?.data || {},
+          growth: growthRes.data?.data || [],
+          roles: rolesRes.data?.data || [],
+        });
+        if (isInitial) setLoading(false);
       });
-      setLoading(false);
-    });
+    };
+
+    fetchData(true);
+    // Poll for real-time updates every 30 seconds
+    const interval = setInterval(() => fetchData(false), 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   if (loading) return <div className="animate-pulse h-96 bg-gray-100 rounded-2xl w-full"></div>;

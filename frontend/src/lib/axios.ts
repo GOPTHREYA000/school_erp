@@ -42,6 +42,12 @@ api.interceptors.response.use(
   async (error) => {
     // If 401, we might want to trigger a refresh logic here or redirect to login.
     const originalRequest = error.config;
+    
+    // Do not intercept or retry 401s for login requests themselves
+    if (originalRequest.url && originalRequest.url.includes('auth/login/')) {
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {

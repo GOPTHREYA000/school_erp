@@ -94,8 +94,14 @@ def handle_csv_import(request):
                         row = {k.strip().lower(): (v.strip() if v else '') for k, v in row.items() if k}
                         if not any(row.values()): continue
 
-                        first_name = get_val(row, 'first_name', 'student name').strip() or 'Unknown'
+                        first_name = get_val(row, 'first_name', 'student name', 'name').strip() or 'Unknown'
                         last_name = get_val(row, 'last_name').strip()
+                        
+                        if not last_name and ' ' in first_name:
+                            parts = first_name.rsplit(' ', 1)
+                            first_name = parts[0]
+                            last_name = parts[1]
+                            
                         dob_raw = get_val(row, 'date_of_birth', 'dob').strip()
                         gender = get_val(row, 'gender').strip().upper()
                         grade_str = get_val(row, 'grade', 'class').strip()
@@ -111,11 +117,23 @@ def handle_csv_import(request):
 
                     grade = None
                     if grade_str:
-                        grade_upper = grade_str.upper().strip()
-                        grade_lower = grade_str.lower().strip()
-                        if grade_upper in dict(GRADE_CHOICES): grade = grade_upper
-                        elif grade_lower in grade_map: grade = grade_map[grade_lower]
-                        elif grade_str.strip() in dict(GRADE_CHOICES): grade = grade_str.strip()
+                        g_clean = grade_str.upper().strip()
+                        g_clean = g_clean.replace('GRADE', '').replace('CLASS', '').strip()
+                        
+                        roman_map = {'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5', 'VI': '6', 'VII': '7', 'VIII': '8', 'IX': '9', 'X': '10', 'XI': '11', 'XII': '12'}
+                        if g_clean in roman_map:
+                            g_clean = roman_map[g_clean]
+                            
+                        for k, v in GRADE_CHOICES:
+                            if g_clean == k or g_clean == v.upper().replace('GRADE ', ''):
+                                grade = k
+                                break
+                        
+                        if not grade and grade_str.upper().strip() in dict(GRADE_CHOICES):
+                            grade = grade_str.upper().strip()
+                            
+                        if not grade:
+                            grade = grade_str[:50]
 
                     cs = None
                     if grade and section:
@@ -126,26 +144,38 @@ def handle_csv_import(request):
                             )
 
                         # Duplicate check
-                        existing = Student.objects.filter(
-                            branch=branch, academic_year=ay,
-                            first_name__iexact=first_name, last_name__iexact=last_name,
-                            date_of_birth=parsed_dob, class_section=cs,
-                        ).exists()
-                        if existing:
+                        existing_student = None
+                        if admission_number:
+                            existing_student = Student.objects.filter(
+                                branch=branch, academic_year=ay,
+                                admission_number=admission_number
+                            ).first()
+                            
+                        if not existing_student and cs:
+                            existing_student = Student.objects.filter(
+                                branch=branch, academic_year=ay,
+                                first_name__iexact=first_name, last_name__iexact=last_name,
+                                date_of_birth=parsed_dob, class_section=cs,
+                            ).first()
+                            
+                        is_new_student = False
+                        if existing_student:
+                            student = existing_student
                             skipped_duplicates += 1
-                            continue
+                        else:
+                            is_new_student = True
+                            if not admission_number:
+                                admission_number = Student.generate_admission_number(branch, ay)
 
-                    if not admission_number:
-                        admission_number = Student.generate_admission_number(branch, ay)
-                        
-                    if Student.objects.filter(branch=branch, academic_year=ay, admission_number=admission_number).exists():
-                        # If auto-generated clashes (rare) or provided clashes
-                        admission_number = Student.generate_admission_number(branch, ay)
+                    if is_new_student:
+                        if Student.objects.filter(branch=branch, academic_year=ay, admission_number=admission_number).exists():
+                            # If auto-generated clashes (rare) or provided clashes
+                            admission_number = Student.generate_admission_number(branch, ay)
 
-                    # Map all optional fields from CSV
-                    student = Student.objects.create(
-                        tenant=tenant,
-                        branch=branch,
+                        # Map all optional fields from CSV
+                        student = Student.objects.create(
+                            tenant=tenant,
+                            branch=branch,
                             academic_year=ay,
                             class_section=cs,
                             first_name=first_name,
@@ -162,22 +192,22 @@ def handle_csv_import(request):
                             mother_tongue=row.get('mother_tongue') or None,
                             nationality=row.get('nationality') or 'Indian',
                             # Father Info
-                            father_name=get_val(row, 'father_name', 'parent name') or None,
-                            father_phone=get_val(row, 'father_phone', 'parent mobile') or None,
+                            father_name=get_val(row, 'father_name', 'parent name', 'father name') or None,
+                            father_phone=get_val(row, 'father_phone', 'parent mobile', 'father mobile') or None,
                             father_email=row.get('father_email') or None,
                             father_qualification=row.get('father_qualification') or None,
                             father_occupation=row.get('father_occupation') or None,
                             father_aadhaar=row.get('father_aadhaar') or None,
                             # Mother Info
-                            mother_name=row.get('mother_name') or None,
-                            mother_phone=row.get('mother_phone') or None,
+                            mother_name=get_val(row, 'mother_name', 'mother name') or None,
+                            mother_phone=get_val(row, 'mother_phone', 'mother mobile') or None,
                             mother_email=row.get('mother_email') or None,
                             mother_qualification=row.get('mother_qualification') or None,
                             mother_occupation=row.get('mother_occupation') or None,
                             mother_aadhaar=row.get('mother_aadhaar') or None,
                             # Guardian Info
-                            guardian_name=row.get('guardian_name') or None,
-                            guardian_phone=row.get('guardian_phone') or None,
+                            guardian_name=get_val(row, 'guardian_name', 'guardian name') or None,
+                            guardian_phone=get_val(row, 'guardian_phone', 'guardian mobile') or None,
                             guardian_relation=row.get('guardian_relation') or None,
                             # Address
                             address_line1=row.get('address') or row.get('address_line1') or None,
@@ -199,9 +229,9 @@ def handle_csv_import(request):
                             status='ACTIVE',
                         )
 
-                    father_info = {'phone': student.father_phone, 'email': student.father_email, 'name': student.father_name}
-                    mother_info = {'phone': student.mother_phone, 'email': student.mother_email, 'name': student.mother_name}
-                    link_parent_accounts_to_student(student, father_info, mother_info, tenant, branch)
+                        father_info = {'phone': student.father_phone, 'email': student.father_email, 'name': student.father_name}
+                        mother_info = {'phone': student.mother_phone, 'email': student.mother_email, 'name': student.mother_name}
+                        link_parent_accounts_to_student(student, father_info, mother_info, tenant, branch)
                     
                     # --- FINANCIAL MIGRATION LOGIC ---
                     total_fee_raw = get_val(row, 'total_fee', 'total amount (₹)').replace(',', '').replace('"', '').strip()
@@ -304,7 +334,8 @@ def handle_csv_import(request):
                             )
                     else:
                         # Normal new student flow — auto-link to existing FeeStructures
-                        create_student_fees(student, None, None, 'Auto-generated on CSV Import', user)
+                        if is_new_student:
+                            create_student_fees(student, None, None, 'Auto-generated on CSV Import', user)
                     
                     success_count += 1
                         
