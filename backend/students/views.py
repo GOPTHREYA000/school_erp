@@ -504,10 +504,29 @@ class StudentViewSet(viewsets.ModelViewSet):
         return Response({'success': True, 'message': f'Successfully promoted {promoted_count} students.', 'promoted_count': promoted_count})
 
     @action(detail=False, methods=['post'], url_path='import-csv')
-    @transaction.atomic
     def import_csv(self, request):
         from .csv_import import handle_csv_import
         return handle_csv_import(request)
+
+    @action(detail=False, methods=['get'], url_path='import-csv/status/(?P<job_id>[^/.]+)')
+    def import_csv_status(self, request, job_id=None):
+        from .models import CsvImportJob
+        try:
+            job = CsvImportJob.objects.get(id=job_id, tenant=request.user.tenant)
+            return Response({
+                'success': True,
+                'data': {
+                    'id': job.id,
+                    'status': job.status,
+                    'total_rows': job.total_rows,
+                    'processed_rows': job.processed_rows,
+                    'success_count': job.success_count,
+                    'skipped_duplicates': job.skipped_duplicates,
+                    'errors': job.error_log
+                }
+            })
+        except CsvImportJob.DoesNotExist:
+            return Response({'success': False, 'detail': 'Job not found'}, status=404)
 
 class ParentStudentRelationViewSet(viewsets.ModelViewSet):
     serializer_class = ParentStudentRelationSerializer

@@ -461,3 +461,39 @@ class ClassPromotionMap(models.Model):
 
     def __str__(self):
         return f"{self.from_grade} → {self.to_grade} ({self.academic_year.name})"
+
+
+# ─── CsvImportJob ──────────────────────────────────────────────
+class CsvImportJob(models.Model):
+    """Tracks background CSV import jobs via Celery."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, related_name='csv_import_jobs')
+    branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='csv_import_jobs', null=True, blank=True)
+    academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='csv_import_jobs', null=True, blank=True)
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('PROCESSING', 'Processing'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed')
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    
+    file = models.FileField(upload_to='csv_imports/')
+    
+    total_rows = models.PositiveIntegerField(default=0)
+    processed_rows = models.PositiveIntegerField(default=0)
+    success_count = models.PositiveIntegerField(default=0)
+    skipped_duplicates = models.PositiveIntegerField(default=0)
+    
+    error_log = models.JSONField(default=list, blank=True)
+    
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='csv_import_jobs')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"CSV Import Job {self.id} ({self.status})"
