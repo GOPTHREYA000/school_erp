@@ -17,6 +17,7 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState('');
+  const [isPartial, setIsPartial] = useState(false);
   const [importStats, setImportStats] = useState<{ imported: number; skipped: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,6 +68,7 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
     setUploading(true);
     setErrors([]);
     setSuccessMsg('');
+    setIsPartial(false);
     setImportStats(null);
 
     const formData = new FormData();
@@ -79,25 +81,36 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const data = res.data;
+
+      // Partial success: some rows imported, some failed
+      const partial = data.partial === true;
+      setIsPartial(partial);
       setSuccessMsg(data.message || 'Import successful.');
       setImportStats({
         imported: data.imported_count || 0,
         skipped: data.skipped_duplicates || 0,
       });
-      toast.success(data.message || 'Import successful.');
-      setTimeout(() => {
+
+      if (data.errors && data.errors.length > 0) {
+        setErrors(data.errors);
+      }
+
+      if (partial) {
+        toast.success(`Imported ${data.imported_count} student(s). ${data.errors?.length || 0} row(s) had errors.`);
+        // Don't auto-close so the user can see which rows failed
         onSuccess();
-        handleClose();
-      }, 2000);
+      } else {
+        toast.success(data.message || 'Import successful.');
+        setTimeout(() => {
+          onSuccess();
+          handleClose();
+        }, 2000);
+      }
     } catch (err: any) {
       const data = err.response?.data;
-      if (data?.errors && Array.isArray(data.errors)) {
-        setErrors(data.errors);
-        toast.error(data.detail || "Import aborted. Please fix the file errors.");
-      } else {
-        toast.error(data?.detail || "Import failed.");
-        setErrors([data?.detail || "An unexpected error occurred."]);
-      }
+      const errs = data?.errors && Array.isArray(data.errors) ? data.errors : [];
+      setErrors(errs.length > 0 ? errs : [data?.detail || 'An unexpected server error occurred. Please try again.']);
+      toast.error(data?.detail || 'Import failed.');
     } finally {
       setUploading(false);
     }
@@ -107,6 +120,7 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
     setFile(null);
     setErrors([]);
     setSuccessMsg('');
+    setIsPartial(false);
     setImportStats(null);
     setUploading(false);
     setAyId('');
@@ -259,35 +273,70 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
             )}
           </div>
 
-          {errors.length > 0 && (
-            <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-rose-600 font-bold mb-2 text-sm">
-                <AlertCircle size={16} /> Import Failed — All changes rolled back
-              </div>
-              <p className="text-xs text-rose-600/80 mb-2">
-                {errors.length} error{errors.length !== 1 ? 's' : ''} found. No students were imported. Fix the issues below and re-upload.
-              </p>
-              <ul className="text-xs text-rose-700/80 space-y-1 list-disc list-inside max-h-48 overflow-y-auto pr-2 font-mono">
-                {errors.map((err, i) => <li key={i}>{err}</li>)}
-              </ul>
-            </div>
-          )}
-
+          {/* Success Banner (full or partial) */}
           {successMsg && (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+            <div className={`border rounded-xl p-4 ${
+              isPartial
+                ? 'bg-amber-50 border-amber-200'
+                : 'bg-emerald-50 border-emerald-100'
+            }`}>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                  <CheckCircle2 size={16} className="text-emerald-600" />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                  isPartial ? 'bg-amber-100' : 'bg-emerald-100'
+                }`}>
+                  <CheckCircle2 size={16} className={isPartial ? 'text-amber-600' : 'text-emerald-600'} />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-emerald-800">{successMsg}</p>
+                  <p className={`text-sm font-bold ${
+                    isPartial ? 'text-amber-800' : 'text-emerald-800'
+                  }`}>
+                    {isPartial ? 'Partial Import Complete' : 'Import Successful'}
+                  </p>
                   {importStats && (
-                    <p className="text-xs text-emerald-600/80 mt-0.5">
-                      {importStats.imported} imported{importStats.skipped > 0 ? ` · ${importStats.skipped} duplicates skipped` : ''} · Fees and parent accounts created automatically
+                    <p className={`text-xs mt-0.5 ${
+                      isPartial ? 'text-amber-600/80' : 'text-emerald-600/80'
+                    }`}>
+                      {importStats.imported} imported
+                      {importStats.skipped > 0 ? ` · ${importStats.skipped} duplicate${importStats.skipped !== 1 ? 's' : ''} skipped` : ''}
+                      {errors.length > 0 ? ` · ${errors.length} row${errors.length !== 1 ? 's' : ''} NOT imported (see below)` : ''}
+                      {' · Fees and parent accounts created automatically'}
                     </p>
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Per-row errors */}
+          {errors.length > 0 && (
+            <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-rose-600 font-bold mb-1.5 text-sm">
+                <AlertCircle size={16} />
+                {isPartial
+                  ? `${errors.length} Student${errors.length !== 1 ? 's' : ''} Could Not Be Imported`
+                  : 'Import Failed — No Students Were Imported'
+                }
+              </div>
+              <p className="text-xs text-rose-600/80 mb-2">
+                {isPartial
+                  ? 'The rows below had errors and were skipped. All other students were imported successfully.'
+                  : 'All rows failed. Fix the issues below and re-upload.'
+                }
+              </p>
+              <ul className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {errors.map((err, i) => {
+                  // Try to split "Row X (Name): error message" for nicer display
+                  const colonIdx = err.indexOf(': ');
+                  const label = colonIdx > -1 ? err.substring(0, colonIdx) : `Error ${i + 1}`;
+                  const msg   = colonIdx > -1 ? err.substring(colonIdx + 2) : err;
+                  return (
+                    <li key={i} className="text-xs bg-white border border-rose-100 rounded-lg px-3 py-2">
+                      <span className="font-bold text-rose-700">{label}: </span>
+                      <span className="text-rose-600 font-mono">{msg}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
 
