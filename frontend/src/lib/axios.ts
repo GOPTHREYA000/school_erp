@@ -11,8 +11,12 @@ const api = axios.create({
   },
 });
 
+let csrfTokenFromResponse = '';
+
 api.interceptors.request.use((config) => {
-  if (typeof document !== 'undefined') {
+  if (csrfTokenFromResponse) {
+    config.headers['X-CSRFToken'] = csrfTokenFromResponse;
+  } else if (typeof document !== 'undefined') {
     const match = document.cookie.match(/(^|;\s*)csrftoken=([^;]*)/);
     if (match && match[2]) {
       config.headers['X-CSRFToken'] = match[2];
@@ -23,6 +27,10 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
+    // Capture CSRF token if backend sends it in JSON body (solves cross-domain cookie reading issue)
+    if (response.data && response.data.csrf_token) {
+      csrfTokenFromResponse = response.data.csrf_token;
+    }
     // Automatically unwrap DRF global pagination to transparently return the array
     if (response.data && typeof response.data === 'object') {
       if (response.data.results !== undefined && response.data.count !== undefined) {

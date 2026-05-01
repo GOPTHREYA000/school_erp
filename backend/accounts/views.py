@@ -36,6 +36,7 @@ class LoginView(TokenObtainPairView):
             "success": True,
             "message": "Login successful",
             "must_change_password": getattr(user, 'must_change_password', False),
+            "csrf_token": get_token(request),
         }, status=status.HTTP_200_OK)
         # Set cookies
         response.set_cookie(
@@ -72,7 +73,7 @@ class RefreshView(TokenRefreshView):
         is_secure = not settings.DEBUG
         # Force setting the CSRF token cookie on refresh
         get_token(request)
-        response = Response({"success": True}, status=status.HTTP_200_OK)
+        response = Response({"success": True, "csrf_token": get_token(request)}, status=status.HTTP_200_OK)
         response.set_cookie(
             'access_token',
             response_data.data['access'],
@@ -105,7 +106,7 @@ class MeView(APIView):
         serializer = UserSerializer(request.user)
         data = serializer.data
         data['must_change_password'] = request.user.must_change_password
-        return Response({"success": True, "data": data})
+        return Response({"success": True, "data": data, "csrf_token": get_token(request)})
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
