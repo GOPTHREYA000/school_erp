@@ -208,4 +208,5 @@ class ParentStudentRelationSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
     def get_student_name(self, obj):
-        return f"{obj.student.first_name} {obj.student.last_name}"
+        name_parts = [obj.student.first_name, obj.student.last_name]
+        return ' '.join(p for p in name_parts if p)

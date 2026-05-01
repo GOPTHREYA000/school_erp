@@ -1,6 +1,6 @@
 import logging
 from decimal import Decimal
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from datetime import date
 from django.utils.crypto import get_random_string
 
@@ -97,7 +97,14 @@ def create_student_fees(student, offered_total, standard_total_input, reason, re
 
 
 def link_parent_accounts_to_student(student, father_info, mother_info, tenant, branch):
-    """Shared logic for creating parent users and student relations"""
+    """Shared logic for creating/finding parent users and linking them to students.
+    
+    Key behaviors:
+    - If a parent with the same phone already exists in the same tenant, reuse that account.
+    - This enables sibling linking: two children with the same parent phone get linked
+      to the same parent user account automatically.
+    - If a parent user exists but was created via email fallback, we still match by phone.
+    """
     from accounts.models import User
     from .models import ParentStudentRelation
     
@@ -107,31 +114,64 @@ def link_parent_accounts_to_student(student, father_info, mother_info, tenant, b
     ]
 
     for p in parents_data:
-        if not p['phone'] and not p['email']:
+        phone = (p['phone'] or '').strip()
+        email = (p['email'] or '').strip()
+        
+        # Skip if no contact info provided at all
+        if not phone and not email:
             continue
         
-        parent_email = p['email'] if p['email'] else f"{tenant.id}_{p['phone']}@parent.local"
+        parent_user = None
         
-        parent_user, created = User.objects.get_or_create(
-            email=parent_email,
-            defaults={
-                'first_name': p['first_name'],
-                'last_name': '',
-                'phone': p['phone'] or '',
-                'role': 'PARENT',
-                'tenant': tenant,
-                'branch': branch
-            }
-        )
-        if created:
+        # Strategy: Try to find an existing parent user in this tenant by phone or email.
+        # This enables automatic sibling linking.
+        if phone:
+            # First, try to find by phone within the same tenant
+            parent_user = User.objects.filter(
+                phone=phone, tenant=tenant, role='PARENT'
+            ).first()
+        
+        if not parent_user and email:
+            # Try by real email (not the generated @parent.local ones)
+            if not email.endswith('@parent.local'):
+                parent_user = User.objects.filter(
+                    email=email, tenant=tenant, role='PARENT'
+                ).first()
+        
+        if not parent_user:
+            # No existing parent found — create a new one
+            parent_email = email if email else f"{tenant.id}_{phone}@parent.local"
+            
+            # Ensure email uniqueness
+            if User.objects.filter(email=parent_email).exists():
+                # If the email already exists but didn't match above (cross-tenant?),
+                # generate a unique email to avoid constraint violations
+                parent_email = f"{tenant.id}_{phone}_{get_random_string(4)}@parent.local"
+            
+            parent_user = User.objects.create(
+                email=parent_email,
+                first_name=p['first_name'],
+                last_name='',
+                phone=phone,
+                role='PARENT',
+                tenant=tenant,
+                branch=branch
+            )
             # Default password for parent accounts. The parent will be forced
             # to change this on their first login via must_change_password flag.
-            default_password = p['phone'] if p['phone'] else 'Welcome@123'
+            default_password = phone if phone else 'Welcome@123'
             parent_user.set_password(default_password)
             parent_user.must_change_password = True
             parent_user.save()
-            logger.info(f"Parent account created for {parent_email} (tenant: {tenant.id})")
+            logger.info(f"Parent account created for {parent_user.email} (tenant: {tenant.id})")
+        else:
+            # Existing parent found — update name if it was empty and we have a better one now
+            if p['first_name'] and not parent_user.first_name:
+                parent_user.first_name = p['first_name']
+                parent_user.save(update_fields=['first_name'])
+            logger.info(f"Existing parent account reused: {parent_user.email} — linking sibling {student.first_name}")
         
+        # Create the parent-student relation (safe: get_or_create prevents duplicates)
         ParentStudentRelation.objects.get_or_create(
             parent=parent_user,
             student=student,

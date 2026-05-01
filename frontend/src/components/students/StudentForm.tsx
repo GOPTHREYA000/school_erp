@@ -278,8 +278,8 @@ export default function StudentForm({
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Last Name <span className="text-red-500">*</span></label>
-                <input placeholder="Enter last name" required value={formData.last_name}
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Last Name</label>
+                <input placeholder="Enter last name" value={formData.last_name}
                   onChange={e => setFormData(prev => ({...prev, last_name: e.target.value}))}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
               </div>
@@ -360,13 +360,13 @@ export default function StudentForm({
               <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest border-l-4 border-blue-600 pl-3">Father's Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Full Name <span className="text-red-500">*</span></label>
-                  <input required value={formData.father_name} onChange={e => setFormData(prev => ({...prev, father_name: e.target.value}))}
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Full Name</label>
+                  <input value={formData.father_name} onChange={e => setFormData(prev => ({...prev, father_name: e.target.value}))}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Phone Number <span className="text-red-500">*</span></label>
-                  <input required value={formData.father_phone} onChange={e => setFormData(prev => ({...prev, father_phone: e.target.value}))}
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Phone Number</label>
+                  <input value={formData.father_phone} onChange={e => setFormData(prev => ({...prev, father_phone: e.target.value}))}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
                 </div>
                 <div className="space-y-1.5">
@@ -392,8 +392,8 @@ export default function StudentForm({
               <h4 className="text-xs font-black text-pink-600 uppercase tracking-widest border-l-4 border-pink-500 pl-3">Mother's Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Full Name <span className="text-red-500">*</span></label>
-                  <input required value={formData.mother_name} onChange={e => setFormData(prev => ({...prev, mother_name: e.target.value}))}
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Full Name</label>
+                  <input value={formData.mother_name} onChange={e => setFormData(prev => ({...prev, mother_name: e.target.value}))}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-pink-500" />
                 </div>
                 <div className="space-y-1.5">

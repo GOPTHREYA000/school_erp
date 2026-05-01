@@ -86,7 +86,7 @@ class AdmissionInquiry(models.Model):
     branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='inquiries')
     academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='inquiries')
     student_first_name = models.CharField(max_length=100)
-    student_last_name = models.CharField(max_length=100)
+    student_last_name = models.CharField(max_length=100, blank=True, null=True)
     date_of_birth = models.DateField()
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
     grade_applying_for = models.CharField(max_length=20, choices=GRADE_CHOICES)
@@ -118,7 +118,7 @@ class AdmissionApplication(models.Model):
     status = models.CharField(max_length=20, choices=APPLICATION_STATUS, default='DRAFT')
     # Student Info
     first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100, blank=True, null=True)
     date_of_birth = models.DateField()
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
     blood_group = models.CharField(max_length=10, choices=BLOOD_GROUP_CHOICES, default='UNKNOWN')
@@ -133,15 +133,15 @@ class AdmissionApplication(models.Model):
     identification_mark_2 = models.CharField(max_length=255, blank=True, null=True)
     health_status = models.TextField(blank=True, null=True)
     # Father Info
-    father_name = models.CharField(max_length=200)
-    father_phone = models.CharField(max_length=15)
+    father_name = models.CharField(max_length=200, blank=True, null=True)
+    father_phone = models.CharField(max_length=15, blank=True, null=True)
     father_email = models.EmailField(blank=True, null=True)
     father_qualification = models.CharField(max_length=200, blank=True, null=True)
     father_occupation = models.CharField(max_length=200, blank=True, null=True)
     father_aadhaar = models.CharField(max_length=12, blank=True, null=True)
     father_annual_income = models.CharField(max_length=20, choices=INCOME_CHOICES, blank=True, null=True)
     # Mother Info
-    mother_name = models.CharField(max_length=200)
+    mother_name = models.CharField(max_length=200, blank=True, null=True)
     mother_phone = models.CharField(max_length=15, blank=True, null=True)
     mother_email = models.EmailField(blank=True, null=True)
     mother_qualification = models.CharField(max_length=200, blank=True, null=True)
@@ -176,9 +176,9 @@ class AdmissionApplication(models.Model):
     admission_staff_name = models.CharField(max_length=200, blank=True, null=True)
     admission_staff_phone = models.CharField(max_length=15, blank=True, null=True)
     # Existing Fields Preserved
-    emergency_contact_name = models.CharField(max_length=200)
-    emergency_contact_phone = models.CharField(max_length=15)
-    emergency_contact_relation = models.CharField(max_length=100)
+    emergency_contact_name = models.CharField(max_length=200, blank=True, null=True)
+    emergency_contact_phone = models.CharField(max_length=15, blank=True, null=True)
+    emergency_contact_relation = models.CharField(max_length=100, blank=True, null=True)
     has_medical_condition = models.BooleanField(default=False)
     medical_details = models.TextField(blank=True, null=True)
     allergies = models.TextField(blank=True, null=True)
@@ -200,7 +200,8 @@ class AdmissionApplication(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Application: {self.first_name} {self.last_name} ({self.status})"
+        name = f"{self.first_name} {self.last_name}".strip() if self.last_name else self.first_name
+        return f"Application: {name} ({self.status})"
 
 
 # ─── ApplicationDocument ────────────────────────────────────────
@@ -228,7 +229,7 @@ class Student(models.Model):
     admission_number = models.CharField(max_length=20, blank=True, null=True, db_index=True)
     # Personal
     first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100, blank=True, null=True)
     date_of_birth = models.DateField()
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
     blood_group = models.CharField(max_length=10, choices=BLOOD_GROUP_CHOICES, default='UNKNOWN')
@@ -349,7 +350,8 @@ class Student(models.Model):
         return f"{base}{seq:03d}"
 
     def __str__(self):
-        return f"{self.admission_number} - {self.first_name} {self.last_name}"
+        name = f"{self.first_name} {self.last_name}".strip() if self.last_name else self.first_name
+        return f"{self.admission_number} - {name}"
 
     @property
     def primary_parent(self):

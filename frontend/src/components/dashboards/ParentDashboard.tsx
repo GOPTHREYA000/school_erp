@@ -303,42 +303,40 @@ export default function ParentDashboard({ user }: { user: any }) {
           <p className="text-gray-500 mt-1">View your children&apos;s academic progress and fee details.</p>
         </div>
 
-        {/* Child Selector Dropdown */}
-        {children.length > 1 && (
-          <div className="relative">
-            <button
-              onClick={() => setChildDropdownOpen(!childDropdownOpen)}
-              className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2.5 hover:border-blue-300 transition-all shadow-sm"
-            >
-              <div className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                {currentChild?.first_name?.charAt(0)}
-              </div>
-              <span className="font-bold text-slate-900 text-sm">{currentChild?.first_name} {currentChild?.last_name}</span>
-              <ChevronDown size={14} className="text-slate-400" />
-            </button>
-            {childDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50">
-                {children.map(child => (
-                  <button
-                    key={child.id}
-                    onClick={() => { setSelectedChild(child.id); setChildDropdownOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                      child.id === selectedChild ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">
-                      {child.first_name?.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm text-slate-900">{child.first_name} {child.last_name}</p>
-                      <p className="text-xs text-slate-400">{child.class_section} • {child.branch_name || 'Main'}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Child Selector Dropdown — always visible so parent knows which child is active */}
+        <div className="relative">
+          <button
+            onClick={() => setChildDropdownOpen(!childDropdownOpen)}
+            className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-2.5 hover:border-blue-300 transition-all shadow-sm"
+          >
+            <div className="w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {currentChild?.first_name?.charAt(0)}
+            </div>
+            <span className="font-bold text-slate-900 text-sm">{[currentChild?.first_name, currentChild?.last_name].filter(Boolean).join(' ')}</span>
+            {children.length > 1 && <ChevronDown size={14} className="text-slate-400" />}
+          </button>
+          {childDropdownOpen && children.length > 1 && (
+            <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50">
+              {children.map(child => (
+                <button
+                  key={child.id}
+                  onClick={() => { setSelectedChild(child.id); setChildDropdownOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                    child.id === selectedChild ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">
+                    {child.first_name?.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-slate-900">{[child.first_name, child.last_name].filter(Boolean).join(' ')}</p>
+                    <p className="text-xs text-slate-400">{child.class_section} • {child.branch_name || 'Main'}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Child Info Card */}
@@ -349,7 +347,7 @@ export default function ParentDashboard({ user }: { user: any }) {
               <User className="text-white" size={32} />
             </div>
             <div>
-              <h2 className="text-2xl font-black tracking-tight">{currentChild?.first_name} {currentChild?.last_name}</h2>
+              <h2 className="text-2xl font-black tracking-tight">{[currentChild?.first_name, currentChild?.last_name].filter(Boolean).join(' ')}</h2>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-blue-100 text-sm font-medium">
                 <span>{currentChild?.class_section}</span>
                 <span className="w-1 h-1 bg-blue-300 rounded-full" />

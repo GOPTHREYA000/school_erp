@@ -58,7 +58,7 @@ def parent_children(request):
         data.append({
             'id': str(s.id),
             'first_name': s.first_name,
-            'last_name': s.last_name,
+            'last_name': s.last_name or '',
             'class_section': s.class_section.display_name if s.class_section else None,
             'branch_name': s.branch.name if s.branch else None,
             'enroll_no': s.admission_number,
@@ -183,7 +183,7 @@ def parent_child_homework(request, student_id):
             'activity_type': hw.activity_type,
             'is_published': hw.is_published,
             'created_at': hw.created_at.isoformat(),
-            'posted_by': f"{hw.posted_by.first_name} {hw.posted_by.last_name}" if hw.posted_by else None,
+            'posted_by': ' '.join(p for p in [hw.posted_by.first_name, hw.posted_by.last_name] if p) if hw.posted_by else None,
             'acknowledged': ack,
         })
     
@@ -233,7 +233,7 @@ def parent_child_timetable(request, student_id):
         timetable[slot.day_of_week].append({
             'period': {'name': slot.period.name, 'start_time': str(slot.period.start_time), 'end_time': str(slot.period.end_time)},
             'subject': slot.subject.name if slot.subject else None,
-            'teacher': f"{slot.teacher.first_name} {slot.teacher.last_name}" if slot.teacher else None,
+            'teacher': ' '.join(p for p in [slot.teacher.first_name, slot.teacher.last_name] if p) if slot.teacher else None,
         })
     return Response({'success': True, 'data': {'timetable': dict(timetable)}})
 
