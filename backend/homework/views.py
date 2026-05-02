@@ -75,6 +75,14 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         cs_id = request.query_params.get('class_section_id')
         if not cs_id:
             return Response({'detail': 'class_section_id is required'}, status=400)
+
+        if request.user.role == 'TEACHER':
+            from staff.models import TeacherAssignment
+            if not TeacherAssignment.objects.filter(
+                teacher__user=request.user,
+                class_section_id=cs_id,
+            ).exists():
+                return Response({'detail': 'You are not assigned to this class.'}, status=403)
         
         # All homework for this class, latest first
         homeworks = Homework.objects.filter(
@@ -83,9 +91,11 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             is_published=True,
         ).select_related('subject', 'posted_by').order_by('-due_date')[:50]
         
-        # All active students in this class
+        # All active students in this class (tenant-scoped — same as homework)
         students = Student.objects.filter(
-            class_section_id=cs_id, status='ACTIVE'
+            class_section_id=cs_id,
+            status='ACTIVE',
+            tenant=request.user.tenant,
         ).order_by('first_name', 'last_name')
         
         # Build parent → student mapping

@@ -150,6 +150,7 @@ def _event_title(event_type: str) -> str:
         'PASSWORD_RESET': 'Password Reset',
         'WELCOME_ENROLLMENT': 'Welcome!',
         'FEE_REMINDER_3DAYS': 'Fee Reminder',
+        'FEE_REMINDER': 'Fee Reminder',
     }
     return titles.get(event_type, event_type.replace('_', ' ').title())
 
@@ -173,5 +174,11 @@ def _build_message(event_type: str, template, context: dict) -> str:
         'HOMEWORK_POSTED': f"New homework in {context.get('subject', 'a subject')} — due {context.get('due_date', 'soon')}.",
         'WELCOME_ENROLLMENT': f"Welcome! {context.get('student_name', 'Your child')} has been enrolled successfully.",
         'FEE_REMINDER_3DAYS': f"Reminder: Fee payment of ₹{context.get('amount', '—')} for {context.get('student_name', 'your child')} is due in 3 days.",
+        'FEE_REMINDER': (
+            f"Fee reminder: Invoice {context.get('invoice_number', '—')} for "
+            f"{context.get('student_name', 'your child')} — "
+            f"₹{context.get('amount', '—')} outstanding"
+            + (f", due {context.get('due_date')}." if context.get('due_date') else '.')
+        ),
     }
     return defaults.get(event_type, f"You have a new notification: {event_type}")

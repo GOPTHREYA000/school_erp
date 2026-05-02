@@ -9,12 +9,50 @@ from decimal import Decimal
 from datetime import date
 
 from django.db import transaction
-from django.db.models import Sum, Q
+from django.db.models import Count, Sum, Q
 from django.utils import timezone
 
 from accounts.utils import log_audit_action, log_bulk_action
 
 logger = logging.getLogger(__name__)
+
+
+def aggregate_sar_status_counts_by_academic_year(tenant, academic_year_ids):
+    """
+    Per academic year, count StudentAcademicRecord rows by status for the tenant.
+    Returned keys are str(academic_year_id). Used for year-closing summaries and logs.
+    """
+    if not tenant or not academic_year_ids:
+        return {}
+    from students.models import StudentAcademicRecord
+
+    rows = StudentAcademicRecord.objects.filter(
+        student__tenant=tenant,
+        academic_year_id__in=academic_year_ids,
+    ).values('academic_year_id').annotate(
+        records_total=Count('id'),
+        active=Count('id', filter=Q(status='ACTIVE')),
+        promoted=Count('id', filter=Q(status='PROMOTED')),
+        detained=Count('id', filter=Q(status='DETAINED')),
+        dropout=Count('id', filter=Q(status='DROPOUT')),
+        graduated=Count('id', filter=Q(status='GRADUATED')),
+        transferred=Count('id', filter=Q(status='TRANSFERRED')),
+    )
+    out = {str(r['academic_year_id']): r for r in rows}
+    z = {
+        'records_total': 0,
+        'active': 0,
+        'promoted': 0,
+        'detained': 0,
+        'dropout': 0,
+        'graduated': 0,
+        'transferred': 0,
+    }
+    for aid in academic_year_ids:
+        key = str(aid)
+        if key not in out:
+            out[key] = {**z, 'academic_year_id': aid}
+    return out
 
 
 # ─── Academic Year Closing ──────────────────────────────────────
@@ -114,6 +152,14 @@ def confirm_year_closing(tenant, source_year, closing_log, user):
         # Update closing log with results
         closing_log.carry_forwards_created = cf_result['created']
         closing_log.total_carry_forward_amount = Decimal(cf_result['total_amount'])
+
+        sar_map = aggregate_sar_status_counts_by_academic_year(tenant, [source_year.id])
+        sar = sar_map.get(str(source_year.id), {})
+        closing_log.promoted_count = sar.get('promoted') or 0
+        closing_log.detained_count = sar.get('detained') or 0
+        closing_log.dropout_count = sar.get('dropout') or 0
+        closing_log.graduated_count = sar.get('graduated') or 0
+
         closing_log.status = 'COMPLETED'
         closing_log.completed_at = timezone.now()
         closing_log.save()
@@ -518,7 +564,8 @@ def execute_promotion(tenant, source_year, target_year, branch, user, overrides=
             'detained': detained,
             'graduated': graduated,
             'dropouts': dropouts,
-        }
+        },
+        tenant=tenant,
     )
 
     return {

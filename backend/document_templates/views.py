@@ -1,13 +1,16 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from accounts.permissions import IsSchoolAdminOrAbove, IsAccountantOrAbove
+from accounts.permissions import IsSchoolAdminOrAbove, has_min_role
 from django.http import HttpResponse
+
+logger = logging.getLogger(__name__)
 
 from .models import DocumentTemplate
 from .serializers import DocumentTemplateSerializer
-from .services import generate_pdf_from_template
+from .services import extract_body_html, generate_pdf_from_template
 
 class DocumentTemplateViewSet(viewsets.ModelViewSet):
     """
@@ -75,22 +78,108 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
             response = HttpResponse(pdf_bytes, content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="ID_CARD_{student.admission_number}.pdf"'
             return response
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception('ID card PDF generation failed')
+            return Response(
+                {'error': 'Could not generate PDF. Please try again or contact support.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=['get'], url_path='generate/transfer-certificate/(?P<student_id>[^/.]+)')
+    def generate_transfer_certificate(self, request, student_id=None):
+        """PDF transfer / school leaving certificate using TRANSFER_CERTIFICATE template."""
+        from django.utils import timezone
+        from students.models import Student
+
+        try:
+            student = Student.objects.select_related('tenant', 'branch', 'class_section', 'academic_year').get(
+                id=student_id, tenant=request.user.tenant,
+            )
+        except Student.DoesNotExist:
+            return Response({'error': 'Student not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        template = DocumentTemplate.objects.filter(
+            tenant=request.user.tenant, type='TRANSFER_CERTIFICATE', is_active=True,
+        ).order_by('-is_default', '-created_at').first()
+
+        if not template:
+            return Response({'error': 'No active Transfer Certificate template found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qp = request.query_params
+        ay = str(student.academic_year) if student.academic_year_id else ''
+        context = {
+            'tenant_name': student.tenant.name,
+            'tenant_logo': student.tenant.logo_url or '',
+            'tenant_address': student.tenant.address or '',
+            'tenant_city': student.tenant.city or '',
+            'tenant_state': student.tenant.state or '',
+            'branch_name': student.branch.name if student.branch else '',
+            'student': {
+                'first_name': student.first_name,
+                'last_name': student.last_name or '',
+                'admission_number': student.admission_number or '',
+                'date_of_birth': str(student.date_of_birth) if student.date_of_birth else '',
+                'class_section': str(student.class_section) if student.class_section else '',
+                'father_name': student.father_name or '',
+                'mother_name': student.mother_name or '',
+            },
+            'tc': {
+                'certificate_no': qp.get('certificate_no', ''),
+                'issue_date': qp.get('issue_date') or str(timezone.now().date()),
+                'last_class_studied': qp.get('last_class_studied') or (
+                    str(student.class_section) if student.class_section else ''
+                ),
+                'academic_session': qp.get('academic_session', ay),
+                'date_of_leaving': qp.get('date_of_leaving', ''),
+                'reason_for_leaving': qp.get('reason_for_leaving', ''),
+                'conduct': qp.get('conduct', 'Good'),
+                'promotion_remark': qp.get('promotion_remark', 'Eligible for promotion to the next higher class.'),
+            },
+        }
+
+        try:
+            pdf_bytes = generate_pdf_from_template(template, context)
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            safe_adm = student.admission_number or str(student.id)[:8]
+            response['Content-Disposition'] = f'attachment; filename="TC_{safe_adm}.pdf"'
+            return response
+        except Exception:
+            logger.exception('Transfer certificate PDF generation failed')
+            return Response(
+                {'error': 'Could not generate PDF. Please try again or contact support.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(detail=False, methods=['get'], url_path='generate/receipt/(?P<payment_id>[^/.]+)', permission_classes=[IsAuthenticated])
     def generate_receipt(self, request, payment_id=None):
         """
         Generates PDF for a Fee Receipt using the default FEE_RECEIPT template.
+        Allowed: finance roles (accountant+), super admin, or parent of the paying student.
         """
         from fees.models import Payment
+        from students.models import ParentStudentRelation
+
+        pay_qs = Payment.objects.filter(id=payment_id)
+        if request.user.tenant:
+            pay_qs = pay_qs.filter(tenant=request.user.tenant)
+        elif request.user.role != 'SUPER_ADMIN':
+            return Response({'error': 'Payment not found.'}, status=status.HTTP_404_NOT_FOUND)
         try:
-            payment = Payment.objects.get(id=payment_id, tenant=request.user.tenant)
+            payment = pay_qs.get()
         except Payment.DoesNotExist:
             return Response({'error': 'Payment not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if request.user.role == 'PARENT':
+            if not ParentStudentRelation.objects.filter(
+                parent=request.user, student_id=payment.student_id
+            ).exists():
+                return Response({'error': 'Payment not found.'}, status=status.HTTP_404_NOT_FOUND)
+        elif request.user.role != 'SUPER_ADMIN' and not has_min_role(request.user, 'ACCOUNTANT'):
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+        tenant = payment.tenant
         template = DocumentTemplate.objects.filter(
-            tenant=request.user.tenant, type='FEE_RECEIPT', is_active=True
+            tenant=tenant, type='FEE_RECEIPT', is_active=True
         ).order_by('-is_default', '-created_at').first()
 
         if not template:
@@ -99,11 +188,11 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
         invoice = payment.invoice
         student = payment.student
         context = {
-            'tenant_name': request.user.tenant.name,
-            'tenant_logo': request.user.tenant.logo_url or '',
-            'tenant_address': request.user.tenant.address or '',
-            'tenant_city': request.user.tenant.city or '',
-            'tenant_state': request.user.tenant.state or '',
+            'tenant_name': tenant.name,
+            'tenant_logo': tenant.logo_url or '',
+            'tenant_address': tenant.address or '',
+            'tenant_city': tenant.city or '',
+            'tenant_state': tenant.state or '',
             'branch_name': invoice.branch.name if invoice.branch else '',
             'student': {
                 'first_name': student.first_name,
@@ -133,8 +222,12 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
             response = HttpResponse(pdf_bytes, content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="RECEIPT_{payment.receipt_number}.pdf"'
             return response
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception('Fee receipt PDF generation failed')
+            return Response(
+                {'error': 'Could not generate PDF. Please try again or contact support.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(detail=False, methods=['post'], url_path='preview')
     def preview_template(self, request):
@@ -168,9 +261,73 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
                 'admission_number': 'STD-2026-001',
                 'date_of_birth': '2010-05-15',
                 'class_section': 'Grade 5 - A',
+                'class_grade': 'G5',
+                'class_section_code': 'A',
+                'roll_number': '12',
+                'gender': 'MALE',
+                'photo_url': '',
                 'guardian_name': 'Jane Doe',
                 'contact': '9876543210',
+                'father_name': 'Robert Doe',
+                'mother_name': 'Jane Doe',
             },
+            'tc': {
+                'certificate_no': 'TC/2026/042',
+                'issue_date': '2026-05-01',
+                'last_class_studied': 'Grade 5 - A',
+                'academic_session': '2025-2026',
+                'date_of_leaving': '2026-04-30',
+                'reason_for_leaving': 'Family relocation',
+                'conduct': 'Good',
+                'promotion_remark': 'Eligible for promotion to the next higher class.',
+            },
+            'exam': {
+                'name': 'Half-Yearly Examination',
+                'start_date': '2026-09-01',
+                'end_date': '2026-09-08',
+                'academic_year': '2025-2026',
+            },
+            'subjects': [
+                {
+                    'name': 'English',
+                    'marks_obtained': '78',
+                    'max_marks': '100',
+                    'percentage': '78.00',
+                    'grade': 'B1',
+                    'remarks': '',
+                },
+                {
+                    'name': 'Mathematics',
+                    'marks_obtained': '92',
+                    'max_marks': '100',
+                    'percentage': '92.00',
+                    'grade': 'A1',
+                    'remarks': '',
+                },
+            ],
+            'aggregate': {'total_marks': '170', 'max_marks': '200', 'percentage': '85.00'},
+            'students': [
+                {
+                    'student': {
+                        'first_name': 'John',
+                        'last_name': 'Doe',
+                        'admission_number': 'STD-2026-001',
+                        'class_section': 'Grade 5 - A',
+                    },
+                    'subjects': [],
+                    'aggregate': {'total_marks': '170', 'max_marks': '200', 'percentage': '85.00'},
+                },
+                {
+                    'student': {
+                        'first_name': 'Priya',
+                        'last_name': 'Singh',
+                        'admission_number': 'STD-2026-002',
+                        'class_section': 'Grade 5 - A',
+                    },
+                    'subjects': [],
+                    'aggregate': {'total_marks': '182', 'max_marks': '200', 'percentage': '91.00'},
+                },
+            ],
             'invoice': {
                 'invoice_number': 'INV-MAIN-2026-04-0001',
                 'month': '2026-04',
@@ -193,8 +350,12 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
             response = HttpResponse(pdf_bytes, content_type='application/pdf')
             response['Content-Disposition'] = 'inline; filename="PREVIEW.pdf"'
             return response
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception('Template preview PDF failed')
+            return Response(
+                {'error': 'Could not generate preview PDF.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(detail=False, methods=['post'], url_path='generate/bulk-id-cards')
     def bulk_id_cards(self, request):
@@ -230,8 +391,12 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
 
         try:
             from weasyprint import HTML
-        except (ImportError, OSError, Exception) as e:
-            return Response({'error': f'WeasyPrint not available: {e}'}, status=500)
+        except (ImportError, OSError, Exception):
+            logger.exception('WeasyPrint import failed for bulk ID cards')
+            return Response(
+                {'error': 'PDF engine is not available on this server.'},
+                status=500,
+            )
 
         from .services import _build_id_card_html
 
@@ -274,7 +439,7 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
         </style>
         </head>
         <body>
-        {''.join(f'<div class="page-break">{self._extract_body(page)}</div>' for page in html_pages)}
+        {''.join(f'<div class="page-break">{extract_body_html(page)}</div>' for page in html_pages)}
         </body>
         </html>
         """
@@ -284,12 +449,10 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
             response = HttpResponse(pdf_bytes, content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="ID_Cards_Bulk_{len(html_pages)}.pdf"'
             return response
-        except Exception as e:
-            return Response({'error': str(e)}, status=500)
+        except Exception:
+            logger.exception('Bulk ID card PDF generation failed')
+            return Response(
+                {'error': 'Could not generate PDF. Please try again or contact support.'},
+                status=500,
+            )
 
-    @staticmethod
-    def _extract_body(html_string: str) -> str:
-        """Extract content between <body> tags from an HTML string."""
-        import re
-        match = re.search(r'<body[^>]*>(.*?)</body>', html_string, re.DOTALL)
-        return match.group(1) if match else html_string

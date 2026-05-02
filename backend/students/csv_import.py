@@ -1,3 +1,25 @@
+"""
+Student CSV import (onboarding from another SIS).
+
+What each row can create / update
+---------------------------------
+- **Student**: demographics, address, emergency contact, previous school, parents (inline fields),
+  parent **User** links via ``link_parent_accounts_to_student``.
+- **Class**: ``grade`` + ``section`` → ``ClassSection`` for the job’s academic year.
+- **Admission number**: New students always receive ``admission_number`` from
+  ``Student.generate_admission_number`` (tenant ``admission_no_format`` / branch / year).
+  The CSV value is stored in ``legacy_admission_number`` for traceability and duplicate matching.
+- **Fees (optional columns)**: If ``total_fee`` / ``total amount`` is present, one **annual**
+  ``FeeInvoice`` is created with optional ``fee_paid``, ``concession``, ``fee_due_date``,
+  and a **Payment** when ``fee_paid`` > 0.
+- **Old-year dues**: ``past_due_amount`` + optional ``past_due_year`` creates a ``FeeCarryForward``
+  (not a full historical invoice per line item).
+
+Not imported (would need richer templates / multiple rows per student)
+---------------------------------------------------------------------
+- Per-component fee structures, multiple invoices per year, transport, discounts by head,
+  full payment history lines, document files.
+"""
 import csv
 import io
 import re
@@ -5,7 +27,9 @@ import datetime
 from datetime import datetime as dt
 from decimal import Decimal, InvalidOperation
 from datetime import date
+from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from rest_framework.response import Response
 
 from tenants.models import AcademicYear, Branch
@@ -26,6 +50,16 @@ def handle_csv_import(request):
 
         if not file_obj or not file_obj.name.endswith('.csv'):
             return Response({'success': False, 'detail': 'Please upload a valid CSV file.'}, status=400)
+
+        max_bytes = getattr(settings, 'STUDENT_CSV_IMPORT_MAX_BYTES', 5 * 1024 * 1024)
+        if getattr(file_obj, 'size', 0) and file_obj.size > max_bytes:
+            return Response(
+                {
+                    'success': False,
+                    'detail': f'CSV file too large. Maximum size is {max_bytes // (1024 * 1024)} MB.',
+                },
+                status=400,
+            )
 
         # Handle 'undefined' and empty strings from FormData
         if branch_id in ['undefined', '']: branch_id = None
@@ -73,11 +107,11 @@ def handle_csv_import(request):
         })
 
     except Exception as e:
-        import traceback
+        import logging
+        logging.getLogger(__name__).exception('CSV import request failed')
         return Response({
             'success': False,
             'detail': 'An unexpected server error occurred.',
-            'errors': [str(e), traceback.format_exc()]
         }, status=500)
 
 
@@ -206,7 +240,7 @@ def process_csv_file(job, decoded_file):
                     section = section_raw.split()[0] if section_raw else 'A'
                     section = section[:50]
 
-                    admission_number = get_val(row, 'admission number', 'admission_number', 'admission no').strip()
+                    csv_admission = get_val(row, 'admission number', 'admission_number', 'admission no', 'old admission', 'legacy admission').strip()
 
                     if gender not in ('MALE', 'FEMALE', 'OTHER'):
                         gender = 'OTHER'
@@ -234,10 +268,19 @@ def process_csv_file(job, decoded_file):
                         )
 
                     existing_student = None
-                    if admission_number:
-                        existing_student = Student.objects.filter(branch=branch, academic_year=ay, admission_number=admission_number).first()
+                    if csv_admission:
+                        existing_student = Student.objects.filter(
+                            branch=branch, academic_year=ay,
+                        ).filter(
+                            Q(admission_number__iexact=csv_admission)
+                            | Q(legacy_admission_number__iexact=csv_admission),
+                        ).first()
                     if not existing_student and cs:
-                        existing_student = Student.objects.filter(branch=branch, academic_year=ay, first_name__iexact=first_name, last_name__iexact=last_name, date_of_birth=parsed_dob, class_section=cs).first()
+                        existing_student = Student.objects.filter(
+                            branch=branch, academic_year=ay,
+                            first_name__iexact=first_name, last_name__iexact=last_name,
+                            date_of_birth=parsed_dob, class_section=cs,
+                        ).first()
 
                     is_new_student = False
                     if existing_student:
@@ -245,21 +288,27 @@ def process_csv_file(job, decoded_file):
                         skipped_duplicates += 1
                     else:
                         is_new_student = True
-                        if not admission_number:
-                            admission_number = Student.generate_admission_number(branch, ay)
-                        if Student.objects.filter(branch=branch, academic_year=ay, admission_number=admission_number).exists():
-                            admission_number = Student.generate_admission_number(branch, ay)
+                        platform_admission = Student.generate_admission_number(branch, ay)
+                        while Student.objects.filter(
+                            branch=branch, academic_year=ay, admission_number=platform_admission,
+                        ).exists():
+                            platform_admission = Student.generate_admission_number(branch, ay)
+                        legacy_stored = (csv_admission or '')[:64]
 
                         blood_group_raw = row.get('blood group', row.get('blood_group', '')).upper().strip()
                         blood_group = blood_group_raw if blood_group_raw in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'UNKNOWN', ''] else 'UNKNOWN'
                         caste_raw = row.get('caste category', row.get('caste_category', '')).upper().strip()
                         caste_category = caste_raw if caste_raw in ['GEN', 'OBC', 'SC', 'ST', 'EWS', 'OTHER', ''] else None
 
+                        roll_raw = get_val(row, 'roll number', 'roll_number', 'roll no').strip()
+                        roll_num = int(roll_raw) if roll_raw.isdigit() else None
+
                         student = Student.objects.create(
                             tenant=tenant, branch=branch, academic_year=ay, class_section=cs,
                             first_name=first_name, last_name=last_name or '', date_of_birth=parsed_dob,
-                            gender=gender, admission_number=admission_number,
-                            roll_number=int(row['roll_number']) if row.get('roll_number') and row['roll_number'].isdigit() else None,
+                            gender=gender, admission_number=platform_admission,
+                            legacy_admission_number=legacy_stored,
+                            roll_number=roll_num,
                             blood_group=blood_group or 'UNKNOWN', religion=safe_str(row.get('religion'), 100), caste_category=caste_category,
                             aadhar_number=safe_str(row.get('aadhar number', row.get('aadhar_number')), 12), mother_tongue=safe_str(row.get('mother tongue', row.get('mother_tongue')), 50),
                             nationality=safe_str(row.get('nationality'), 50) or 'Indian',
@@ -291,9 +340,9 @@ def process_csv_file(job, decoded_file):
                     total_fee_raw   = get_val(row, 'total_fee', 'total amount (₹)', 'total fee').replace(',', '').replace('"', '').strip()
                     fee_paid_raw    = get_val(row, 'fee_paid', 'amount paid (₹)', 'fee paid').replace(',', '').replace('"', '').strip()
                     concession_raw  = get_val(row, 'concession_amount', 'concession (₹)', 'concession').replace(',', '').replace('"', '').strip()
-                    past_due_raw    = get_val(row, 'past_due_amount', 'past due').replace(',', '').replace('"', '').strip()
-                    past_due_year_raw = row.get('past_due_year', '').strip()
-                    fee_due_date_raw  = row.get('fee_due_date', '').strip()
+                    past_due_raw = get_val(row, 'past_due_amount', 'past due', 'old dues', 'arrears').replace(',', '').replace('"', '').strip()
+                    past_due_year_raw = get_val(row, 'past_due_year', 'past due year', 'arrears year').strip()
+                    fee_due_date_raw = get_val(row, 'fee_due_date', 'due date', 'fee due date').strip()
 
                     if total_fee_raw:
                         try:

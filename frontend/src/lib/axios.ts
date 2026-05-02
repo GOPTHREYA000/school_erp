@@ -14,6 +14,9 @@ const api = axios.create({
 let csrfTokenFromResponse = '';
 
 api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    (config.headers as Record<string, string>)['X-School-Origin-Host'] = window.location.hostname;
+  }
   if (csrfTokenFromResponse) {
     config.headers['X-CSRFToken'] = csrfTokenFromResponse;
   } else if (typeof document !== 'undefined') {
@@ -31,12 +34,6 @@ api.interceptors.response.use(
     if (response.data && response.data.csrf_token) {
       csrfTokenFromResponse = response.data.csrf_token;
     }
-    // Automatically unwrap DRF global pagination to transparently return the array
-    if (response.data && typeof response.data === 'object') {
-      if (response.data.results !== undefined && response.data.count !== undefined) {
-        response.data = response.data.results;
-      }
-    }
     return response;
   },
   async (error) => {
@@ -44,7 +41,11 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     
     // Do not intercept or retry 401s for login requests themselves
-    if (originalRequest.url && originalRequest.url.includes('auth/login/')) {
+    if (
+      originalRequest.url &&
+      (originalRequest.url.includes('auth/login/') ||
+        originalRequest.url.includes('auth/mfa/verify/'))
+    ) {
       return Promise.reject(error);
     }
 

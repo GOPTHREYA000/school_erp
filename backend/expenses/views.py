@@ -1,3 +1,6 @@
+from datetime import datetime
+import uuid
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,8 +10,18 @@ from django.db.models import Sum
 from decimal import Decimal
 
 from accounts.permissions import IsAccountantOrAbove
-from accounts.utils import get_validated_branch_id, log_audit_action, log_bulk_action
+from accounts.utils import (
+    get_validated_branch_id,
+    log_audit_action,
+    log_bulk_action,
+    filter_queryset_for_user_tenant,
+)
+from tenants.models import Branch
 from .models import ExpenseCategory, Vendor, Expense, TransactionLog
+from .other_income_presets import (
+    MANUAL_OTHER_INCOME_CATEGORY_PRESETS,
+    RESERVED_MANUAL_OTHER_INCOME_CATEGORIES,
+)
 from .serializers import ExpenseCategorySerializer, VendorSerializer, ExpenseSerializer, TransactionLogSerializer
 
 
@@ -17,7 +30,9 @@ class ExpenseCategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        qs = ExpenseCategory.objects.filter(branch__tenant=self.request.user.tenant)
+        qs = filter_queryset_for_user_tenant(
+            ExpenseCategory.objects.all(), self.request.user, 'branch__tenant'
+        )
         branch_id = get_validated_branch_id(self.request.user, self.request.query_params.get('branch_id'))
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
@@ -32,7 +47,9 @@ class VendorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        qs = Vendor.objects.filter(branch__tenant=self.request.user.tenant)
+        qs = filter_queryset_for_user_tenant(
+            Vendor.objects.all(), self.request.user, 'branch__tenant'
+        )
         branch_id = get_validated_branch_id(self.request.user, self.request.query_params.get('branch_id'))
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
@@ -47,7 +64,9 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        qs = Expense.objects.filter(branch__tenant=self.request.user.tenant).select_related('category', 'vendor')
+        qs = filter_queryset_for_user_tenant(
+            Expense.objects.all(), self.request.user, 'branch__tenant'
+        ).select_related('category', 'vendor')
         branch_id = get_validated_branch_id(self.request.user, self.request.query_params.get('branch_id'))
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
@@ -70,7 +89,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         category_name = self.request.data.get('category_name')
         category_id = self.request.data.get('category')
         if category_id:
-            category = ExpenseCategory.objects.get(id=category_id)
+            category = ExpenseCategory.objects.get(id=category_id, tenant=user.tenant, branch=branch)
         elif category_name:
             category, _ = ExpenseCategory.objects.get_or_create(
                 tenant=user.tenant, branch=branch, name=category_name,
@@ -86,7 +105,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         vendor_id = self.request.data.get('vendor')
         vendor_obj = None
         if vendor_id:
-            vendor_obj = Vendor.objects.get(id=vendor_id)
+            vendor_obj = Vendor.objects.get(id=vendor_id, tenant=user.tenant, branch=branch)
         elif vendor_name:
             vendor_obj, _ = Vendor.objects.get_or_create(
                 tenant=user.tenant, branch=branch, name=vendor_name
@@ -183,7 +202,8 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 'title': expense.title,
                 'amount': float(expense.amount),
                 'status': new_status
-            }
+            },
+            tenant=expense.tenant,
         )
         return Response({'success': True, 'data': ExpenseSerializer(expense).data})
 
@@ -196,17 +216,18 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         if not expense_ids:
             return Response({'detail': 'No expenses selected.'}, status=400)
 
-        expenses = Expense.objects.filter(
-            id__in=expense_ids,
-            branch__tenant=request.user.tenant,
-            status='SUBMITTED'
-        ).select_related('category')
+        expenses_qs = filter_queryset_for_user_tenant(
+            Expense.objects.filter(id__in=expense_ids, status='SUBMITTED').select_related('category'),
+            request.user,
+            'branch__tenant',
+        )
 
         approved_count = 0
+        tenant_for_log = request.user.tenant
         from django.db import transaction
         
         with transaction.atomic():
-            for expense in expenses:
+            for expense in expenses_qs:
                 expense.status = 'APPROVED'
                 expense.approved_by = request.user
                 expense.approved_at = timezone.now()
@@ -220,13 +241,16 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                     transaction_date=expense.expense_date,
                 )
                 approved_count += 1
+                if tenant_for_log is None:
+                    tenant_for_log = expense.tenant
 
             if approved_count > 0:
                 log_bulk_action(
                     user=request.user,
                     action_type='EXPENSE_APPROVAL',
                     record_count=approved_count,
-                    details={'expense_ids': expense_ids}
+                    details={'expense_ids': expense_ids},
+                    tenant=tenant_for_log,
                 )
                 
         return Response({
@@ -244,7 +268,9 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'month is required (YYYY-MM)'}, status=status.HTTP_400_BAD_REQUEST)
         year, m = month.split('-')
         branch_id = get_validated_branch_id(request.user, request.query_params.get('branch_id'))
-        base_qs = Expense.objects.filter(branch__tenant=request.user.tenant)
+        base_qs = filter_queryset_for_user_tenant(
+            Expense.objects.all(), request.user, 'branch__tenant'
+        )
         if branch_id:
             base_qs = base_qs.filter(branch_id=branch_id)
         approved = base_qs.filter(
@@ -270,7 +296,9 @@ class TransactionLogViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        qs = TransactionLog.objects.filter(branch__tenant=self.request.user.tenant)
+        qs = filter_queryset_for_user_tenant(
+            TransactionLog.objects.all(), self.request.user, 'branch__tenant'
+        )
         branch_id = get_validated_branch_id(self.request.user, self.request.query_params.get('branch_id'))
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
@@ -280,4 +308,174 @@ class TransactionLogViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(transaction_date__gte=start)
         if end:
             qs = qs.filter(transaction_date__lte=end)
+        ref_model = self.request.query_params.get('reference_model')
+        if ref_model:
+            qs = qs.filter(reference_model=ref_model)
         return qs
+
+    @action(detail=False, methods=['get'], url_path='other-income-presets')
+    def other_income_presets(self, request):
+        """Preset category labels for uniforms, trips, events, books, etc. (non-fee cashbook income)."""
+        return Response(
+            {
+                'success': True,
+                'data': {
+                    'presets': list(MANUAL_OTHER_INCOME_CATEGORY_PRESETS),
+                },
+            }
+        )
+
+    @action(detail=False, methods=['post'], url_path='record-other-income')
+    def record_other_income(self, request):
+        """
+        Post a positive miscellaneous INCOME row to the cashbook (not fee/tuition).
+        Appears in reports → Other Income Receipts and the transaction ledger.
+        """
+        user = request.user
+        if not getattr(user, 'tenant', None):
+            return Response({'error': 'Organization context required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            amount = Decimal(str(request.data.get('amount', '0')))
+        except Exception:
+            return Response({'error': 'Invalid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+        if amount <= 0:
+            return Response({'error': 'amount must be greater than zero.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        category = (request.data.get('category') or '').strip()[:100]
+        if not category:
+            return Response({'error': 'category is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if category in RESERVED_MANUAL_OTHER_INCOME_CATEGORIES:
+            return Response(
+                {'error': 'Reserved category — use the Fees module for tuition and fee receipts.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        description = (request.data.get('description') or category)[:255]
+        raw_date = request.data.get('transaction_date')
+        if raw_date:
+            try:
+                if isinstance(raw_date, str):
+                    transaction_date = datetime.strptime(raw_date[:10], '%Y-%m-%d').date()
+                else:
+                    transaction_date = raw_date
+            except ValueError:
+                return Response({'error': 'transaction_date must be YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            transaction_date = timezone.now().date()
+
+        branch_id = get_validated_branch_id(user, request.data.get('branch_id'))
+        if branch_id is None:
+            if user.role in ('SCHOOL_ADMIN', 'SUPER_ADMIN'):
+                return Response({'error': 'branch_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            branch_id = str(user.branch_id) if user.branch_id else None
+        if not branch_id:
+            return Response({'error': 'No branch assigned to this account.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            branch = Branch.objects.get(id=branch_id, tenant=user.tenant)
+        except Branch.DoesNotExist:
+            return Response({'error': 'Invalid branch.'}, status=status.HTTP_404_NOT_FOUND)
+
+        ref_id = uuid.uuid4()
+        log = TransactionLog.objects.create(
+            tenant=user.tenant,
+            branch=branch,
+            transaction_type='INCOME',
+            category=category,
+            reference_model='MANUAL_OTHER_INCOME',
+            reference_id=ref_id,
+            amount=amount,
+            description=description,
+            transaction_date=transaction_date,
+        )
+        log_audit_action(
+            user=user,
+            action='RECORD_OTHER_INCOME',
+            model_name='TransactionLog',
+            record_id=log.id,
+            details={'amount': str(amount), 'category': category, 'branch_id': str(branch.id)},
+            tenant=user.tenant,
+        )
+        return Response({'success': True, 'data': TransactionLogSerializer(log).data}, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], url_path='reverse-other-income')
+    def reverse_other_income(self, request):
+        """
+        Reverse a positive MANUAL_OTHER_INCOME line (full remaining balance by default).
+        Optional JSON `amount` reverses partially; cumulative reversals cannot exceed the original.
+        Creates a negative INCOME line (reference_model=MANUAL_OTHER_INCOME_REVERSAL).
+        """
+        user = request.user
+        if not getattr(user, 'tenant', None):
+            return Response({'error': 'Organization context required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        log_id = request.data.get('log_id')
+        if not log_id:
+            return Response({'error': 'log_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            original = TransactionLog.objects.get(
+                id=log_id,
+                tenant=user.tenant,
+                transaction_type='INCOME',
+                reference_model='MANUAL_OTHER_INCOME',
+            )
+        except TransactionLog.DoesNotExist:
+            return Response(
+                {'error': 'Entry not found or cannot be reversed from this action (fee income uses the Fees module).'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if original.amount <= 0:
+            return Response({'error': 'Only positive manual other-income lines can be reversed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        reversed_sum = TransactionLog.objects.filter(
+            tenant=user.tenant,
+            reference_model='MANUAL_OTHER_INCOME_REVERSAL',
+            reference_id=original.id,
+        ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+        # Reversal rows store negative amounts; already reversed (positive) = -reversed_sum
+        already_reversed = -reversed_sum
+        remaining = original.amount - already_reversed
+        if remaining <= 0:
+            return Response({'error': 'This entry has already been fully reversed.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        raw_amt = request.data.get('amount')
+        if raw_amt is None or raw_amt == '':
+            reverse_amt = remaining
+        else:
+            try:
+                reverse_amt = Decimal(str(raw_amt))
+            except Exception:
+                return Response({'error': 'Invalid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+            if reverse_amt <= 0:
+                return Response({'error': 'amount must be greater than zero.'}, status=status.HTTP_400_BAD_REQUEST)
+            if reverse_amt > remaining:
+                return Response(
+                    {'error': f'Amount exceeds remaining balance ({remaining}).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        reason = (request.data.get('reason') or 'Reversal').strip()[:200]
+        desc = f"[Reversal] {reason}: {original.description}"[:255]
+        rev = TransactionLog.objects.create(
+            tenant=original.tenant,
+            branch=original.branch,
+            transaction_type='INCOME',
+            category=original.category,
+            reference_model='MANUAL_OTHER_INCOME_REVERSAL',
+            reference_id=original.id,
+            amount=-reverse_amt,
+            description=desc,
+            transaction_date=timezone.now().date(),
+        )
+        log_audit_action(
+            user=user,
+            action='REVERSE_OTHER_INCOME',
+            model_name='TransactionLog',
+            record_id=rev.id,
+            details={'original_log_id': str(original.id), 'amount': str(-reverse_amt), 'partial': str(reverse_amt != remaining)},
+            tenant=user.tenant,
+        )
+        return Response({'success': True, 'data': TransactionLogSerializer(rev).data}, status=status.HTTP_201_CREATED)

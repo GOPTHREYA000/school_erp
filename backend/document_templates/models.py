@@ -6,6 +6,9 @@ TEMPLATE_TYPES = [
     ('ID_CARD', 'ID Card'),
     ('FEE_RECEIPT', 'Fee Receipt'),
     ('TRANSFER_CERTIFICATE', 'Transfer Certificate'),
+    ('HALL_TICKET', 'Hall Ticket'),
+    ('REPORT_CARD', 'Report Card (per student)'),
+    ('REPORT_CARD_SUMMARY', 'Report Card Summary (section)'),
 ]
 
 TEMPLATE_MODES = [

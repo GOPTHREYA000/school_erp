@@ -20,6 +20,17 @@ def bulk_allocate_fees(branch_id, academic_year_id, class_section_id, fee_struct
         academic_year = AcademicYear.objects.get(id=academic_year_id)
         class_section = ClassSection.objects.get(id=class_section_id)
         fee_structure = FeeStructure.objects.prefetch_related('items__category').get(id=fee_structure_id)
+
+        if (
+            class_section.tenant_id != branch.tenant_id
+            or academic_year.tenant_id != branch.tenant_id
+            or class_section.branch_id != branch.id
+            or fee_structure.branch_id != branch.id
+            or fee_structure.academic_year_id != academic_year.id
+        ):
+            raise ValueError(
+                'branch, academic_year, class_section, and fee_structure must belong to the same branch/year.'
+            )
         
         students = Student.objects.filter(
             class_section=class_section, 
@@ -98,7 +109,7 @@ def bulk_allocate_fees(branch_id, academic_year_id, class_section_id, fee_struct
                         category=transport_cat,
                         original_amount=transport_amount,
                         final_amount=transport_amount,
-                        description=f"Transport: {active_transport.route.name} ({active_transport.distance_km} km)",
+                        description=f"Transport: {active_transport.pickup_point or '—'} ({active_transport.distance_km} km)",
                     )
                 
                 generated_count += 1

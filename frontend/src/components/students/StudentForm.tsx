@@ -138,7 +138,10 @@ export default function StudentForm({
       const u = res.data.data;
       setUser(u);
       if (u.role === 'SUPER_ADMIN') {
-        api.get('tenants/').then(r => setTenants(r.data));
+        api.get('tenants/').then((r) => {
+          const raw = r.data?.data ?? r.data?.results ?? r.data;
+          setTenants(Array.isArray(raw) ? raw : []);
+        });
       } else {
         if (!isEdit) {
             setFormData(prev => ({ 
@@ -154,7 +157,7 @@ export default function StudentForm({
   useEffect(() => {
     if (formData.tenant) {
       api.get(`/tenants/branches/?tenant_id=${formData.tenant}`).then(res => {
-        const arr = res.data?.data ?? res.data;
+        const arr = res.data?.data ?? res.data?.results ?? res.data;
         setBranches(Array.isArray(arr) ? arr : []);
       });
     }
@@ -163,7 +166,7 @@ export default function StudentForm({
   useEffect(() => {
     if (formData.branch) {
       api.get(`/tenants/academic-years/?branch_id=${formData.branch}`).then(res => {
-        const arr = res.data?.data ?? res.data;
+        const arr = res.data?.data ?? res.data?.results ?? res.data;
         setAcademicYears(Array.isArray(arr) ? arr : []);
       });
     }
@@ -173,7 +176,7 @@ export default function StudentForm({
     if (formData.branch && formData.academic_year) {
       api.get(`/classes/?branch_id=${formData.branch}&academic_year_id=${formData.academic_year}`)
         .then(res => {
-          const arr = res.data?.data ?? res.data;
+          const arr = res.data?.data ?? res.data?.results ?? res.data;
           setClasses(Array.isArray(arr) ? arr : []);
         });
     }
@@ -187,7 +190,7 @@ export default function StudentForm({
         setFeeStructure(null); // Reset while loading
         api.get(`/fees/structures/?branch_id=${formData.branch}&academic_year_id=${formData.academic_year}&grade=${cls.grade}`)
           .then(res => {
-            const arr = res.data?.data ?? res.data;
+            const arr = res.data?.data ?? res.data?.results ?? res.data;
             const list = Array.isArray(arr) ? arr : [];
             const structure = list[0];
             setFeeStructure(structure);

@@ -3,7 +3,7 @@
 import React, { useState, useCallback, use } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { CheckCircle, AlertTriangle, XCircle, Filter, Clock } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Filter, Clock, FileDown } from 'lucide-react';
 import ReportFilters from '@/components/reports/ReportFilters';
 import ReportTable from '@/components/reports/ReportTable';
 import ExportButton from '@/components/reports/ExportButton';
@@ -32,6 +32,7 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
     pageSize: 50,
     totalCount: 0
   });
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const fetchReport = useCallback(async (page = 1, overrideFilters?: any) => {
     const activeFilters = overrideFilters ?? filters ?? {};
@@ -127,6 +128,43 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
     fetchReport(1, newFilters);
   }, [fetchReport]);
 
+  const handlePdfDownload = useCallback(async () => {
+    const activeFilters = filters || {};
+    const needsExam = Boolean(config.filters?.showExam);
+    if (needsExam && !activeFilters.exam_id) {
+      alert('Select an exam term, click Generate Report, then download the PDF.');
+      return;
+    }
+    setPdfLoading(true);
+    try {
+      const res = await api.get(config.apiEndpoint, {
+        params: { ...activeFilters, file: 'pdf' },
+        responseType: 'blob',
+        headers: { Accept: 'application/pdf' },
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (e: any) {
+      let message = 'Could not download PDF.';
+      const data = e?.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const text = await data.text();
+          const json = JSON.parse(text);
+          message = json.error || json.detail || message;
+        } catch {
+          message = 'Server returned an invalid PDF. Check that a document template exists for this type.';
+        }
+      } else if (e?.response?.data?.error) {
+        message = e.response.data.error;
+      }
+      alert(message);
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [config.apiEndpoint, config.filters?.showExam, filters]);
+
   const categoryTitle = reportsRegistry.find(c => c.id === category)?.title || category;
 
   return (
@@ -146,7 +184,20 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
           <h1 className="text-3xl font-bold font-sans tracking-tight text-slate-800">{config.title}</h1>
           <p className="text-sm text-slate-400 mt-1">{config.description}</p>
         </div>
-        <ExportButton reportType={config.exportKey} filters={filters || {}} />
+        <div className="flex flex-wrap items-center gap-2">
+          {config.offerPdfDownload && (
+            <button
+              type="button"
+              onClick={handlePdfDownload}
+              disabled={pdfLoading}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
+            >
+              <FileDown size={18} className="text-indigo-600" />
+              {pdfLoading ? 'Preparing PDF…' : 'Download PDF'}
+            </button>
+          )}
+          <ExportButton reportType={config.exportKey} filters={filters || {}} />
+        </div>
       </div>
 
       <div className="mt-8">

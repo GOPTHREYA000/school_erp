@@ -12,6 +12,7 @@ export type ReportConfig = {
     showDateRange?: boolean;
     showAcademicYear?: boolean;
     showClassSection?: boolean;
+    showExam?: boolean;
     showStatus?: boolean;
     statusOptions?: { value: string; label: string }[];
     showAdSource?: boolean;
@@ -19,6 +20,8 @@ export type ReportConfig = {
     showVendor?: boolean;
     showExpenseCategory?: boolean;
   };
+  /** Offer “Download PDF” (uses tenant document template + `?file=pdf`). */
+  offerPdfDownload?: boolean;
 };
 
 export type ReportCategory = {
@@ -152,6 +155,26 @@ export const reportsRegistry: ReportCategory[] = [
         ]
       },
       {
+        id: 'year-transition-summary',
+        categoryId: 'academics',
+        title: 'Promotion & dropout summary',
+        description: 'Per branch: counts from student academic records for a year (promoted, detained, dropout, graduated, transferred). Pick the source academic year and optionally one branch or all branches.',
+        apiEndpoint: 'reports/academics/year-transition-summary/',
+        exportKey: 'ACADEMICS_YEAR_TRANSITION',
+        filters: { showDateRange: false, showClassSection: false, showAcademicYear: true },
+        columns: [
+          { key: 'branch_name', label: 'Branch' },
+          { key: 'academic_year_name', label: 'Academic year' },
+          { key: 'records_total', label: 'Records' },
+          { key: 'active', label: 'Active' },
+          { key: 'promoted', label: 'Promoted' },
+          { key: 'detained', label: 'Detained' },
+          { key: 'dropout', label: 'Dropout' },
+          { key: 'graduated', label: 'Graduated' },
+          { key: 'transferred', label: 'Transferred' },
+        ]
+      },
+      {
         id: 'attendance',
         categoryId: 'academics',
         title: 'Student Attendance',
@@ -171,81 +194,136 @@ export const reportsRegistry: ReportCategory[] = [
         id: 'notes',
         categoryId: 'academics',
         title: 'Student Notes',
-        description: 'View student notes and remarks',
+        description: 'Attendance remarks and exam evaluator remarks',
         apiEndpoint: 'reports/academics/student-notes/',
         exportKey: 'ACADEMICS_NOTES',
-        filters: { showDateRange: true, showClassSection: true, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        filters: { showDateRange: true, showClassSection: true, showAcademicYear: true },
+        columns: [
+          { key: 'date', label: 'Date' },
+          { key: 'source', label: 'Source' },
+          { key: 'student_name', label: 'Student' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.grade || ''}-${row.section || ''}`.replace(/-$/, '') },
+          { key: 'note', label: 'Note', render: (_v: any, row: any) => row.note || '-' },
+        ]
       },
       {
         id: 'hall-tickets',
         categoryId: 'academics',
         title: 'Hall Tickets',
-        description: 'Bulk download hall tickets for an exam',
+        description: 'Preview students, then download a multi-page PDF from your Hall Ticket template (System Settings → Templates).',
         apiEndpoint: 'reports/academics/hall-tickets/',
         exportKey: 'ACADEMICS_HALL_TICKETS',
-        filters: { showDateRange: false, showClassSection: true, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        filters: { showDateRange: false, showClassSection: true, showAcademicYear: true, showExam: true },
+        offerPdfDownload: true,
+        columns: [
+          { key: 'exam_term__name', label: 'Exam' },
+          { key: 'admission_number', label: 'Adm. No.' },
+          { key: 'name', label: 'Student', render: (_v: any, row: any) => `${row.first_name || ''} ${row.last_name || ''}`.trim() || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.class_section__grade || ''}-${row.class_section__section || ''}`.replace(/-$/, '') },
+        ]
       },
       {
         id: 'consolidated-marks',
         categoryId: 'academics',
         title: 'Consolidated Marks Sheet',
-        description: 'Marks report for all students of a section',
+        description: 'Long-format marks for one exam term (filter by exam, class)',
         apiEndpoint: 'reports/academics/consolidated-marks/',
         exportKey: 'ACADEMICS_CONSOLIDATED_MARKS',
-        filters: { showDateRange: false, showClassSection: true, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        filters: { showDateRange: false, showClassSection: true, showAcademicYear: true, showExam: true },
+        columns: [
+          { key: 'student', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
+          { key: 'adm', label: 'Adm. No.', render: (_v: any, row: any) => row.student__admission_number || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
+          { key: 'exam_term__name', label: 'Exam' },
+          { key: 'subject__name', label: 'Subject' },
+          { key: 'marks_obtained', label: 'Marks' },
+          { key: 'max_marks', label: 'Max' },
+          { key: 'percentage', label: '%' },
+          { key: 'grade', label: 'Grade' },
+        ]
       },
       {
         id: 'section-report-cards',
         categoryId: 'academics',
         title: 'Section Report Cards',
-        description: 'Bulk download report cards for all students of a section',
+        description: 'One PDF per student with marks; design your layout under Templates → Report Card (HTML or standard).',
         apiEndpoint: 'reports/academics/section-report-cards/',
         exportKey: 'ACADEMICS_SECTION_REPORT_CARDS',
-        filters: { showDateRange: false, showClassSection: true, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        filters: { showDateRange: false, showClassSection: true, showAcademicYear: true, showExam: true },
+        offerPdfDownload: true,
+        columns: [
+          { key: 'exam_term__name', label: 'Exam' },
+          { key: 'admission_number', label: 'Adm. No.' },
+          { key: 'name', label: 'Student', render: (_v: any, row: any) => `${row.first_name || ''} ${row.last_name || ''}`.trim() || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.class_section__grade || ''}-${row.class_section__section || ''}`.replace(/-$/, '') },
+        ]
       },
       {
         id: 'section-report-cards-summary',
         categoryId: 'academics',
         title: 'Section Report Cards Summary',
-        description: 'Summary view of report cards for a section',
+        description: 'Landscape summary table PDF plus on-screen totals (template: Report Card Summary).',
         apiEndpoint: 'reports/academics/section-report-cards-summary/',
         exportKey: 'ACADEMICS_SECTION_REPORT_CARDS_SUMMARY',
-        filters: { showDateRange: false, showClassSection: true, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        filters: { showDateRange: false, showClassSection: true, showAcademicYear: true, showExam: true },
+        offerPdfDownload: true,
+        columns: [
+          { key: 'admission_number', label: 'Adm. No.' },
+          { key: 'name', label: 'Student', render: (_v: any, row: any) => `${row.first_name || ''} ${row.last_name || ''}`.trim() || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.class_section__grade || ''}-${row.class_section__section || ''}`.replace(/-$/, '') },
+          { key: 'total_marks', label: 'Total' },
+          { key: 'max_marks', label: 'Max' },
+          { key: 'percentage', label: '%' },
+        ]
       },
       {
         id: 'ranks',
         categoryId: 'academics',
         title: 'Student Ranks',
-        description: 'Student ranks by marks for each subject',
+        description: 'Ranks within each subject and class section for one exam term',
         apiEndpoint: 'reports/academics/student-ranks/',
         exportKey: 'ACADEMICS_RANKS',
-        filters: { showDateRange: false, showClassSection: true, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        filters: { showDateRange: false, showClassSection: true, showAcademicYear: true, showExam: true },
+        columns: [
+          { key: 'rank', label: 'Rank' },
+          { key: 'subject__name', label: 'Subject' },
+          { key: 'student', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
+          { key: 'marks_obtained', label: 'Marks' },
+          { key: 'max_marks', label: 'Max' },
+          { key: 'percentage', label: '%' },
+        ]
       },
       {
         id: 'missing-parent-app',
         categoryId: 'academics',
         title: 'Missing Parent App Registrations',
-        description: 'List of parents that did not register on parent app',
+        description: 'Active students with no linked parent or no parent login yet',
         apiEndpoint: 'reports/academics/missing-parent-logins/',
         exportKey: 'ACADEMICS_MISSING_PARENT_APP',
-        filters: { showDateRange: false, showClassSection: true, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        filters: { showDateRange: false, showClassSection: true, showAcademicYear: true },
+        columns: [
+          { key: 'admission_number', label: 'Admission No.' },
+          { key: 'name', label: 'Student', render: (_v: any, row: any) => `${row.first_name || ''} ${row.last_name || ''}`.trim() || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.class_section__grade || ''}-${row.class_section__section || ''}`.replace(/-$/, '') },
+        ]
       },
       {
         id: 'id-cards',
         categoryId: 'academics',
         title: 'Student ID Cards',
-        description: 'Printable student ID cards',
+        description: 'Preview students, then download a multi-page PDF from your ID Card template.',
         apiEndpoint: 'reports/academics/student-id-cards/',
         exportKey: 'ACADEMICS_ID_CARDS',
-        filters: { showDateRange: false, showClassSection: true, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        filters: { showDateRange: false, showClassSection: true, showAcademicYear: true },
+        offerPdfDownload: true,
+        columns: [
+          { key: 'admission_number', label: 'Adm. No.' },
+          { key: 'name', label: 'Student', render: (_v: any, row: any) => `${row.first_name || ''} ${row.last_name || ''}`.trim() || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.class_section__grade || ''}-${row.class_section__section || ''}`.replace(/-$/, '') },
+          { key: 'status', label: 'Status' },
+          { key: 'gender', label: 'Gender' },
+        ]
       }
     ]
   },
@@ -368,27 +446,47 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/fee-balances-teachers/',
         exportKey: 'PAYMENTS_FEE_BALANCES_TEACHERS',
         filters: { showDateRange: false, showClassSection: true, showAcademicYear: true },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'invoice_number', label: 'Invoice No.' },
+          { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
+          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString()}` },
+          { key: 'due_date', label: 'Due Date' },
+          { key: 'status', label: 'Status' },
+        ]
       },
       {
         id: 'other-income',
         categoryId: 'payments',
         title: 'Other Income Receipts',
-        description: 'List of other income receipts',
+        description: 'Cashbook income not from tuition/fees (uniforms, trips, events, books, donations, etc.). Record from Expense Desk → Record other income.',
         apiEndpoint: 'reports/payments/other-income/',
         exportKey: 'PAYMENTS_OTHER_INCOME',
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'transaction_date', label: 'Date' },
+          { key: 'category', label: 'Category' },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'description', label: 'Description' },
+          { key: 'reference_model', label: 'Ref. type' },
+          { key: 'reference_id', label: 'Ref. ID', render: (_v: any, row: any) => (row.reference_id != null ? String(row.reference_id) : '-') },
+        ]
       },
       {
         id: 'deleted-other-income',
         categoryId: 'payments',
         title: 'Deleted Other Income',
-        description: 'List of deleted other income receipts',
+        description: 'Negative non–fee income adjustments (includes full reversals of manual other income from Expense Desk)',
         apiEndpoint: 'reports/payments/deleted-other-income/',
         exportKey: 'PAYMENTS_DELETED_OTHER_INCOME',
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'transaction_date', label: 'Date' },
+          { key: 'category', label: 'Category' },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'description', label: 'Description' },
+          { key: 'reference_model', label: 'Ref. type' },
+        ]
       },
       {
         id: 'cheques',
@@ -398,7 +496,15 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/cheques/',
         exportKey: 'PAYMENTS_CHEQUES',
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'receipt_number', label: 'Receipt' },
+          { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'payment_date', label: 'Date' },
+          { key: 'reference_number', label: 'Cheque ref' },
+          { key: 'bank_name', label: 'Bank' },
+          { key: 'status', label: 'Status' },
+        ]
       },
       {
         id: 'concessions',
@@ -408,7 +514,14 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/concessions/',
         exportKey: 'PAYMENTS_CONCESSIONS',
         filters: { showDateRange: false, showClassSection: true, showAcademicYear: true },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'student__admission_number', label: 'Adm. No.' },
+          { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
+          { key: 'concession__name', label: 'Concession' },
+          { key: 'status', label: 'Status' },
+          { key: 'valid_from', label: 'From' },
+          { key: 'valid_until', label: 'Until' },
+        ]
       },
       {
         id: 'fees-paid',
@@ -418,7 +531,10 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/fees-paid/',
         exportKey: 'PAYMENTS_FEES_PAID',
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'payment_mode', label: 'Mode' },
+          { key: 'total', label: 'Total', render: (_v: any, row: any) => `₹${Number(row.total || 0).toLocaleString()}` },
+        ]
       },
       {
         id: 'bank-transactions',
@@ -428,7 +544,16 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/bank-transactions/',
         exportKey: 'PAYMENTS_BANK_TRANSACTIONS',
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'receipt_number', label: 'Receipt' },
+          { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'payment_mode', label: 'Mode' },
+          { key: 'payment_date', label: 'Date' },
+          { key: 'reference_number', label: 'Reference' },
+          { key: 'bank_name', label: 'Bank' },
+          { key: 'status', label: 'Status' },
+        ]
       },
       {
         id: 'bus-expenses',
@@ -438,7 +563,13 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/bus-expenses/',
         exportKey: 'PAYMENTS_BUS_EXPENSES',
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'title', label: 'Title' },
+          { key: 'category__name', label: 'Category' },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'expense_date', label: 'Date' },
+          { key: 'status', label: 'Status' },
+        ]
       },
       {
         id: 'fee-balances-no-concession',
@@ -448,7 +579,14 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/fee-balances-no-concession/',
         exportKey: 'PAYMENTS_FEE_BALANCES_NO_CONCESSION',
         filters: { showDateRange: false, showClassSection: true, showAcademicYear: true },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'invoice_number', label: 'Invoice No.' },
+          { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
+          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString()}` },
+          { key: 'due_date', label: 'Due Date' },
+          { key: 'status', label: 'Status' },
+        ]
       },
       {
         id: 'all-receipts',
@@ -458,7 +596,14 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/all-receipts/',
         exportKey: 'PAYMENTS_ALL_RECEIPTS',
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false, showPaymentMode: true },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'receipt_number', label: 'Receipt' },
+          { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'payment_mode', label: 'Mode' },
+          { key: 'payment_date', label: 'Date' },
+          { key: 'status', label: 'Status' },
+        ]
       },
       {
         id: 'all-receipts-with-mismatch',
@@ -468,7 +613,13 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/all-receipts-with-mismatch/',
         exportKey: 'PAYMENTS_ALL_RECEIPTS_WITH_MISMATCH',
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'invoice_number', label: 'Invoice' },
+          { key: 'student_name', label: 'Student', render: (_v: any, row: any) => row.student_name || '-' },
+          { key: 'invoice_paid', label: 'Invoice paid' },
+          { key: 'payment_sum', label: 'Payment sum' },
+          { key: 'delta', label: 'Delta' },
+        ]
       },
       {
         id: 'all-income-expenses',
@@ -478,7 +629,13 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/all-income-expenses/',
         exportKey: 'PAYMENTS_ALL_INCOME_EXPENSES',
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'transaction_type', label: 'Type' },
+          { key: 'category', label: 'Category' },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'transaction_date', label: 'Date' },
+          { key: 'description', label: 'Description' },
+        ]
       },
       {
         id: 'student-detailed-balances',
@@ -488,7 +645,14 @@ export const reportsRegistry: ReportCategory[] = [
         apiEndpoint: 'reports/payments/student-detailed-balances/',
         exportKey: 'PAYMENTS_STUDENT_DETAILED_BALANCES',
         filters: { showDateRange: false, showClassSection: true, showAcademicYear: true },
-        columns: [{ key: 'message', label: 'Info', render: () => 'Coming soon — this report is under development.' }]
+        columns: [
+          { key: 'student__admission_number', label: 'Adm. No.' },
+          { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
+          { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
+          { key: 'total_net', label: 'Net', render: (_v: any, row: any) => `₹${Number(row.total_net || 0).toLocaleString()}` },
+          { key: 'total_paid', label: 'Paid', render: (_v: any, row: any) => `₹${Number(row.total_paid || 0).toLocaleString()}` },
+          { key: 'total_outstanding', label: 'Outstanding', render: (_v: any, row: any) => `₹${Number(row.total_outstanding || 0).toLocaleString()}` },
+        ]
       }
     ]
   },

@@ -46,6 +46,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=False,
         help_text='Forces the user to change their password on next login.'
     )
+    mfa_totp_secret = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Base32 TOTP secret (empty until the user enrolls in MFA).',
+    )
+    mfa_enabled = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = UserManager()

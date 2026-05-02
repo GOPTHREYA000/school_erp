@@ -32,5 +32,5 @@ def health_check(request):
         logger.error(f"Health check failed: {e}")
         return JsonResponse({
             "status": "error",
-            "database": str(e),
+            "database": "unavailable",
         }, status=500)

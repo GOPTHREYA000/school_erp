@@ -11,8 +11,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             # 1. Try resolving an exact 'email' match natively
             user = User.objects.filter(email=credentials).first()
             if not user:
-                # 2. Try resolving via phone number fallback
-                user = User.objects.filter(phone=credentials).first()
+                # 2. Try resolving via phone number fallback (must be unambiguous)
+                phone_qs = User.objects.filter(phone=credentials)
+                if phone_qs.count() > 1:
+                    raise serializers.ValidationError(
+                        {'non_field_errors': ['Multiple accounts use this phone number. Sign in with your email address.']}
+                    )
+                user = phone_qs.first()
             
             if user:
                 # Spoof the validated payload structure prior to authentication
@@ -37,13 +42,14 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'first_name', 'last_name', 'phone', 'role', 'is_active', 
+            'id', 'email', 'first_name', 'last_name', 'phone', 'role', 'is_active',
             'password', 'tenant', 'branch', 'branch_name', 'tenant_name', 'tenant_logo',
-            'must_change_password',
+            'must_change_password', 'mfa_enabled',
         ]
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
-            'tenant': {'read_only': True}
+            'tenant': {'read_only': True},
+            'mfa_enabled': {'read_only': True},
         }
 
     def validate(self, data):
@@ -75,3 +81,19 @@ class UserSerializer(serializers.ModelSerializer):
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField(required=True)
+    token = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, write_only=True)
+    new_password_confirm = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['new_password_confirm']:
+            raise serializers.ValidationError({'new_password_confirm': 'Passwords do not match.'})
+        return attrs

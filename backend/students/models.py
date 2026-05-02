@@ -43,6 +43,7 @@ STUDENT_STATUS = [
     ("ACTIVE", "Active"), ("PENDING_APPROVAL", "Pending Approval"), ("INACTIVE", "Inactive"),
     ("TRANSFERRED", "Transferred"), ("GRADUATED", "Graduated"), ("DETAINED", "Detained"),
     ("DROPOUT", "Dropout"),
+    ("ARCHIVED", "Archived"),
 ]
 RELATION_TYPE = [
     ("FATHER", "Father"), ("MOTHER", "Mother"), ("GUARDIAN", "Guardian"),
@@ -227,6 +228,8 @@ class Student(models.Model):
     branch = models.ForeignKey('tenants.Branch', on_delete=models.CASCADE, related_name='students')
     academic_year = models.ForeignKey('tenants.AcademicYear', on_delete=models.CASCADE, related_name='students', db_index=True)
     admission_number = models.CharField(max_length=20, blank=True, null=True, db_index=True)
+    # Preserves the number from a legacy CSV/SIS when the platform assigns admission_number per tenant format.
+    legacy_admission_number = models.CharField(max_length=64, blank=True, default='')
     # Personal
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True, null=True)

@@ -9,7 +9,10 @@ export function useApi<T>(url: string | null, deps: any[] = []) {
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
-    if (!url) return;
+    if (!url) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {

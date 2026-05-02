@@ -176,7 +176,7 @@ class StudentListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         fields = [
-            'id', 'admission_number', 'first_name', 'last_name', 'gender',
+            'id', 'admission_number', 'legacy_admission_number', 'first_name', 'last_name', 'gender',
             'date_of_birth', 'class_section', 'class_section_display',
             'branch_name', 'status', 'photo_url', 'roll_number', 'proposed_fee',
             'academic_year_name',

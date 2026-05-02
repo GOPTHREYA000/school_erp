@@ -116,7 +116,7 @@ class ReportingViewSet(viewsets.ViewSet):
         today_payments = Payment.objects.filter(
             tenant=request.user.tenant,
             payment_date=timezone.now().date(),
-            status='SUCCESS'
+            status='COMPLETED',
         )
         if branch_id:
             today_payments = today_payments.filter(branch_id=branch_id)

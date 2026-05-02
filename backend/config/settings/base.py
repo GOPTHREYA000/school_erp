@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+from corsheaders.defaults import default_headers
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # Note: BASE_DIR points to the 'backend/' directory (two levels up from this file now)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -119,6 +121,7 @@ REST_FRAMEWORK = {
         'anon': '1000/day',
         'user': '10000/day',
         'login': '5/m',
+        'password_reset': '10/h',
     },
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'accounts.authentication.CookieJWTAuthentication',
@@ -152,12 +155,55 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ALLOWED_ORIGINS', 'http://localhost:3000'
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = (*default_headers, 'x-school-origin-host')
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     'CSRF_TRUSTED_ORIGINS', 'http://localhost:3000'
 ).split(',')
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTP_ONLY = False  # Allowed for frontend to read CSRF token
+
+
+# ─── Online payments (Razorpay) — optional; disabled unless flag + keys are set ───
+# When ready: set ONLINE_PAYMENTS_ENABLED=true and provide key id/secret; configure
+# the same webhook URL in Razorpay Dashboard → Webhooks.
+ONLINE_PAYMENTS_ENABLED = os.environ.get('ONLINE_PAYMENTS_ENABLED', '').lower() in (
+    '1', 'true', 'yes',
+)
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '').strip()
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '').strip()
+RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '').strip()
+
+# Django admin (/admin/): default on for local dev; production settings override to off unless explicitly enabled.
+DJANGO_ADMIN_ENABLED = os.environ.get('DJANGO_ADMIN_ENABLED', 'true').lower() in (
+    '1', 'true', 'yes',
+)
+
+# CSV student import — max upload size (bytes)
+STUDENT_CSV_IMPORT_MAX_BYTES = int(os.environ.get('STUDENT_CSV_IMPORT_MAX_BYTES', str(5 * 1024 * 1024)))
+
+# Password reset emails (configure EMAIL_* in production)
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
+FRONTEND_PASSWORD_RESET_PATH = os.environ.get('FRONTEND_PASSWORD_RESET_PATH', '/reset-password')
+
+# When True, signed-in users with a tenant must use a hostname that matches a tenants.Domain row for that tenant.
+TENANT_HOST_ENFORCEMENT = os.environ.get('TENANT_HOST_ENFORCEMENT', 'true').lower() in (
+    '1', 'true', 'yes',
+)
+# When API is on a different host than the Next.js app, the browser sends X-School-Origin-Host; use it for Domain checks.
+TENANT_TRUST_ORIGIN_HOST_HEADER = os.environ.get('TENANT_TRUST_ORIGIN_HOST_HEADER', 'true').lower() in (
+    '1', 'true', 'yes',
+)
+# Signed MFA login challenge (seconds).
+MFA_CHALLENGE_MAX_AGE = int(os.environ.get('MFA_CHALLENGE_MAX_AGE', '600'))
+MFA_ISSUER_NAME = os.environ.get('MFA_ISSUER_NAME', 'School ERP')
+
+# Optional: restrict homework attachment URLs to these hosts (lowercase), e.g. "cdn.example.com,your-bucket.s3.amazonaws.com"
+_raw_hosts = os.environ.get('HOMEWORK_ATTACHMENT_ALLOWED_HOSTS', '').strip()
+HOMEWORK_ATTACHMENT_ALLOWED_HOSTS = [
+    h.strip().lower() for h in _raw_hosts.split(',') if h.strip()
+] or None
 
 
 # ─── Logging ────────────────────────────────────────────────────

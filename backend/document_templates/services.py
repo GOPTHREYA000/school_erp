@@ -1,45 +1,88 @@
 import logging
+import re
 from django.template import Template, Context
+from django.utils.html import escape
+
+from common.pdf_render import html_to_pdf_bytes
+
 logger = logging.getLogger(__name__)
 
 
-def generate_pdf_from_template(template, context_dict: dict) -> bytes:
-    try:
-        from weasyprint import HTML
-    except (ImportError, OSError, Exception) as e:
-        logger.error(f"WeasyPrint not installed or missing C libraries: {e}")
-        raise Exception(
-            "It looks like your local machine is missing the underlying C-libraries required by WeasyPrint (like pango) to build PDFs locally. "
-            "Please run `brew install pango pangoft2` in your Mac terminal, or preview on the deployed server."
-        )
-        
-    html_content = ""
-    
+def extract_body_html(html_string: str) -> str:
+    match = re.search(r'<body[^>]*>(.*?)</body>', html_string, re.DOTALL | re.IGNORECASE)
+    return match.group(1).strip() if match else html_string
+
+
+def build_document_html(template, context_dict: dict) -> str:
+    """Render full HTML document (CONFIG or Django-template HTML mode)."""
     if template.mode == 'HTML' and template.raw_html:
         django_template = Template(template.raw_html)
-        html_content = django_template.render(Context(context_dict))
-    else:
-        cfg = template.config_data or {}
-        
-        bg_color = cfg.get('background_color', '#ffffff')
-        text_color = cfg.get('text_color', '#333333')
-        primary_color = cfg.get('primary_color', '#1a56db')
-        school_name = cfg.get('school_name') or context_dict.get('tenant_name', 'School Name')
-        logo_url = context_dict.get('tenant_logo', '')
-        address = context_dict.get('tenant_address', '')
-        city = context_dict.get('tenant_city', '')
-        state = context_dict.get('tenant_state', '')
-        branch_name = context_dict.get('branch_name', '')
-        
-        if template.type == 'ID_CARD':
-            html_content = _build_id_card_html(context_dict, cfg, school_name, logo_url, primary_color, bg_color, text_color, branch_name)
-        elif template.type == 'FEE_RECEIPT':
-            html_content = _build_fee_receipt_html(context_dict, cfg, school_name, logo_url, primary_color, bg_color, text_color, address, city, state, branch_name)
-        else:
-            html_content = f"<html><body><h1>Document type {template.type} not configured fully.</h1></body></html>"
+        return django_template.render(Context(context_dict))
 
-    pdf_file = HTML(string=html_content).write_pdf()
-    return pdf_file
+    cfg = template.config_data or {}
+    bg_color = cfg.get('background_color', '#ffffff')
+    text_color = cfg.get('text_color', '#333333')
+    primary_color = cfg.get('primary_color', '#1a56db')
+    school_name = cfg.get('school_name') or context_dict.get('tenant_name', 'School Name')
+    logo_url = context_dict.get('tenant_logo', '')
+    address = context_dict.get('tenant_address', '')
+    city = context_dict.get('tenant_city', '')
+    state = context_dict.get('tenant_state', '')
+    branch_name = context_dict.get('branch_name', '')
+
+    if template.type == 'ID_CARD':
+        return _build_id_card_html(context_dict, cfg, school_name, logo_url, primary_color, bg_color, text_color, branch_name)
+    if template.type == 'FEE_RECEIPT':
+        return _build_fee_receipt_html(
+            context_dict, cfg, school_name, logo_url, primary_color, bg_color, text_color,
+            address, city, state, branch_name,
+        )
+    if template.type == 'HALL_TICKET':
+        return _build_hall_ticket_html(
+            context_dict, cfg, school_name, logo_url, primary_color, bg_color, text_color, branch_name,
+        )
+    if template.type == 'REPORT_CARD':
+        return _build_report_card_html(
+            context_dict, cfg, school_name, logo_url, primary_color, bg_color, text_color, branch_name,
+        )
+    if template.type == 'REPORT_CARD_SUMMARY':
+        return _build_report_card_summary_html(
+            context_dict, cfg, school_name, logo_url, primary_color, bg_color, text_color, branch_name,
+        )
+    if template.type == 'TRANSFER_CERTIFICATE':
+        return _build_transfer_certificate_html(
+            context_dict, cfg, school_name, logo_url, primary_color, bg_color, text_color, branch_name,
+        )
+    return f"<html><body><h1>Document type {escape(template.type)} not configured fully.</h1></body></html>"
+
+
+def generate_pdf_from_template(template, context_dict: dict) -> bytes:
+    html_content = build_document_html(template, context_dict)
+    try:
+        return html_to_pdf_bytes(html_content)
+    except RuntimeError:
+        logger.exception('WeasyPrint PDF failed for template %s', getattr(template, 'id', ''))
+        raise
+
+
+def generate_bulk_pdf_from_template(template, contexts: list) -> bytes:
+    """One PDF with one page per context (same template, different merge data)."""
+    bodies = []
+    for ctx in contexts:
+        full = build_document_html(template, ctx)
+        bodies.append(extract_body_html(full))
+    if template.type == 'ID_CARD':
+        page_rule = '@page { size: 85.6mm 53.98mm; margin: 0; }'
+    else:
+        page_rule = '@page { size: A4; margin: 10mm; }'
+    combined = f"""<html><head><meta charset="utf-8"><style>
+        {page_rule}
+        .erp-doc-page {{ page-break-after: always; }}
+        .erp-doc-page:last-child {{ page-break-after: auto; }}
+    </style></head><body>
+    {''.join(f'<div class="erp-doc-page">{b}</div>' for b in bodies)}
+    </body></html>"""
+    return html_to_pdf_bytes(combined)
 
 
 def _build_id_card_html(ctx, cfg, school_name, logo_url, primary, bg, text, branch):
@@ -301,4 +344,221 @@ def _build_fee_receipt_html(ctx, cfg, school_name, logo_url, primary, bg, text, 
         </div>
     </body>
     </html>
+    """
+
+
+def _build_hall_ticket_html(ctx, cfg, school_name, logo_url, primary, bg, text, branch):
+    exam = ctx.get('exam', {})
+    student = ctx.get('student', {})
+    logo_html = (
+        f'<img src="{escape(logo_url)}" style="height:72px;max-width:220px;object-fit:contain;" />'
+        if logo_url else ''
+    )
+    st_name = escape(f"{student.get('first_name', '')} {student.get('last_name', '')}".strip())
+    return f"""
+    <html><head><meta charset="utf-8">
+    <style>
+        @page {{ size: A4; margin: 14mm; }}
+        body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background: {escape(bg)}; color: {escape(text)}; font-size: 11pt; }}
+        .wrap {{ border: 2px solid {escape(primary)}; border-radius: 10px; padding: 20px; background: #fff; }}
+        .banner {{ text-align: center; border-bottom: 2px dashed {escape(primary)}; padding-bottom: 14px; margin-bottom: 18px; }}
+        .banner h1 {{ color: {escape(primary)}; font-size: 18pt; margin: 6px 0; }}
+        .banner .sub {{ font-size: 10pt; color: #64748b; }}
+        .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
+        .cell {{ background: #f8fafc; border-radius: 8px; padding: 10px 12px; border: 1px solid #e2e8f0; }}
+        .lbl {{ font-size: 8pt; font-weight: 700; text-transform: uppercase; color: #94a3b8; }}
+        .val {{ font-weight: 600; margin-top: 4px; }}
+        .student-name {{ font-size: 16pt; font-weight: 800; text-align: center; margin: 18px 0; color: {escape(primary)}; }}
+        .foot {{ margin-top: 24px; font-size: 9pt; color: #94a3b8; text-align: center; }}
+    </style></head><body>
+        <div class="wrap">
+            <div class="banner">
+                {logo_html}
+                <h1>{escape(school_name)}</h1>
+                <p class="sub">{escape(branch or '')} · Hall Ticket</p>
+            </div>
+            <div class="student-name">{st_name}</div>
+            <div class="grid">
+                <div class="cell"><div class="lbl">Exam</div><div class="val">{escape(exam.get('name', ''))}</div></div>
+                <div class="cell"><div class="lbl">Academic year</div><div class="val">{escape(exam.get('academic_year', ''))}</div></div>
+                <div class="cell"><div class="lbl">Date (session)</div><div class="val">{escape(exam.get('start_date', ''))} – {escape(exam.get('end_date', ''))}</div></div>
+                <div class="cell"><div class="lbl">Admission No.</div><div class="val">{escape(str(student.get('admission_number', '')))}</div></div>
+                <div class="cell"><div class="lbl">Class</div><div class="val">{escape(str(student.get('class_section', '')))}</div></div>
+                <div class="cell"><div class="lbl">Roll No.</div><div class="val">{escape(str(student.get('roll_number', '')))}</div></div>
+            </div>
+            <div class="foot">Bring this hall ticket and school ID to the examination. Follow instructions issued by the school.</div>
+        </div>
+    </body></html>
+    """
+
+
+def _build_report_card_html(ctx, cfg, school_name, logo_url, primary, bg, text, branch):
+    exam = ctx.get('exam', {})
+    student = ctx.get('student', {})
+    subjects = ctx.get('subjects', [])
+    agg = ctx.get('aggregate', {})
+    logo_html = (
+        f'<img src="{escape(logo_url)}" style="height:64px;max-width:200px;object-fit:contain;" />'
+        if logo_url else ''
+    )
+    st_name = escape(f"{student.get('first_name', '')} {student.get('last_name', '')}".strip())
+    rows = []
+    for sub in subjects:
+        rows.append(
+            '<tr>'
+            f'<td>{escape(str(sub.get("name", "")))}</td>'
+            f'<td style="text-align:center">{escape(str(sub.get("marks_obtained", "")))}</td>'
+            f'<td style="text-align:center">{escape(str(sub.get("max_marks", "")))}</td>'
+            f'<td style="text-align:center">{escape(str(sub.get("percentage", "")))}</td>'
+            f'<td style="text-align:center">{escape(str(sub.get("grade", "")))}</td>'
+            '</tr>'
+        )
+    rows_html = '\n'.join(rows)
+    return f"""
+    <html><head><meta charset="utf-8">
+    <style>
+        @page {{ size: A4; margin: 12mm; }}
+        body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background: {escape(bg)}; color: {escape(text)}; font-size: 10pt; }}
+        .wrap {{ max-width: 100%; }}
+        .head {{ text-align: center; margin-bottom: 14px; border-bottom: 2px solid {escape(primary)}; padding-bottom: 10px; }}
+        .head h1 {{ color: {escape(primary)}; font-size: 15pt; margin: 4px 0; }}
+        .meta {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; font-size: 9pt; }}
+        table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+        th, td {{ border: 1px solid #cbd5e1; padding: 8px; }}
+        th {{ background: {escape(primary)}; color: #fff; font-size: 8pt; text-transform: uppercase; }}
+        .agg {{ margin-top: 14px; padding: 12px; background: #f1f5f9; border-radius: 8px; display: flex; justify-content: space-around; font-weight: 700; }}
+    </style></head><body>
+        <div class="wrap">
+            <div class="head">
+                {logo_html}
+                <h1>{escape(school_name)}</h1>
+                <div>{escape(branch or '')} · Report Card · {escape(exam.get('name', ''))}</div>
+            </div>
+            <div class="student-name" style="font-size:14pt;font-weight:800;text-align:center;margin:10px 0;">{st_name}</div>
+            <div class="meta">
+                <div>Admission: <strong>{escape(str(student.get('admission_number', '')))}</strong></div>
+                <div>Class: <strong>{escape(str(student.get('class_section', '')))}</strong></div>
+                <div>Year: <strong>{escape(exam.get('academic_year', ''))}</strong></div>
+                <div>DOB: <strong>{escape(str(student.get('date_of_birth', '')))}</strong></div>
+            </div>
+            <table>
+                <thead><tr><th>Subject</th><th>Marks</th><th>Max</th><th>%</th><th>Grade</th></tr></thead>
+                <tbody>{rows_html}</tbody>
+            </table>
+            <div class="agg">
+                <span>Total: {escape(str(agg.get('total_marks', '')))} / {escape(str(agg.get('max_marks', '')))}</span>
+                <span>Overall %: {escape(str(agg.get('percentage', '')))}</span>
+            </div>
+        </div>
+    </body></html>
+    """
+
+
+def _build_report_card_summary_html(ctx, cfg, school_name, logo_url, primary, bg, text, branch):
+    exam = ctx.get('exam', {})
+    students = ctx.get('students', [])
+    logo_html = (
+        f'<img src="{escape(logo_url)}" style="height:56px;max-width:180px;object-fit:contain;" />'
+        if logo_url else ''
+    )
+    rows = []
+    for row in students:
+        st = row.get('student', {})
+        agg = row.get('aggregate', {})
+        name = escape(f"{st.get('first_name', '')} {st.get('last_name', '')}".strip())
+        rows.append(
+            '<tr>'
+            f'<td>{name}</td>'
+            f'<td>{escape(str(st.get("admission_number", "")))}</td>'
+            f'<td>{escape(str(st.get("class_section", "")))}</td>'
+            f'<td style="text-align:center">{escape(str(agg.get("total_marks", "")))}</td>'
+            f'<td style="text-align:center">{escape(str(agg.get("max_marks", "")))}</td>'
+            f'<td style="text-align:center">{escape(str(agg.get("percentage", "")))}</td>'
+            '</tr>'
+        )
+    rows_html = '\n'.join(rows)
+    return f"""
+    <html><head><meta charset="utf-8">
+    <style>
+        @page {{ size: A4 landscape; margin: 10mm; }}
+        body {{ font-family: 'Helvetica Neue', Arial, sans-serif; background: {escape(bg)}; color: {escape(text)}; font-size: 9pt; }}
+        .head {{ text-align: center; margin-bottom: 10px; }}
+        .head h1 {{ color: {escape(primary)}; font-size: 14pt; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th, td {{ border: 1px solid #94a3b8; padding: 6px 8px; }}
+        th {{ background: {escape(primary)}; color: #fff; font-size: 8pt; }}
+        tr:nth-child(even) {{ background: #f8fafc; }}
+    </style></head><body>
+        <div class="head">
+            {logo_html}
+            <h1>{escape(school_name)}</h1>
+            <p>{escape(branch or '')} · Report card summary · {escape(exam.get('name', ''))} · {escape(exam.get('academic_year', ''))}</p>
+        </div>
+        <table>
+            <thead>
+                <tr><th>Student</th><th>Adm. No.</th><th>Class</th><th>Total marks</th><th>Max</th><th>%</th></tr>
+            </thead>
+            <tbody>{rows_html}</tbody>
+        </table>
+    </body></html>
+    """
+
+
+def _build_transfer_certificate_html(ctx, cfg, school_name, logo_url, primary, bg, text, branch):
+    st = ctx.get('student', {})
+    tc = ctx.get('tc', {})
+    logo_html = (
+        f'<img src="{escape(logo_url)}" style="height:64px;max-width:200px;object-fit:contain;" />'
+        if logo_url else ''
+    )
+    st_name = escape(f"{st.get('first_name', '')} {st.get('last_name', '')}".strip())
+    addr_parts = [ctx.get('tenant_address'), ctx.get('tenant_city'), ctx.get('tenant_state')]
+    addr_line = escape(', '.join(p for p in addr_parts if p))
+    body_extra = cfg.get('certificate_body', '')
+    return f"""
+    <html><head><meta charset="utf-8">
+    <style>
+        @page {{ size: A4; margin: 18mm; }}
+        body {{ font-family: 'Times New Roman', Georgia, serif; color: {escape(text)}; background: {escape(bg)}; font-size: 11pt; line-height: 1.45; }}
+        .hdr {{ text-align: center; margin-bottom: 20px; }}
+        .hdr h1 {{ color: {escape(primary)}; font-size: 16pt; margin: 6px 0; text-transform: uppercase; letter-spacing: 1px; }}
+        .title {{ text-align: center; font-weight: 700; font-size: 13pt; margin: 24px 0 16px; text-decoration: underline; }}
+        .p {{ margin: 10px 0; text-align: justify; }}
+        .grid {{ margin: 18px 0; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; background: #f8fafc; }}
+        .row {{ display: flex; gap: 12px; margin: 6px 0; }}
+        .lbl {{ font-weight: 700; min-width: 160px; color: #475569; }}
+        .sig {{ margin-top: 36px; display: flex; justify-content: space-between; }}
+        .sig div {{ text-align: center; min-width: 200px; }}
+        .line {{ border-top: 1px solid #64748b; margin-bottom: 6px; }}
+    </style></head><body>
+        <div class="hdr">
+            {logo_html}
+            <h1>{escape(school_name)}</h1>
+            <div>{escape(branch or '')}</div>
+            <div style="font-size:9pt;color:#64748b;">{addr_line}</div>
+        </div>
+        <div class="title">Transfer Certificate</div>
+        <div class="grid">
+            <div class="row"><span class="lbl">Certificate No.</span><span>{escape(str(tc.get('certificate_no', '')))}</span></div>
+            <div class="row"><span class="lbl">Date of issue</span><span>{escape(str(tc.get('issue_date', '')))}</span></div>
+            <div class="row"><span class="lbl">Admission No.</span><span>{escape(str(st.get('admission_number', '')))}</span></div>
+        </div>
+        <p class="p">This is to certify that <strong>{st_name}</strong>,
+        son/daughter of <strong>{escape(str(st.get('father_name', '')))}</strong> and
+        <strong>{escape(str(st.get('mother_name', '')))}</strong>,
+        Date of Birth <strong>{escape(str(st.get('date_of_birth', '')))}</strong>,
+        was a bonafide student of this institution, studying in class
+        <strong>{escape(str(tc.get('last_class_studied', st.get('class_section', ''))))}</strong>
+        during the academic session <strong>{escape(str(tc.get('academic_session', '')))}</strong>.</p>
+        <p class="p">Date of leaving the school: <strong>{escape(str(tc.get('date_of_leaving', '')))}</strong>.
+        Reason for leaving: <strong>{escape(str(tc.get('reason_for_leaving', '')))}</strong>.</p>
+        <p class="p">Conduct: <strong>{escape(str(tc.get('conduct', 'Good')))}</strong>.
+        {escape(str(tc.get('promotion_remark', 'Promoted to the next higher class.')))}</p>
+        {f'<p class="p">{escape(body_extra)}</p>' if body_extra else ''}
+        <p class="p">We wish <strong>{escape(str(st.get('first_name', 'the student')))}</strong> every success in future endeavours.</p>
+        <div class="sig">
+            <div><div class="line"></div><small>Class Teacher</small></div>
+            <div><div class="line"></div><small>Principal / Head of Institution</small></div>
+        </div>
+    </body></html>
     """

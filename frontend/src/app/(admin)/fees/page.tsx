@@ -55,7 +55,7 @@ export default function FeesPage() {
   );
 
   const { data: approvals, loading: appLoading, refetch: refetchApprovals } = useApi<FeeApprovalRequest[]>(
-    `/fees/approval-requests/?status=PENDING&branch_id=${selectedBranch}`
+    `/fees/approvals/?status=PENDING&branch_id=${selectedBranch}`
   );
 
   const [showPayForm, setShowPayForm] = useState<string | null>(null);
@@ -67,7 +67,7 @@ export default function FeesPage() {
   const handleApprove = async (id: string) => {
     setProcessingApproval(id);
     try {
-      await api.post(`/fees/approval-requests/${id}/approve/`);
+      await api.post(`/fees/approvals/${id}/approve/`);
       refetchApprovals();
       refetchInvoices();
     } catch (err: any) {
@@ -80,7 +80,7 @@ export default function FeesPage() {
     if (remarks === null) return;
     setProcessingApproval(id);
     try {
-      await api.post(`/fees/approval-requests/${id}/reject/`, { remarks });
+      await api.post(`/fees/approvals/${id}/reject/`, { remarks });
       refetchApprovals();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Rejection failed');
@@ -90,7 +90,7 @@ export default function FeesPage() {
   const handlePay = async (invoiceId: string) => {
     setPaying(true);
     try {
-      await api.post('payments/offline/', {
+      await api.post('fees/payments/offline/', {
         invoice_id: invoiceId,
         amount: payAmount,
         payment_mode: payMode,

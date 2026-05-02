@@ -33,6 +33,7 @@ from fees.transition_serializers import (
 
 from fees.transition_services import (
     initiate_year_closing, confirm_year_closing, rollback_year_closing,
+    aggregate_sar_status_counts_by_academic_year,
     execute_promotion, preview_promotion,
     allocate_payment,
     execute_write_off, handle_dropout,
@@ -132,11 +133,16 @@ class AcademicYearClosingViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['get'], url_path='logs')
     def closing_logs(self, request):
         """GET /api/academic-year-closing/logs/ — history of all closings."""
-        logs = AcademicYearClosingLog.objects.filter(
-            tenant=request.user.tenant
-        ).select_related('academic_year', 'target_academic_year', 'initiated_by')
-
-        serializer = AcademicYearClosingLogSerializer(logs, many=True)
+        logs = list(
+            AcademicYearClosingLog.objects.filter(
+                tenant=request.user.tenant
+            ).select_related('academic_year', 'target_academic_year', 'initiated_by')
+        )
+        year_ids = [log.academic_year_id for log in logs]
+        sar_counts = aggregate_sar_status_counts_by_academic_year(request.user.tenant, year_ids)
+        serializer = AcademicYearClosingLogSerializer(
+            logs, many=True, context={'sar_counts_by_year': sar_counts},
+        )
         return Response({'success': True, 'data': serializer.data})
 
 

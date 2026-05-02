@@ -5,7 +5,13 @@ import api from '@/lib/axios';
 export interface DocumentTemplate {
   id?: string;
   name: string;
-  type: 'ID_CARD' | 'FEE_RECEIPT' | 'TRANSFER_CERTIFICATE';
+  type:
+    | 'ID_CARD'
+    | 'FEE_RECEIPT'
+    | 'TRANSFER_CERTIFICATE'
+    | 'HALL_TICKET'
+    | 'REPORT_CARD'
+    | 'REPORT_CARD_SUMMARY';
   mode: 'CONFIG' | 'HTML';
   config_data: {
     background_color?: string;
@@ -31,6 +37,9 @@ const TEMPLATE_TYPES = [
   { value: 'ID_CARD', label: 'ID Card' },
   { value: 'FEE_RECEIPT', label: 'Fee Receipt' },
   { value: 'TRANSFER_CERTIFICATE', label: 'Transfer Certificate' },
+  { value: 'HALL_TICKET', label: 'Hall Ticket' },
+  { value: 'REPORT_CARD', label: 'Report Card (per student)' },
+  { value: 'REPORT_CARD_SUMMARY', label: 'Report Card Summary (section)' },
 ];
 
 export default function TemplateEditorModal({ isOpen, onClose, onSaved, template }: TemplateEditorModalProps) {
@@ -275,8 +284,15 @@ export default function TemplateEditorModal({ isOpen, onClose, onSaved, template
                     <Code className="w-5 h-5 text-purple-600 mt-0.5" />
                     <div>
                       <h4 className="text-sm font-semibold text-purple-900">Variables you can use:</h4>
-                      <p className="text-xs text-purple-700 mt-1">
-                        Use Django template syntax like <code>{`{{ student.first_name }}`}</code>. For ID Cards: <code>student</code> is available. For Receipts: <code>payment</code> is available.
+                      <p className="text-xs text-purple-700 mt-1 space-y-1">
+                        Django template syntax, e.g. <code>{`{{ student.first_name }}`}</code>.
+                        Context keys by type: <code>tenant_name</code>, <code>tenant_logo</code>, <code>branch_name</code>;
+                        <code>student</code> (ID card, hall ticket, report card);
+                        <code>exam</code> (name, start_date, end_date, academic_year) for hall ticket &amp; report card;
+                        <code>subjects</code> and <code>aggregate</code> for report card;
+                        <code>students</code> (list of rows with <code>student</code>, <code>aggregate</code>) for report card summary;
+                        <code>payment</code> / <code>invoice</code> for fee receipts;
+                        <code>tc</code> (certificate fields) plus <code>student.father_name</code> / <code>mother_name</code> for transfer certificates.
                       </p>
                     </div>
                   </div>

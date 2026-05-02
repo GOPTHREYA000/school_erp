@@ -346,37 +346,48 @@ function YearOverviewTab({ branch, user }: { branch: string; user: any }) {
       {/* Closing History */}
       {closingLogs && closingLogs.length > 0 && (
         <div>
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-            Closing History
-          </h3>
-          <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-            <table className="w-full text-sm text-left">
+          <div className="mb-4">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+              Closing History
+            </h3>
+            <p className="text-xs text-slate-500 mt-1.5 max-w-3xl">
+              Promotion, detain, dropout, and graduated columns reflect live counts from student academic records for that closed year (all branches in your organization).
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl border shadow-sm overflow-x-auto">
+            <table className="w-full text-sm text-left min-w-[720px]">
               <thead className="bg-slate-50/50 border-b">
                 <tr>
-                  <th className="px-6 py-4 font-bold text-slate-600">Year</th>
-                  <th className="px-6 py-4 font-bold text-slate-600">Target</th>
-                  <th className="px-6 py-4 font-bold text-slate-600">Promoted</th>
-                  <th className="px-6 py-4 font-bold text-slate-600">Carry-Forwards</th>
-                  <th className="px-6 py-4 font-bold text-slate-600">Amount</th>
-                  <th className="px-6 py-4 font-bold text-slate-600">Status</th>
-                  <th className="px-6 py-4 font-bold text-slate-600">Date</th>
+                  <th className="px-4 py-4 font-bold text-slate-600">Year</th>
+                  <th className="px-4 py-4 font-bold text-slate-600">Target</th>
+                  <th className="px-4 py-4 font-bold text-slate-600 text-center" title="Student academic records for this year (current data)">Promo</th>
+                  <th className="px-4 py-4 font-bold text-slate-600 text-center">Detain</th>
+                  <th className="px-4 py-4 font-bold text-slate-600 text-center">Dropout</th>
+                  <th className="px-4 py-4 font-bold text-slate-600 text-center">Grad</th>
+                  <th className="px-4 py-4 font-bold text-slate-600">Carry-Fwd</th>
+                  <th className="px-4 py-4 font-bold text-slate-600">Amount</th>
+                  <th className="px-4 py-4 font-bold text-slate-600">Status</th>
+                  <th className="px-4 py-4 font-bold text-slate-600">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {closingLogs.map(log => (
                   <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-900">{log.academic_year_name}</td>
-                    <td className="px-6 py-4 text-slate-500">{log.target_year_name}</td>
-                    <td className="px-6 py-4">{log.promoted_count}</td>
-                    <td className="px-6 py-4">{log.carry_forwards_created}</td>
-                    <td className="px-6 py-4 font-bold">₹{Number(log.total_carry_forward_amount).toLocaleString()}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 font-bold text-slate-900">{log.academic_year_name}</td>
+                    <td className="px-4 py-4 text-slate-500">{log.target_year_name}</td>
+                    <td className="px-4 py-4 text-center tabular-nums">{log.promoted_count}</td>
+                    <td className="px-4 py-4 text-center tabular-nums">{log.detained_count}</td>
+                    <td className="px-4 py-4 text-center tabular-nums">{log.dropout_count}</td>
+                    <td className="px-4 py-4 text-center tabular-nums">{log.graduated_count}</td>
+                    <td className="px-4 py-4 tabular-nums">{log.carry_forwards_created}</td>
+                    <td className="px-4 py-4 font-bold tabular-nums">₹{Number(log.total_carry_forward_amount).toLocaleString()}</td>
+                    <td className="px-4 py-4">
                       <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${closingLogStatusStyles[log.status]}`}>
                         {log.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-400 text-xs">{new Date(log.initiated_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-4 text-slate-400 text-xs whitespace-nowrap">{new Date(log.initiated_at).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>

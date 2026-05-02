@@ -180,7 +180,7 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
     ];
     const sample = [
       'John', 'Doe', '2015-05-20', 'MALE', '5', 'A',
-      '', '', 'A+', 'Hindu', 'OC', '123456789012', 'English', 'Indian',
+      'OLD-SIS-1092', '12', 'A+', 'Hindu', 'OC', '123456789012', 'English', 'Indian',
       'James Doe', '9876543210', 'james@example.com', 'Engineer', 'B.Tech', '987654321098',
       'Jane Doe', '9876543211', 'jane@example.com', 'Teacher', 'M.A.', '876543210987',
       '', '', '',
@@ -256,13 +256,11 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
           <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3">
             <Info size={16} className="text-blue-500 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-blue-700 leading-relaxed">
-              <strong>All columns are optional!</strong> If omitted, system defaults will apply. Missing branches, classes, and admission numbers are auto-generated.
+              <strong>Admission numbers:</strong> New students always get an ID in your school’s configured format (Setup / tenant). Put their <strong>old SIS admission number</strong> in the <code className="bg-blue-100 px-1 rounded">admission_number</code> column — it is stored as legacy for traceability and duplicate detection; the live <strong>Admission</strong> field in the app is the generated one.
               <br />
-              <strong>Financial Migration (Optional):</strong> Fill `total_fee`, `fee_paid`, `concession_amount`, and `past_due_amount` to migrate existing financial balances & past-year dues. If left blank, standard fees will be generated automatically.
+              <strong>Financial migration (optional):</strong> <code className="bg-blue-100 px-1 rounded">total_fee</code>, <code className="bg-blue-100 px-1 rounded">fee_paid</code>, <code className="bg-blue-100 px-1 rounded">concession_amount</code> create one annual invoice + payment; <code className="bg-blue-100 px-1 rounded">past_due_amount</code> + <code className="bg-blue-100 px-1 rounded">past_due_year</code> create a carry-forward record (not full historical invoices). If fee columns are blank, standard fees are generated.
               <br />
-              <strong>Date formats:</strong> YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY accepted.
-              <br />
-              <strong>Grade values:</strong> NURSERY, LKG, UKG, 1, 2, 3, ..., 10, 11_SCIENCE, etc. Duplicates (same name+DOB) skipped.
+              <strong>Dates:</strong> YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY. <strong>Grades:</strong> NURSERY, LKG, 1 … 10, 11_SCIENCE, etc. Rows matching an existing student (legacy admission, same admission no, or same name+DOB+class) are skipped as duplicates.
             </div>
           </div>
 

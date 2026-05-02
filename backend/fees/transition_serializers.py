@@ -152,6 +152,11 @@ class AcademicYearClosingLogSerializer(serializers.ModelSerializer):
     target_year_name = serializers.CharField(source='target_academic_year.name', read_only=True)
     initiated_by_name = serializers.CharField(source='initiated_by.email', read_only=True, default=None)
 
+    promoted_count = serializers.SerializerMethodField()
+    detained_count = serializers.SerializerMethodField()
+    dropout_count = serializers.SerializerMethodField()
+    graduated_count = serializers.SerializerMethodField()
+
     class Meta:
         model = AcademicYearClosingLog
         fields = [
@@ -165,6 +170,36 @@ class AcademicYearClosingLogSerializer(serializers.ModelSerializer):
             'completed_at', 'error_details',
         ]
         read_only_fields = ['id', 'initiated_at', 'completed_at']
+
+    def _sar_row(self, obj):
+        by_year = self.context.get('sar_counts_by_year')
+        if by_year is None:
+            return None
+        return by_year.get(str(obj.academic_year_id))
+
+    def get_promoted_count(self, obj):
+        row = self._sar_row(obj)
+        if row is not None:
+            return row.get('promoted') or 0
+        return obj.promoted_count
+
+    def get_detained_count(self, obj):
+        row = self._sar_row(obj)
+        if row is not None:
+            return row.get('detained') or 0
+        return obj.detained_count
+
+    def get_dropout_count(self, obj):
+        row = self._sar_row(obj)
+        if row is not None:
+            return row.get('dropout') or 0
+        return obj.dropout_count
+
+    def get_graduated_count(self, obj):
+        row = self._sar_row(obj)
+        if row is not None:
+            return row.get('graduated') or 0
+        return obj.graduated_count
 
 
 # ─── Promotion Input Serializers ────────────────────────────────

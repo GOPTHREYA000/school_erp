@@ -12,7 +12,7 @@ export default function GlobalBranchSelector({ user }: { user: any }) {
   useEffect(() => {
     if (['SUPER_ADMIN', 'SCHOOL_ADMIN'].includes(user?.role)) {
       api.get('/tenants/branches/').then(res => {
-        const arr = res.data?.data ?? res.data;
+        const arr = res.data?.data ?? res.data?.results ?? res.data;
         setBranches(Array.isArray(arr) ? arr : []);
       });
     }

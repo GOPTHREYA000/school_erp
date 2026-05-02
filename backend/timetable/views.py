@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from collections import defaultdict
 
-from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove
+from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove, IsBranchAdminOrAbove
 from .models import Period, Subject, TimetableSlot, DAY_CHOICES, ClassSubjectDemand
 from .serializers import PeriodSerializer, SubjectSerializer, TimetableSlotSerializer, ClassSubjectDemandSerializer
 import random
@@ -28,6 +28,11 @@ class PeriodViewSet(viewsets.ModelViewSet):
 class SubjectViewSet(viewsets.ModelViewSet):
     serializer_class = SubjectSerializer
     permission_classes = [IsAuthenticated, IsTeacherOrAbove]
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsAuthenticated(), IsBranchAdminOrAbove()]
+        return [IsAuthenticated(), IsTeacherOrAbove()]
 
     def get_queryset(self):
         # Filter by tenant directly for better performance and reliability
@@ -111,6 +116,11 @@ class ClassSubjectDemandViewSet(viewsets.ModelViewSet):
 class TimetableSlotViewSet(viewsets.ModelViewSet):
     serializer_class = TimetableSlotSerializer
     permission_classes = [IsAuthenticated, IsTeacherOrAbove]
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy', 'auto_generate'):
+            return [IsAuthenticated(), IsBranchAdminOrAbove()]
+        return [IsAuthenticated(), IsTeacherOrAbove()]
 
     def get_queryset(self):
         qs = TimetableSlot.objects.filter(

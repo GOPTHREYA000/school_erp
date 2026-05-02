@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/common/AuthProvider';
+import { useBranch } from '@/components/common/BranchContext';
 import api from '@/lib/axios';
 import { Search } from 'lucide-react';
 
@@ -8,6 +9,7 @@ interface ReportFiltersProps {
   showDateRange?: boolean;
   showAcademicYear?: boolean;
   showClassSection?: boolean;
+  showExam?: boolean;
   showStatus?: boolean;
   statusOptions?: { value: string; label: string }[];
   showAdSource?: boolean;
@@ -21,6 +23,7 @@ export default function ReportFilters({
   showDateRange = true,
   showAcademicYear = true,
   showClassSection = true,
+  showExam = false,
   showStatus = false,
   statusOptions = [],
   showAdSource = false,
@@ -29,7 +32,8 @@ export default function ReportFilters({
   showExpenseCategory = false
 }: ReportFiltersProps) {
   const { user } = useAuth();
-  
+  const { selectedBranch } = useBranch();
+
   const [filters, setFilters] = useState<any>({
     branch_id: '',
     academic_year_id: '',
@@ -37,6 +41,7 @@ export default function ReportFilters({
     endDate: '',
     class_id: '',
     section_id: '',
+    exam_id: '',
     status: '',
     source: '',
     payment_mode: '',
@@ -47,19 +52,70 @@ export default function ReportFilters({
   const [branches, setBranches] = useState<any[]>([]);
   const [academicYears, setAcademicYears] = useState<any[]>([]);
   const [classSections, setClassSections] = useState<any[]>([]);
+  const [examTerms, setExamTerms] = useState<any[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+
+  const effectiveBranchId =
+    filters.branch_id ||
+    (selectedBranch && selectedBranch !== 'all' ? selectedBranch : '');
 
   useEffect(() => {
     if (user?.role === 'SCHOOL_ADMIN' || user?.role === 'SUPER_ADMIN') {
       fetchBranches();
     }
-    if (showAcademicYear) fetchAcademicYears();
+    if (showAcademicYear || showExam) fetchAcademicYears();
     if (showClassSection) fetchClassSections();
-  }, [user, showAcademicYear, showClassSection]);
+  }, [user, showAcademicYear, showClassSection, showExam]);
+
+  useEffect(() => {
+    if (!showExam) return;
+    const loadExams = async () => {
+      try {
+        const params: Record<string, string> = {};
+        if (filters.branch_id) params.branch_id = filters.branch_id;
+        if (filters.academic_year_id) params.academic_year_id = filters.academic_year_id;
+        const res = await api.get('reports/academics/exam-terms/', { params });
+        const raw = res.data?.data ?? res.data;
+        setExamTerms(Array.isArray(raw) ? raw : []);
+      } catch (e) {
+        console.error('Failed to fetch exam terms:', e);
+        setExamTerms([]);
+      }
+    };
+    loadExams();
+  }, [showExam, filters.branch_id, filters.academic_year_id]);
+
+  useEffect(() => {
+    if (!showVendor && !showExpenseCategory) return;
+    const qp = effectiveBranchId ? `?branch_id=${effectiveBranchId}` : '';
+    const unwrap = (res: any) => {
+      const d = res.data?.data ?? res.data;
+      if (Array.isArray(d)) return d;
+      if (Array.isArray(d?.results)) return d.results;
+      return [];
+    };
+    const load = async () => {
+      try {
+        const [catRes, vendRes] = await Promise.all([
+          showExpenseCategory ? api.get(`expenses/categories/${qp}`) : Promise.resolve({ data: null }),
+          showVendor ? api.get(`vendors/${qp}`) : Promise.resolve({ data: null }),
+        ]);
+        if (showExpenseCategory) setExpenseCategories(unwrap(catRes));
+        if (showVendor) setVendors(unwrap(vendRes));
+      } catch (e) {
+        console.error('Failed to fetch expense categories / vendors:', e);
+        if (showExpenseCategory) setExpenseCategories([]);
+        if (showVendor) setVendors([]);
+      }
+    };
+    load();
+  }, [showVendor, showExpenseCategory, effectiveBranchId]);
 
   const fetchBranches = async () => {
     try {
       const res = await api.get('tenants/branches/');
-      const raw = res.data?.data ?? res.data;
+      const raw = res.data?.data ?? res.data?.results ?? res.data;
       setBranches(Array.isArray(raw) ? raw : []);
     } catch (e) {
       console.error('Failed to fetch branches:', e);
@@ -69,7 +125,7 @@ export default function ReportFilters({
   const fetchAcademicYears = async () => {
     try {
       const res = await api.get('tenants/academic-years/');
-      const raw = res.data?.data ?? res.data;
+      const raw = res.data?.data ?? res.data?.results ?? res.data;
       setAcademicYears(Array.isArray(raw) ? raw : []);
     } catch (e) {
       console.error('Failed to fetch academic years:', e);
@@ -123,7 +179,7 @@ export default function ReportFilters({
           </div>
         )}
 
-        {showAcademicYear && (
+        {(showAcademicYear || showExam) && (
           <div className="flex flex-col gap-1.5 min-w-[150px]">
             <label className="text-xs font-semibold text-slate-500 uppercase">Academic Year</label>
             <select 
@@ -134,6 +190,22 @@ export default function ReportFilters({
               <option value="">Current Year</option>
               {academicYears.map((ay: any) => (
                 <option key={ay.id} value={ay.id}>{ay.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {showExam && (
+          <div className="flex flex-col gap-1.5 min-w-[180px]">
+            <label className="text-xs font-semibold text-slate-500 uppercase">Exam term</label>
+            <select
+              className={selectClass}
+              value={filters.exam_id}
+              onChange={(e) => handleChange('exam_id', e.target.value)}
+            >
+              <option value="">Select exam…</option>
+              {examTerms.map((ex: any) => (
+                <option key={ex.id} value={ex.id}>{ex.name}</option>
               ))}
             </select>
           </div>
@@ -168,12 +240,37 @@ export default function ReportFilters({
             <select 
               className={selectClass}
               value={filters.class_id}
-              onChange={(e) => handleChange('class_id', e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setFilters((prev: any) => ({ ...prev, class_id: v, section_id: '' }));
+              }}
             >
               <option value="">All Classes</option>
               {uniqueGrades.map((grade: any) => (
                 <option key={grade} value={grade}>{grade}</option>
               ))}
+            </select>
+          </div>
+        )}
+
+        {showClassSection && filters.class_id && (
+          <div className="flex flex-col gap-1.5 min-w-[180px]">
+            <label className="text-xs font-semibold text-slate-500 uppercase">Section</label>
+            <select
+              className={selectClass}
+              value={filters.section_id}
+              onChange={(e) => handleChange('section_id', e.target.value)}
+            >
+              <option value="">All sections</option>
+              {classSections
+                .filter((cs: any) => cs.grade === filters.class_id)
+                .slice()
+                .sort((a: any, b: any) => String(a.section || '').localeCompare(String(b.section || '')))
+                .map((cs: any) => (
+                  <option key={cs.id} value={cs.id}>
+                    {cs.display_name || `${cs.grade} - ${cs.section}`}
+                  </option>
+                ))}
             </select>
           </div>
         )}
@@ -235,6 +332,11 @@ export default function ReportFilters({
               onChange={(e) => handleChange('expense_category_id', e.target.value)}
             >
               <option value="">All Categories</option>
+              {expenseCategories.map((c: any) => (
+                <option key={c.id} value={c.id}>
+                  {c.code ? `${c.code} — ${c.name}` : c.name}
+                </option>
+              ))}
             </select>
           </div>
         )}
@@ -248,6 +350,9 @@ export default function ReportFilters({
               onChange={(e) => handleChange('vendor_id', e.target.value)}
             >
               <option value="">All Vendors</option>
+              {vendors.map((v: any) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
             </select>
           </div>
         )}

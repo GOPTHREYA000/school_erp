@@ -24,6 +24,11 @@ if not SECRET_KEY:
 
 DEBUG = False
 
+# Disable Django admin by default in production (multi-tenant data exposure). Set DJANGO_ADMIN_ENABLED=true to enable.
+DJANGO_ADMIN_ENABLED = os.environ.get('DJANGO_ADMIN_ENABLED', 'false').lower() in (
+    '1', 'true', 'yes',
+)
+
 ALLOWED_HOSTS = os.environ.get(
     'DJANGO_ALLOWED_HOSTS', '.ondigitalocean.app'
 ).split(',')
@@ -89,8 +94,18 @@ if USE_S3:
 SENTRY_DSN = os.environ.get('SENTRY_DSN')
 if SENTRY_DSN:
     import sentry_sdk
+
+    def _sentry_before_send(event, hint):
+        """Drop cookies from request payload to reduce session/CSRF leakage."""
+        req = event.get('request')
+        if isinstance(req, dict) and req.get('cookies'):
+            req['cookies'] = '[redacted]'
+        return event
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         traces_sample_rate=0.1,  # 10% of requests for performance monitoring
         profiles_sample_rate=0.1,
+        send_default_pii=False,
+        before_send=_sentry_before_send,
     )

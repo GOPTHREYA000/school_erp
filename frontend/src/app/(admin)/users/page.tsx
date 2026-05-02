@@ -17,6 +17,7 @@ interface User {
   is_active: boolean;
   branch: string | null;
   branch_name: string | null;
+  mfa_enabled?: boolean;
 }
 
 interface Branch {
@@ -143,11 +144,35 @@ export default function UsersPage() {
       confirmText: "Impersonate"
     });
     if (!isConfirmed) return;
+    const reason = window.prompt(
+      'Enter an audit reason for impersonation (required, at least 10 characters):'
+    );
+    const trimmed = (reason || '').trim();
+    if (trimmed.length < 10) {
+      toast.error('A reason of at least 10 characters is required to impersonate.');
+      return;
+    }
+    let actor_otp: string | undefined;
+    if (currentUser?.mfa_enabled) {
+      const otp = window.prompt('Enter your authenticator code (required for super-admin MFA):');
+      if (otp === null) return;
+      const t = otp.replace(/\s/g, '');
+      if (!t) {
+        toast.error('Authenticator code is required.');
+        return;
+      }
+      actor_otp = t;
+    }
     try {
-      await api.post('auth/impersonate/', { user_id: targetUser.id });
+      await api.post('auth/impersonate/', {
+        user_id: targetUser.id,
+        reason: trimmed,
+        ...(actor_otp ? { actor_otp } : {}),
+      });
       window.location.href = '/super-admin/all';
-    } catch (err) {
-      toast.error('Failed to impersonate user.');
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.detail;
+      toast.error(msg || 'Failed to impersonate user.');
     }
   };
 

@@ -12,12 +12,18 @@ RUN apt-get update && apt-get install -y \
     netcat-traditional \
     gcc \
     curl \
-    # WeasyPrint dependencies
+    libffi-dev \
+    shared-mime-info \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libharfbuzz0b \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libgdk-pixbuf-xlib-2.0-0 \
-    libffi-dev \
+    libpangoft2-1.0-0 \
     && rm -rf /var/lib/apt/lists/*
+
+# Fail image build if WeasyPrint cannot load native libs
+RUN python -c "from weasyprint import HTML; HTML(string='<p>ok</p>').write_pdf()"
 
 # Install Python dependencies
 COPY requirements.txt /app/

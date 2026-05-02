@@ -3,7 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from accounts.permissions import IsSchoolAdminOrAbove
+from accounts.permissions import IsBranchAdminOrAbove, IsTeacherOrAbove
 from .models import TeacherProfile, TeacherAssignment
 from .serializers import TeacherProfileSerializer, TeacherAssignmentSerializer
 
@@ -11,7 +11,12 @@ logger = logging.getLogger(__name__)
 
 class StaffViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
-    
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'assignments'):
+            return [IsAuthenticated(), IsTeacherOrAbove()]
+        return [IsAuthenticated(), IsBranchAdminOrAbove()]
+
     def get_queryset(self):
         user = self.request.user
         if user.role == 'SUPER_ADMIN':

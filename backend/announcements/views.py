@@ -17,7 +17,10 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Announcement.objects.filter(branch__tenant=self.request.user.tenant)
-        if self.request.user.role == 'PARENT':
+        # Parents and non-admin roles only see published notices (drafts are admin-only).
+        if self.request.user.role not in (
+            'SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN',
+        ):
             qs = qs.filter(is_published=True)
         return qs
 
@@ -43,8 +46,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             elif ann.target_audience == 'TEACHERS':
                 users = users.filter(role='TEACHER')
             elif ann.target_audience == 'CLASS':
-                from students.models import ParentStudentRelation, Student
-                from academics.models import TeacherAssignment
+                from students.models import ParentStudentRelation
+                from staff.models import TeacherAssignment
                 class_ids = ann.target_classes.values_list('id', flat=True)
                 parent_ids = ParentStudentRelation.objects.filter(student__class_section__id__in=class_ids).values_list('parent_id', flat=True)
                 teacher_ids = TeacherAssignment.objects.filter(class_section__id__in=class_ids).values_list('teacher__user_id', flat=True)

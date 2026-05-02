@@ -8,3 +8,7 @@ from rest_framework.throttling import AnonRateThrottle
 class LoginRateThrottle(AnonRateThrottle):
     """Throttle login attempts by IP to prevent brute-force password guessing."""
     scope = 'login'
+
+
+class PasswordResetRateThrottle(AnonRateThrottle):
+    scope = 'password_reset'

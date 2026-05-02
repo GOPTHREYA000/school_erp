@@ -1,5 +1,6 @@
 import logging
 from django.conf import settings
+from django.core import signing
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,48 +13,56 @@ logger = logging.getLogger(__name__)
 
 from .serializers import CustomTokenObtainPairSerializer
 from django.middleware.csrf import get_token
+from .jwt_cookies import set_auth_cookies
+from .mfa_views import MFA_SIGN_SALT
+
+
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     from .throttles import LoginRateThrottle
     permission_classes = [AllowAny]
     throttle_classes = [LoginRateThrottle]
     def post(self, request, *args, **kwargs):
-        logger.info(f"Login attempt: {request.data.get('email')}")
+        _login_id = request.data.get('email') or ''
+        logger.info("Login attempt for identifier len=%s", len(str(_login_id)))
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
-            logger.info(f"Login successful: {request.data.get('email')}")
+            logger.info("Login successful (identifier len=%s)", len(str(_login_id)))
         except Exception as e:
-            logger.warning(f"Login failed for {request.data.get('email')}: {type(e).__name__}")
+            logger.warning("Login failed (identifier len=%s): %s", len(str(_login_id)), type(e).__name__)
             raise e
 
-        is_secure = not settings.DEBUG
-        # Force setting the CSRF token cookie on login
-        get_token(request)
-        # Resolve user from serializer to check flags
         user = serializer.user
-        response = Response({
-            "success": True,
-            "message": "Login successful",
-            "must_change_password": getattr(user, 'must_change_password', False),
-            "csrf_token": get_token(request),
-        }, status=status.HTTP_200_OK)
-        # Set cookies
-        response.set_cookie(
-            'access_token',
-            serializer.validated_data['access'],
-            max_age=3600,
-            httponly=True,
-            secure=is_secure,
-            samesite=settings.SIMPLE_JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
+        if user.mfa_enabled and user.mfa_totp_secret:
+            max_age = getattr(settings, 'MFA_CHALLENGE_MAX_AGE', 600)
+            challenge = signing.dumps({'u': str(user.pk)}, salt=MFA_SIGN_SALT)
+            get_token(request)
+            return Response(
+                {
+                    'success': True,
+                    'mfa_required': True,
+                    'mfa_challenge': challenge,
+                    'must_change_password': getattr(user, 'must_change_password', False),
+                    'csrf_token': get_token(request),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        response = Response(
+            {
+                'success': True,
+                'message': 'Login successful',
+                'must_change_password': getattr(user, 'must_change_password', False),
+                'csrf_token': get_token(request),
+            },
+            status=status.HTTP_200_OK,
         )
-        response.set_cookie(
-            'refresh_token',
+        set_auth_cookies(
+            response,
+            request,
+            serializer.validated_data['access'],
             serializer.validated_data['refresh'],
-            max_age=86400 * 7,
-            httponly=True,
-            secure=is_secure,
-            samesite=settings.SIMPLE_JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
         )
         return response
 
@@ -259,6 +268,25 @@ from .models import AuditLog
 from .serializers import AuditLogSerializer
 from .permissions import IsSuperAdmin
 
+
+def _audit_impersonation(*, actor, target, reason: str):
+    tenant = getattr(target, 'tenant', None) or getattr(actor, 'tenant', None)
+    if not tenant:
+        return
+    AuditLog.objects.create(
+        tenant=tenant,
+        user=actor,
+        action='IMPERSONATE',
+        model_name='User',
+        record_id=target.id,
+        details={
+            'target_user_id': str(target.id),
+            'target_email': target.email,
+            'reason': reason[:2000],
+        },
+    )
+
+
 class SuperAdminAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Dedicated viewset for SUPER_ADMIN to view all audit logs across all tenants.
@@ -275,15 +303,40 @@ class ImpersonateView(APIView):
 
     def post(self, request):
         target_user_id = request.data.get('user_id')
+        reason = (request.data.get('reason') or '').strip()
         if not target_user_id:
             return Response({"error": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
+        if len(reason) < 10:
+            return Response(
+                {"error": "reason is required (at least 10 characters) for security audit."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        actor = request.user
+        if actor.mfa_enabled and actor.mfa_totp_secret:
+            import pyotp
+
+            code = (request.data.get('actor_otp') or '').replace(' ', '')
+            if not code or not pyotp.TOTP(actor.mfa_totp_secret).verify(code, valid_window=1):
+                return Response(
+                    {
+                        'error': 'Your authenticator code is required or invalid.',
+                        'code': 'ACTOR_MFA_REQUIRED',
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         try:
             target_user = User.objects.get(id=target_user_id)
         except User.DoesNotExist:
             return Response({"error": "Target user not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        logger.info(f"SUPER_ADMIN {request.user.email} is impersonating {target_user.email}")
+
+        _audit_impersonation(actor=request.user, target=target_user, reason=reason)
+        logger.info(
+            "SUPER_ADMIN impersonation started: actor=%s target=%s",
+            request.user.id,
+            target_user.id,
+        )
         
         refresh = RefreshToken.for_user(target_user)
         access = refresh.access_token

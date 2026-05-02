@@ -12,7 +12,12 @@ from decimal import Decimal
 logger = logging.getLogger(__name__)
 
 from accounts.permissions import IsSchoolAdminOrAbove, IsBranchAdminOrAbove, IsAccountantOrAbove
-from accounts.utils import get_validated_branch_id, get_active_academic_year, log_audit_action
+from accounts.utils import (
+    get_validated_branch_id,
+    get_active_academic_year,
+    log_audit_action,
+    filter_queryset_for_user_tenant,
+)
 from students.models import Student, ClassSection
 from .models import (
     FeeCategory, FeeStructure, FeeStructureItem, StudentWallet,
@@ -35,7 +40,9 @@ class FeeCategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        qs = FeeCategory.objects.filter(branch__tenant=self.request.user.tenant)
+        qs = filter_queryset_for_user_tenant(
+            FeeCategory.objects.all(), self.request.user, 'branch__tenant'
+        )
         branch_id = get_validated_branch_id(self.request.user, self.request.query_params.get('branch') or self.request.query_params.get('branch_id'))
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
@@ -56,7 +63,9 @@ class FeeStructureViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = FeeStructure.objects.filter(branch__tenant=user.tenant).prefetch_related('items')
+        qs = filter_queryset_for_user_tenant(
+            FeeStructure.objects.all(), user, 'branch__tenant'
+        ).prefetch_related('items')
         
         grade = self.request.query_params.get('grade')
         ay = self.request.query_params.get('academic_year_id')
@@ -92,7 +101,9 @@ class FeeStructureItemViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        return FeeStructureItem.objects.filter(structure__branch__tenant=self.request.user.tenant)
+        return filter_queryset_for_user_tenant(
+            FeeStructureItem.objects.all(), self.request.user, 'structure__branch__tenant'
+        )
 
 
 class StudentFeeItemViewSet(viewsets.ModelViewSet):
@@ -100,7 +111,9 @@ class StudentFeeItemViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        return StudentFeeItem.objects.filter(student__branch__tenant=self.request.user.tenant)
+        return filter_queryset_for_user_tenant(
+            StudentFeeItem.objects.all(), self.request.user, 'student__branch__tenant'
+        )
 
 
 class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
@@ -114,7 +127,9 @@ class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = FeeApprovalRequest.objects.filter(tenant=user.tenant)
+        qs = filter_queryset_for_user_tenant(
+            FeeApprovalRequest.objects.all(), user, 'tenant'
+        )
         branch_id = get_validated_branch_id(user, self.request.query_params.get('branch_id'))
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
@@ -196,7 +211,9 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = FeeInvoice.objects.filter(branch__tenant=user.tenant).select_related('student')
+        qs = filter_queryset_for_user_tenant(
+            FeeInvoice.objects.all(), user, 'branch__tenant'
+        ).select_related('student')
         # Branch isolation
         branch_id = get_validated_branch_id(user, self.request.query_params.get('branch_id'))
         if branch_id:
@@ -225,15 +242,21 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         if not branch and data.get('branch_id'):
             from tenants.models import Branch
             try:
-                branch = Branch.objects.get(id=data['branch_id'], tenant=request.user.tenant)
+                if request.user.role == 'SUPER_ADMIN':
+                    branch = Branch.objects.get(id=data['branch_id'])
+                else:
+                    branch = Branch.objects.get(id=data['branch_id'], tenant=request.user.tenant)
             except Branch.DoesNotExist:
                 return Response({'detail': 'Invalid branch_id.'}, status=400)
         
         if not branch:
             return Response({'detail': 'branch_id is required for school-level admins.'}, status=400)
 
+        if request.user.role != 'SUPER_ADMIN' and request.user.tenant_id and branch.tenant_id != request.user.tenant_id:
+            return Response({'detail': 'Invalid branch_id.'}, status=400)
+
         result = generate_monthly_invoices(
-            tenant=request.user.tenant,
+            tenant=branch.tenant,
             branch=branch,
             academic_year_id=data['academic_year_id'],
             month=data['month'],
@@ -303,23 +326,49 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         if not invoice_ids:
             return Response({'detail': 'No invoices selected.'}, status=400)
 
-        invoices = FeeInvoice.objects.filter(
+        inv_base = FeeInvoice.objects.filter(
             id__in=invoice_ids,
-            branch__tenant=request.user.tenant,
-            status__in=['SENT', 'OVERDUE', 'PARTIALLY_PAID']
-        ).select_related('student')
+            status__in=['SENT', 'OVERDUE', 'PARTIALLY_PAID'],
+        )
+        invoices = filter_queryset_for_user_tenant(
+            inv_base, request.user, 'branch__tenant'
+        ).select_related('student', 'branch')
+
+        from notifications.dispatcher import dispatch_notification
 
         reminded = 0
+        skipped_no_parent = 0
+        today = timezone.now().date()
         for inv in invoices:
-            # TODO: Integrate with notification system (SMS/WhatsApp/Email)
-            reminded += 1
-            logger.info(f"Fee reminder queued for {inv.student.first_name} {inv.student.last_name} - Invoice {inv.invoice_number}")
+            parent = inv.student.primary_parent
+            if not parent:
+                skipped_no_parent += 1
+                continue
+            event_type = 'PAYMENT_OVERDUE' if inv.due_date and inv.due_date < today else 'FEE_REMINDER'
+            student_name = f'{inv.student.first_name} {inv.student.last_name}'.strip()
+            payload = {
+                'amount': str(inv.outstanding_amount),
+                'student_name': student_name,
+                'invoice_number': inv.invoice_number,
+                'due_date': inv.due_date.isoformat() if inv.due_date else '',
+            }
+            log = dispatch_notification(
+                tenant=inv.branch.tenant,
+                branch=inv.branch,
+                event_type=event_type,
+                recipient_user=parent,
+                payload=payload,
+            )
+            if log:
+                reminded += 1
 
         return Response({
             'success': True,
             'data': {
                 'reminded': reminded,
-                'message': f'{reminded} reminder(s) queued successfully.'
+                'skipped_no_parent': skipped_no_parent,
+                'message': f'{reminded} in-app reminder(s) sent.'
+                + (f' {skipped_no_parent} skipped (no linked parent user).' if skipped_no_parent else ''),
             }
         })
 
@@ -327,10 +376,13 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
     def defaulters(self, request):
         aging = request.query_params.get('aging', '30')
         today = timezone.now().date()
-        
+
+        base_qs = filter_queryset_for_user_tenant(
+            FeeInvoice.objects.all(), request.user, 'branch__tenant'
+        )
         # 1. Calculate Date Thresholds
-        filters = Q(branch__tenant=request.user.tenant) & Q(status__in=['SENT', 'OVERDUE', 'PARTIALLY_PAID']) & Q(outstanding_amount__gt=0)
-        
+        filters = Q(status__in=['SENT', 'OVERDUE', 'PARTIALLY_PAID']) & Q(outstanding_amount__gt=0)
+
         if aging == '30':
             filters &= Q(due_date__gte=today - timedelta(days=30), due_date__lt=today)
         elif aging == '60':
@@ -341,8 +393,8 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
             filters &= Q(due_date__lt=today - timedelta(days=90))
         else:
             filters &= Q(due_date__lt=today) # Default: all overdue
-            
-        overdue_invoices = list(FeeInvoice.objects.filter(filters).values(
+
+        overdue_invoices = list(base_qs.filter(filters).values(
             'student__id',
             'student__first_name',
             'student__last_name',
@@ -380,7 +432,9 @@ class PaymentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        qs = Payment.objects.filter(branch__tenant=self.request.user.tenant).select_related('student', 'invoice')
+        qs = filter_queryset_for_user_tenant(
+            Payment.objects.all(), self.request.user, 'branch__tenant'
+        ).select_related('student', 'invoice')
         branch_id = get_validated_branch_id(self.request.user, self.request.query_params.get('branch_id'))
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
@@ -393,9 +447,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # Lock the invoice row to prevent concurrent payment race conditions
+        # Lock the invoice row to prevent concurrent payment race conditions (tenant-scoped)
+        inv_qs = FeeInvoice.objects.select_for_update().filter(id=data['invoice_id'])
+        if request.user.tenant:
+            inv_qs = inv_qs.filter(tenant=request.user.tenant)
+        elif request.user.role != 'SUPER_ADMIN':
+            return Response({'detail': 'Invoice not found.'}, status=404)
         try:
-            invoice = FeeInvoice.objects.select_for_update().get(id=data['invoice_id'])
+            invoice = inv_qs.get()
         except FeeInvoice.DoesNotExist:
             return Response({'detail': 'Invoice not found.'}, status=404)
 
@@ -473,7 +532,8 @@ class PaymentViewSet(viewsets.ModelViewSet):
                     'invoice_number': invoice.invoice_number,
                     'amount': float(amount),
                     'receipt_number': receipt_number
-                }
+                },
+                tenant=invoice.tenant,
             )
 
             # Auto-populate receipt download URL
@@ -493,8 +553,16 @@ class PaymentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        student = Student.objects.get(id=data['student_id'])
-        
+        stu_qs = Student.objects.filter(id=data['student_id'])
+        if request.user.tenant:
+            stu_qs = stu_qs.filter(tenant=request.user.tenant)
+        elif request.user.role != 'SUPER_ADMIN':
+            return Response({'detail': 'Student not found.'}, status=404)
+        try:
+            student = stu_qs.get()
+        except Student.DoesNotExist:
+            return Response({'detail': 'Student not found.'}, status=404)
+
         result = process_initial_payment(
             user=request.user,
             student=student,
@@ -515,8 +583,13 @@ class PaymentViewSet(viewsets.ModelViewSet):
         if not reason:
             return Response({'detail': 'Reversal reason is required.'}, status=400)
 
+        pay_qs = Payment.objects.select_for_update().filter(id=pk)
+        if request.user.tenant:
+            pay_qs = pay_qs.filter(tenant=request.user.tenant)
+        elif request.user.role != 'SUPER_ADMIN':
+            return Response({'detail': 'Payment not found.'}, status=404)
         try:
-            payment = Payment.objects.select_for_update().get(id=pk)
+            payment = pay_qs.get()
         except Payment.DoesNotExist:
             return Response({'detail': 'Payment not found.'}, status=404)
 
@@ -524,7 +597,15 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return Response({'detail': f'Only completed payments can be reversed. Current status: {payment.status}'}, status=400)
 
         # Lock and update the invoice
-        invoice = FeeInvoice.objects.select_for_update().get(id=payment.invoice_id)
+        inv_qs = FeeInvoice.objects.select_for_update().filter(id=payment.invoice_id)
+        if request.user.tenant:
+            inv_qs = inv_qs.filter(tenant=request.user.tenant)
+        elif request.user.role != 'SUPER_ADMIN':
+            return Response({'detail': 'Payment not found.'}, status=404)
+        try:
+            invoice = inv_qs.get()
+        except FeeInvoice.DoesNotExist:
+            return Response({'detail': 'Invoice not found.'}, status=404)
 
         invoice.paid_amount = max(invoice.paid_amount - payment.amount, Decimal('0.00'))
         invoice.outstanding_amount = invoice.net_amount - invoice.paid_amount
@@ -562,7 +643,8 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 'amount': float(payment.amount),
                 'receipt_number': payment.receipt_number,
                 'invoice_number': invoice.invoice_number
-            }
+            },
+            tenant=payment.tenant,
         )
 
         logger.info(f"Payment {payment.receipt_number} reversed by {request.user.email}. Reason: {reason}")

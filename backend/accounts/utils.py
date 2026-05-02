@@ -25,7 +25,12 @@ def get_validated_branch_id(user, requested_branch_id):
             except ValueError:
                 return None  # Invalid UUID format, treat as "all branches"
             from tenants.models import Branch
-            if not Branch.objects.filter(id=requested_branch_id, tenant=user.tenant).exists():
+            branch_qs = Branch.objects.filter(id=requested_branch_id)
+            if user.role == 'SCHOOL_ADMIN':
+                if not user.tenant:
+                    raise PermissionDenied("Access denied: no organization context for this account.")
+                branch_qs = branch_qs.filter(tenant=user.tenant)
+            if not branch_qs.exists():
                 raise PermissionDenied("Access denied: branch does not belong to your organization.")
             return requested_branch_id
         return None  # All branches within tenant
@@ -47,10 +52,14 @@ def log_audit_action(user, action, model_name, record_id, details=None, tenant=N
     """
     Logs an audit action. Since we wrap operations in @transaction.atomic,
     if the main operation fails, the audit log will also rollback.
+    Pass tenant= explicitly when user may be None (e.g. webhook-driven events).
     """
     from accounts.models import AuditLog
+    resolved_tenant = tenant or (getattr(user, 'tenant', None) if user else None)
+    if not resolved_tenant:
+        return
     AuditLog.objects.create(
-        tenant=tenant or user.tenant,
+        tenant=resolved_tenant,
         user=user,
         action=action,
         model_name=model_name,
@@ -59,16 +68,33 @@ def log_audit_action(user, action, model_name, record_id, details=None, tenant=N
     )
 
 
-def log_bulk_action(user, action_type, record_count, details=None):
+def log_bulk_action(user, action_type, record_count, details=None, tenant=None):
     """
     Logs a bulk action (e.g. bulk reminders, bulk approvals).
+    Pass tenant= when the acting user may have no tenant (e.g. platform SUPER_ADMIN).
     """
     from accounts.models import BulkActionLog
+    resolved = tenant or (getattr(user, 'tenant', None) if user else None)
+    if not resolved:
+        return
     BulkActionLog.objects.create(
-        tenant=user.tenant,
+        tenant=resolved,
         performed_by=user,
         action_type=action_type,
         record_count=record_count,
         details=details or {}
     )
+
+
+def filter_queryset_for_user_tenant(queryset, user, tenant_lookup):
+    """
+    SUPER_ADMIN: no tenant filter (platform-wide read).
+    Other roles: restrict to user.tenant; missing tenant yields empty queryset.
+    """
+    if getattr(user, 'role', None) == 'SUPER_ADMIN':
+        return queryset
+    t = getattr(user, 'tenant', None)
+    if not t:
+        return queryset.none()
+    return queryset.filter(**{tenant_lookup: t})
 

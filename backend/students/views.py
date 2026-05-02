@@ -13,6 +13,7 @@ from django.db import transaction, models
 from django.db.models import Q
 
 from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove, IsAccountantOrAbove, IsBranchAdminOrAbove
+from accounts.utils import log_audit_action
 from .models import (
     ClassSection, AdmissionInquiry, AdmissionApplication,
     ApplicationDocument, Student, ParentStudentRelation,
@@ -527,6 +528,46 @@ class StudentViewSet(viewsets.ModelViewSet):
             })
         except CsvImportJob.DoesNotExist:
             return Response({'success': False, 'detail': 'Job not found'}, status=404)
+
+    @action(
+        detail=False,
+        methods=['post'],
+        url_path='bulk-archive',
+        permission_classes=[IsAuthenticated, IsAccountantOrAbove],
+    )
+    @transaction.atomic
+    def bulk_archive(self, request):
+        """Mark students as ARCHIVED (directory only — fee history retained). Accountant and above."""
+        student_ids = request.data.get('student_ids', [])
+        reason = (request.data.get('reason') or 'Archived').strip()[:500]
+        if not student_ids:
+            return Response({'error': 'student_ids is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        qs = Student.objects.filter(id__in=student_ids, branch__tenant=user.tenant)
+        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+            qs = qs.filter(branch=user.branch)
+
+        archived_count = 0
+        today = timezone.now().date()
+        for student in qs.select_related('tenant', 'branch'):
+            if student.status == 'ARCHIVED':
+                continue
+            student.status = 'ARCHIVED'
+            student.leaving_date = today
+            student.leaving_reason = reason
+            student.save(update_fields=['status', 'leaving_date', 'leaving_reason', 'updated_at'])
+            log_audit_action(
+                user=user,
+                action='ARCHIVE_STUDENT',
+                model_name='Student',
+                record_id=student.id,
+                details={'reason': reason, 'admission_number': student.admission_number},
+                tenant=student.tenant,
+            )
+            archived_count += 1
+
+        return Response({'success': True, 'archived_count': archived_count})
 
 class ParentStudentRelationViewSet(viewsets.ModelViewSet):
     serializer_class = ParentStudentRelationSerializer

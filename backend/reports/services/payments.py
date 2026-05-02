@@ -84,6 +84,34 @@ class PaymentsService:
         return qs.values('category').annotate(total=Sum('amount')).order_by('-total')
 
     @staticmethod
+    def get_expense_statement(filters):
+        """Cashbook expenses (approved operational spend) grouped by category."""
+        qs = TransactionLog.objects.filter(transaction_type='EXPENSE')
+        qs = BaseReportService.apply_branch_scope(qs, filters)
+        qs = BaseReportService.apply_date_range(qs, 'transaction_date', filters.start_date, filters.end_date)
+        return qs.values('category').annotate(total=Sum('amount')).order_by('-total')
+
+    @staticmethod
+    def get_financial_dashboard(filters):
+        """
+        Income and expense breakdown from the cashbook plus net totals for dashboard UIs.
+        """
+        income_rows = list(PaymentsService.get_income_statement(filters))
+        expense_rows = list(PaymentsService.get_expense_statement(filters))
+        stats = PaymentsService.get_income_vs_expenses(filters)
+        ti = stats['total_income'] or Decimal('0')
+        te = stats['total_expense'] or Decimal('0')
+        return {
+            'income_by_category': income_rows,
+            'expense_by_category': expense_rows,
+            'totals': {
+                'total_income': str(ti),
+                'total_expense': str(te),
+                'net': str(ti - te),
+            },
+        }
+
+    @staticmethod
     def get_expenses(filters):
         qs = Expense.objects.select_related('category', 'vendor')
         qs = BaseReportService.apply_branch_scope(qs, filters)
@@ -91,7 +119,11 @@ class PaymentsService:
         
         if filters.status:
             qs = qs.filter(status=filters.status)
-            
+        if getattr(filters, 'vendor_id', None):
+            qs = qs.filter(vendor_id=filters.vendor_id)
+        if getattr(filters, 'expense_category_id', None):
+            qs = qs.filter(category_id=filters.expense_category_id)
+
         return qs.order_by('-expense_date')
 
     @staticmethod
@@ -129,3 +161,73 @@ class PaymentsService:
                 })
                 
         return drifts
+
+    @staticmethod
+    def get_all_receipts(filters):
+        """All payments with a receipt number in the date window (any status)."""
+        qs = Payment.objects.select_related('student').filter(receipt_number__isnull=False)
+        qs = BaseReportService.apply_branch_scope(qs, filters)
+        qs = BaseReportService.apply_date_range(qs, 'payment_date', filters.start_date, filters.end_date)
+        if getattr(filters, 'payment_mode', None):
+            qs = qs.filter(payment_mode=filters.payment_mode)
+        return qs.order_by('-payment_date')
+
+    @staticmethod
+    def get_transaction_ledger(filters):
+        qs = TransactionLog.objects.all()
+        qs = BaseReportService.apply_branch_scope(qs, filters)
+        qs = BaseReportService.apply_date_range(qs, 'transaction_date', filters.start_date, filters.end_date)
+        return qs.order_by('-transaction_date')
+
+    @staticmethod
+    def get_student_balance_summary(filters):
+        qs = FeeInvoice.objects.exclude(status='CANCELLED')
+        qs = BaseReportService.apply_branch_scope(qs, filters)
+        qs = BaseReportService.apply_academic_year(qs, filters.academic_year_id)
+        if filters.class_id:
+            qs = qs.filter(student__class_section__grade=filters.class_id)
+        if filters.section_id:
+            qs = qs.filter(student__class_section_id=filters.section_id)
+        return qs.values(
+            'student__admission_number', 'student__first_name', 'student__last_name',
+            'student__class_section__grade', 'student__class_section__section',
+        ).annotate(
+            total_net=Sum('net_amount'),
+            total_paid=Sum('paid_amount'),
+            total_outstanding=Sum('outstanding_amount'),
+        ).order_by('student__admission_number')
+
+    @staticmethod
+    def get_bus_expenses(filters):
+        qs = PaymentsService.get_expenses(filters)
+        return qs.filter(
+            models.Q(category__name__icontains='transport')
+            | models.Q(category__name__icontains='bus')
+            | models.Q(title__icontains='transport')
+            | models.Q(title__icontains='bus')
+        )
+
+    @staticmethod
+    def get_other_income_ledger(filters):
+        """
+        Non–fee income from the cashbook (ledger rows not tied to fee payments).
+        Fee tuition posts as reference_model=Payment / category Fee Payment.
+        """
+        qs = TransactionLog.objects.filter(transaction_type='INCOME', amount__gt=0)
+        qs = qs.exclude(reference_model='Payment')
+        qs = qs.exclude(category__in=['Fee Payment', 'Fee Reversal'])
+        qs = BaseReportService.apply_branch_scope(qs, filters)
+        qs = BaseReportService.apply_date_range(qs, 'transaction_date', filters.start_date, filters.end_date)
+        return qs.order_by('-transaction_date')
+
+    @staticmethod
+    def get_deleted_other_income_ledger(filters):
+        """
+        Negative INCOME ledger rows excluding standard fee reversals (adjustments to misc income).
+        """
+        qs = TransactionLog.objects.filter(transaction_type='INCOME', amount__lt=0)
+        qs = qs.exclude(reference_model='Payment')
+        qs = qs.exclude(category='Fee Reversal')
+        qs = BaseReportService.apply_branch_scope(qs, filters)
+        qs = BaseReportService.apply_date_range(qs, 'transaction_date', filters.start_date, filters.end_date)
+        return qs.order_by('-transaction_date')

@@ -1,6 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .online_views import (
+    CreateRazorpayOrderView,
+    OnlinePaymentConfigView,
+    RazorpayWebhookView,
+)
 from .transition_views import (
     AcademicYearClosingViewSet,
     PromotionViewSet,
@@ -37,5 +42,20 @@ router.register(r'fee-finalize', FeeStructureFinalizeViewSet, basename='fee-fina
 router.register(r'student-lifecycle', StudentDropoutViewSet, basename='student-lifecycle')
 
 urlpatterns = [
+    path(
+        'fees/payments/online/config/',
+        OnlinePaymentConfigView.as_view(),
+        name='online-payment-config',
+    ),
+    path(
+        'fees/payments/online/create-order/',
+        CreateRazorpayOrderView.as_view(),
+        name='razorpay-create-order',
+    ),
+    path(
+        'fees/payments/webhooks/razorpay/',
+        RazorpayWebhookView.as_view(),
+        name='razorpay-webhook',
+    ),
     path('', include(router.urls)),
 ]

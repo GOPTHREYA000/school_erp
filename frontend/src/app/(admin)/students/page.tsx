@@ -209,6 +209,7 @@ export default function StudentsPage() {
                       s.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 
                       s.status === 'PENDING_APPROVAL' ? 'bg-blue-50 text-blue-700' :
                       s.status === 'DROPOUT' ? 'bg-red-50 text-red-600' :
+                      s.status === 'ARCHIVED' ? 'bg-amber-50 text-amber-800' :
                       s.status === 'TRANSFERRED' ? 'bg-purple-50 text-purple-600' :
                       'bg-slate-100 text-slate-600'
                     }`}>
@@ -275,7 +276,23 @@ export default function StudentsPage() {
               refetch();
             }
           }},
-          { label: 'Archive Selected', icon: Trash2, variant: 'danger' as const, onClick: () => toast('Archive coming soon', { icon: '📦' }) },
+          { label: 'Archive Selected', icon: Trash2, variant: 'danger' as const, onClick: async () => {
+            if (selectedIds.length === 0) return;
+            const reason = window.prompt('Reason for archiving (optional):') ?? '';
+            if (reason === null) return;
+            try {
+              const res = await api.post('students/bulk-archive/', {
+                student_ids: selectedIds,
+                reason: reason.trim() || 'Archived',
+              });
+              const n = res.data?.archived_count ?? 0;
+              toast.success(n > 0 ? `${n} student(s) archived.` : 'No students were archived (check selection or permissions).');
+              setSelectedIds([]);
+              refetch();
+            } catch (err: any) {
+              toast.error(err.response?.data?.error || err.response?.data?.detail || 'Archive failed.');
+            }
+          } },
         ]}
       />
     </div>

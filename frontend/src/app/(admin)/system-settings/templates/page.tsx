@@ -54,7 +54,7 @@ export default function DocumentTemplatesPage() {
             Document Templates
           </h1>
           <p className="text-gray-500 mt-2 max-w-2xl">
-            Design and generate beautiful PDF documents like ID Cards and Fee Receipts using either our standard configuration or your own custom HTML engine.
+            Each organisation can customise PDFs: ID cards, fee receipts, hall tickets, and report cards. Use Standard Configuration for quick styling, or Raw HTML (Django templates) for full control over layout and branding.
           </p>
         </div>
         <button

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import { useRouter } from 'next/navigation';
-import { Plus, Receipt, Check, X, FileText, Search, CreditCard, Wallet, Landmark } from 'lucide-react';
+import { Plus, Receipt, Check, X, FileText, Search, CreditCard, Wallet, Landmark, TrendingUp, RotateCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useBranch } from '@/components/common/BranchContext';
 import Modal from '@/components/common/Modal';
@@ -37,6 +37,21 @@ const modeIcons: Record<string, any> = {
   CHEQUE: FileText,
 };
 
+/** Fallback if `other-income-presets` API fails; keep in sync with `expenses/other_income_presets.py`. */
+const DEFAULT_OTHER_INCOME_PRESETS = [
+  'Uniforms',
+  'Trips & excursions',
+  'Events & fests',
+  'Books & stationery',
+  'Sports & equipment',
+  'Lab & materials',
+  'Transport (non-fee)',
+  'Donations',
+  'Hall & facility rent',
+  'ID cards & certificates',
+  'Miscellaneous',
+] as const;
+
 export default function ExpensesPage() {
   const { selectedBranch } = useBranch();
   const [activeTab, setActiveTab] = useState<'APPROVALS' | 'HISTORY'>('HISTORY');
@@ -56,18 +71,8 @@ export default function ExpensesPage() {
 
   const branchParam = selectedBranch && selectedBranch !== 'all' ? `branch_id=${selectedBranch}` : '';
 
-  const { data: expenses, loading, error, refetch } = useApi<Expense[]>(
-    `/expenses/?status=${activeTab === 'APPROVALS' ? 'SUBMITTED' : statusFilter}${branchParam ? `&${branchParam}` : ''}`
-  );
-  const { data: categoriesData } = useApi<any>(`/expenses/categories/${branchParam ? `?${branchParam}` : ''}`);
-  const { data: vendorsData } = useApi<any>(`/vendors/${branchParam ? `?${branchParam}` : ''}`);
-  
-  const categories = Array.isArray(categoriesData) ? categoriesData : [];
-  const vendors = Array.isArray(vendorsData) ? vendorsData : [];
-
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<any>(null);
-
   const router = useRouter();
 
   useEffect(() => {
@@ -76,10 +81,110 @@ export default function ExpensesPage() {
       setUser(u);
       if (u?.role === 'TEACHER') router.replace('/teacher-dashboard');
     });
-  }, []);
+  }, [router]);
+
+  const manualIncomeLedgerUrl =
+    user && ['ACCOUNTANT', 'BRANCH_ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(user.role)
+      ? `accounting/cashbook/?reference_model=MANUAL_OTHER_INCOME${branchParam ? `&${branchParam}` : ''}`
+      : null;
+
+  const { data: expenses, loading, error, refetch } = useApi<Expense[]>(
+    `/expenses/?status=${activeTab === 'APPROVALS' ? 'SUBMITTED' : statusFilter}${branchParam ? `&${branchParam}` : ''}`
+  );
+  const { data: categoriesData } = useApi<any>(`/expenses/categories/${branchParam ? `?${branchParam}` : ''}`);
+  const { data: vendorsData } = useApi<any>(`/vendors/${branchParam ? `?${branchParam}` : ''}`);
+  const { data: manualIncomeRaw, refetch: refetchManualIncome } = useApi<any[]>(manualIncomeLedgerUrl);
+
+  const categories = Array.isArray(categoriesData) ? categoriesData : [];
+  const vendors = Array.isArray(vendorsData) ? vendorsData : [];
+  const manualIncomeRows = Array.isArray(manualIncomeRaw)
+    ? manualIncomeRaw.filter((r: any) => Number(r.amount) > 0)
+    : [];
 
   const isAdmin = ['SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(user?.role);
   const canLogExpense = user?.role === 'ACCOUNTANT';
+  const canRecordMiscIncome = user && ['ACCOUNTANT', 'BRANCH_ADMIN', 'SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(user.role);
+
+  const [otherIncomePresets, setOtherIncomePresets] = useState<string[]>([...DEFAULT_OTHER_INCOME_PRESETS]);
+  const [oiCategorySelect, setOiCategorySelect] = useState('');
+  const [oiCategoryOther, setOiCategoryOther] = useState('');
+  const [oiAmount, setOiAmount] = useState('');
+  const [oiDescription, setOiDescription] = useState('');
+  const [oiDate, setOiDate] = useState(new Date().toISOString().split('T')[0]);
+  const [oiSaving, setOiSaving] = useState(false);
+
+  useEffect(() => {
+    if (!canRecordMiscIncome) return;
+    api
+      .get('accounting/cashbook/other-income-presets/')
+      .then((res) => {
+        const raw = res.data?.data?.presets ?? res.data?.presets;
+        if (Array.isArray(raw) && raw.length) setOtherIncomePresets(raw);
+      })
+      .catch(() => {});
+  }, [canRecordMiscIncome]);
+
+  const submitOtherIncome = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const category =
+      oiCategorySelect === '__other__'
+        ? oiCategoryOther.trim()
+        : oiCategorySelect.trim();
+    if (!category) {
+      toast.error('Choose a category or enter a custom one');
+      return;
+    }
+    if (!oiAmount || Number(oiAmount) <= 0) { toast.error('Enter a positive amount'); return; }
+    if (['SCHOOL_ADMIN', 'SUPER_ADMIN'].includes(user?.role) && (!selectedBranch || selectedBranch === 'all')) {
+      toast.error('Select a specific branch in the header before recording other income.');
+      return;
+    }
+    setOiSaving(true);
+    try {
+      const payload: Record<string, string> = {
+        category,
+        amount: String(oiAmount),
+        description: (oiDescription || category).trim(),
+        transaction_date: oiDate,
+      };
+      if (selectedBranch && selectedBranch !== 'all') payload.branch_id = selectedBranch;
+      await api.post('accounting/cashbook/record-other-income/', payload);
+      toast.success('Other income recorded in the cashbook.');
+      setOiCategorySelect('');
+      setOiCategoryOther('');
+      setOiAmount('');
+      setOiDescription('');
+      setOiDate(new Date().toISOString().split('T')[0]);
+      refetchManualIncome();
+    } catch (err: any) {
+      const d = err.response?.data;
+      toast.error(d?.error || d?.detail || 'Failed to record other income');
+    } finally {
+      setOiSaving(false);
+    }
+  };
+
+  const reverseOtherIncome = async (logId: string) => {
+    const reason = window.prompt('Reason for reversal (optional):') ?? '';
+    if (reason === null) return;
+    const partialRaw = window.prompt(
+      'Amount to reverse (leave empty to reverse the full remaining balance):'
+    );
+    if (partialRaw === null) return;
+    const partial = partialRaw.trim();
+    try {
+      const body: Record<string, string> = {
+        log_id: logId,
+        reason: reason.trim() || 'Reversal',
+      };
+      if (partial) body.amount = partial;
+      await api.post('accounting/cashbook/reverse-other-income/', body);
+      toast.success('Reversal posted. It appears under Reports → Deleted Other Income.');
+      refetchManualIncome();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Reversal failed');
+    }
+  };
 
   const handleUpdateStatus = async (id: string, s: string) => {
     let reason = '';
@@ -163,6 +268,125 @@ export default function ExpensesPage() {
           Expense Ledger
         </button>
       </div>
+
+      {canRecordMiscIncome && (
+        <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 bg-emerald-100 rounded-xl text-emerald-700">
+              <TrendingUp size={20} />
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-800 text-sm">Record other income</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Non-tuition receipts—uniforms, trips, events, books, sports, donations, hall rent, etc.—post here and appear under Reports → Other Income. Tuition and scheduled fees use the Fees module.
+              </p>
+            </div>
+          </div>
+          <form onSubmit={submitOtherIncome} className="flex flex-wrap gap-3 items-end">
+            <div className="flex flex-col gap-1 min-w-[200px]">
+              <label className="text-[10px] font-bold uppercase text-slate-500">Category</label>
+              <select
+                value={oiCategorySelect}
+                onChange={(e) => {
+                  setOiCategorySelect(e.target.value);
+                  if (e.target.value !== '__other__') setOiCategoryOther('');
+                }}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+              >
+                <option value="">Select category…</option>
+                {otherIncomePresets.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+                <option value="__other__">Other (type below)</option>
+              </select>
+              {oiCategorySelect === '__other__' && (
+                <input
+                  value={oiCategoryOther}
+                  onChange={(e) => setOiCategoryOther(e.target.value)}
+                  placeholder="e.g. Workshop fees"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm mt-1"
+                />
+              )}
+            </div>
+            <div className="flex flex-col gap-1 min-w-[100px]">
+              <label className="text-[10px] font-bold uppercase text-slate-500">Amount (₹)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={oiAmount}
+                onChange={(e) => setOiAmount(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1 min-w-[180px] flex-1">
+              <label className="text-[10px] font-bold uppercase text-slate-500">Description</label>
+              <input
+                value={oiDescription}
+                onChange={(e) => setOiDescription(e.target.value)}
+                placeholder="Optional note"
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1 min-w-[130px]">
+              <label className="text-[10px] font-bold uppercase text-slate-500">Date</label>
+              <input
+                type="date"
+                value={oiDate}
+                onChange={(e) => setOiDate(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={oiSaving}
+              className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {oiSaving ? 'Saving…' : 'Post income'}
+            </button>
+          </form>
+          {manualIncomeRows.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-emerald-100">
+              <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Recent manual other income (reverse if posted by mistake)</p>
+              <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white/80">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wide">
+                      <th className="px-3 py-2">Date</th>
+                      <th className="px-3 py-2">Category</th>
+                      <th className="px-3 py-2 text-right">Amount</th>
+                      <th className="px-3 py-2">Note</th>
+                      <th className="px-3 py-2 w-24"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {manualIncomeRows.slice(0, 15).map((row: any) => (
+                      <tr key={row.id}>
+                        <td className="px-3 py-2 whitespace-nowrap text-slate-600">{row.transaction_date}</td>
+                        <td className="px-3 py-2 font-medium text-slate-800">{row.category}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">₹{Number(row.amount || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-slate-500 max-w-[200px] truncate">{row.description || '—'}</td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!confirm('Post a reversal for this line? You can enter a partial amount in the next step.')) return;
+                              reverseOtherIncome(row.id);
+                            }}
+                            className="inline-flex items-center gap-1 text-rose-600 font-bold hover:underline"
+                          >
+                            <RotateCcw size={12} /> Reverse
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {activeTab === 'HISTORY' && (
         <div className="flex gap-2 flex-wrap">

@@ -44,8 +44,22 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        class_section = ClassSection.objects.get(id=data['class_section_id'])
-        
+        cs_qs = ClassSection.objects.filter(id=data['class_section_id'])
+        if request.user.tenant:
+            cs_qs = cs_qs.filter(tenant=request.user.tenant)
+        elif request.user.role != 'SUPER_ADMIN':
+            return Response({
+                "success": False,
+                "error": "Invalid class section.",
+            }, status=status.HTTP_403_FORBIDDEN)
+        try:
+            class_section = cs_qs.get()
+        except ClassSection.DoesNotExist:
+            return Response({
+                "success": False,
+                "error": "Class section not found.",
+            }, status=status.HTTP_404_NOT_FOUND)
+
         # Primary Teacher Restriction
         if request.user.role == 'TEACHER':
             from staff.models import TeacherAssignment

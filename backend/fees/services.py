@@ -14,11 +14,15 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
     Service to generate invoices for a specific target.
     Logic extracted from FeeInvoiceViewSet for reuse and testability.
     """
-    # Get target students
+    # Get target students (always tenant-scoped for STUDENT/CLASS targets)
     if target == 'STUDENT':
-        students = Student.objects.filter(id=student_id, status='ACTIVE')
+        students = Student.objects.filter(id=student_id, status='ACTIVE', tenant=tenant)
     elif target == 'CLASS':
-        students = Student.objects.filter(class_section_id=class_section_id, status='ACTIVE')
+        students = Student.objects.filter(
+            class_section_id=class_section_id,
+            status='ACTIVE',
+            tenant=tenant,
+        )
     else:  # BRANCH
         students = Student.objects.filter(
             branch=branch, academic_year_id=academic_year_id, status='ACTIVE'
@@ -89,6 +93,7 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
             discount = Decimal('0.00')
             academic_net = gross - discount
 
+            created_any = False
             if invoice_items and not has_academic:
                 invoice_number = DocumentSequence.get_next_sequence(
                     branch=student.branch, 
@@ -114,19 +119,23 @@ def generate_monthly_invoices(tenant, branch, academic_year_id, month, target='B
                 for item in invoice_items:
                     item.invoice = invoice
                 FeeInvoiceItem.objects.bulk_create(invoice_items)
+                created_any = True
 
             # Also generate transport invoice if needed
             if active_transport and not has_transport:
                 _create_transport_invoice(student, academic_year_id, month, active_transport)
+                created_any = True
 
-            generated += 1
+            if created_any:
+                generated += 1
 
         if generated > 0 and user:
             log_bulk_action(
                 user=user,
                 action_type='INVOICE_GENERATION',
                 record_count=generated,
-                details={'month': month, 'target': target}
+                details={'month': month, 'target': target},
+                tenant=tenant,
             )
 
     return {
