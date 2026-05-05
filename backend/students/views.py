@@ -3,6 +3,7 @@ import logging
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 
 logger = logging.getLogger(__name__)
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -12,7 +13,14 @@ from django.utils import timezone
 from django.db import transaction, models
 from django.db.models import Q
 
-from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove, IsAccountantOrAbove, IsBranchAdminOrAbove
+from accounts.permissions import (
+    IsSchoolAdminOrAbove,
+    IsTeacherOrAbove,
+    IsAccountantOrAbove,
+    IsBranchAdminOrAbove,
+    normalize_role,
+    can_access_domain,
+)
 from accounts.utils import log_audit_action
 from .models import (
     ClassSection, AdmissionInquiry, AdmissionApplication,
@@ -51,13 +59,14 @@ class ClassSectionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'SUPER_ADMIN':
+        role = normalize_role(user.role)
+        if role == 'OWNER':
             qs = ClassSection.objects.all()
         else:
             qs = ClassSection.objects.filter(branch__tenant=user.tenant)
             
         # Branch Isolation
-        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+        if role not in ['OWNER', 'SUPER_ADMIN'] and user.branch:
             qs = qs.filter(branch=user.branch)
             
         branch = self.request.query_params.get('branch_id')
@@ -69,12 +78,12 @@ class ClassSectionViewSet(viewsets.ModelViewSet):
             
         # Filter for primary teacher only (used by Attendance)
         teacher_only = self.request.query_params.get('teacher_only')
-        if teacher_only == 'true' and user.role == 'TEACHER':
+        if teacher_only == 'true' and role == 'TEACHER':
             qs = qs.filter(teacher_assignments__teacher__user=user, teacher_assignments__is_class_teacher=True).distinct()
             
         # Filter for any assigned teacher (used by Homework)
         assigned_only = self.request.query_params.get('assigned_only')
-        if assigned_only == 'true' and user.role == 'TEACHER':
+        if assigned_only == 'true' and role == 'TEACHER':
             qs = qs.filter(teacher_assignments__teacher__user=user).distinct()
             
         return qs
@@ -148,10 +157,11 @@ class AdmissionApplicationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        role = normalize_role(user.role)
         qs = AdmissionApplication.objects.filter(branch__tenant=user.tenant)
         
         # Branch Isolation
-        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+        if role not in ['OWNER', 'SUPER_ADMIN'] and user.branch:
             qs = qs.filter(branch=user.branch)
             
         status_filter = self.request.query_params.get('status')
@@ -323,6 +333,12 @@ class StudentViewSet(viewsets.ModelViewSet):
         # Accountants handle front-desk admissions and enrollment
         return [IsAuthenticated(), IsAccountantOrAbove()]
 
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        # Students endpoints are academic domain endpoints; finance-only roles are blocked.
+        if not can_access_domain(request.user, 'academic'):
+            raise PermissionDenied('You do not have access to academic data.')
+
     def get_serializer_class(self):
         if self.action == 'list':
             return StudentListSerializer
@@ -330,6 +346,7 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        role = normalize_role(user.role)
         qs = Student.objects.filter(
             branch__tenant=user.tenant
         ).select_related(
@@ -348,11 +365,11 @@ class StudentViewSet(viewsets.ModelViewSet):
             )
         
         # Teachers strictly see only students in their classes unless assigned otherwise
-        if user.role == 'TEACHER':
+        if role == 'TEACHER':
             qs = qs.filter(class_section__teacher_assignments__teacher__user=user).distinct()
             
         # Branch Isolation
-        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+        if role not in ['OWNER', 'SUPER_ADMIN'] and user.branch:
             qs = qs.filter(branch=user.branch)
             
         status_filter = self.request.query_params.get('status')
@@ -369,9 +386,10 @@ class StudentViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def perform_create(self, serializer):
         user = self.request.user
+        role = normalize_role(user.role)
         branch = serializer.validated_data.get('branch')
         
-        if user.role == 'SUPER_ADMIN':
+        if role == 'OWNER':
             tenant = branch.tenant if branch else None
         else:
             tenant = user.tenant
@@ -380,7 +398,7 @@ class StudentViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("You can only assign students to branches within your school organization.")
                 
             # ENFORCE BRANCH ISOLATION
-            if user.role == 'BRANCH_ADMIN' and user.branch:
+            if role in ['PRINCIPAL', 'BRANCH_ADMIN'] and user.branch:
                 branch = user.branch
 
         if not serializer.validated_data.get('admission_number'):
@@ -545,7 +563,7 @@ class StudentViewSet(viewsets.ModelViewSet):
 
         user = request.user
         qs = Student.objects.filter(id__in=student_ids, branch__tenant=user.tenant)
-        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+        if normalize_role(user.role) not in ['OWNER', 'SUPER_ADMIN'] and user.branch:
             qs = qs.filter(branch=user.branch)
 
         archived_count = 0

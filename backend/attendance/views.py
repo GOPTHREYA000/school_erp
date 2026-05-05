@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Q
 
-from accounts.permissions import IsTeacherOrAbove
+from accounts.permissions import IsTeacherOrAbove, normalize_role
 from students.models import ClassSection, Student
 from .models import AttendanceRecord
 from .serializers import (
@@ -18,6 +18,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsTeacherOrAbove]
 
     def get_queryset(self):
+        role = normalize_role(self.request.user.role)
         qs = AttendanceRecord.objects.filter(
             class_section__branch__tenant=self.request.user.tenant
         ).select_related('student', 'class_section')
@@ -32,7 +33,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             qs = qs.filter(student_id=student)
             
         # Teacher visibility restriction
-        if self.request.user.role == 'TEACHER':
+        if role == 'TEACHER':
             qs = qs.filter(class_section__teacher_assignments__teacher__user=self.request.user, 
                            class_section__teacher_assignments__is_class_teacher=True)
             
@@ -45,9 +46,10 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
 
         cs_qs = ClassSection.objects.filter(id=data['class_section_id'])
+        role = normalize_role(request.user.role)
         if request.user.tenant:
             cs_qs = cs_qs.filter(tenant=request.user.tenant)
-        elif request.user.role != 'SUPER_ADMIN':
+        elif role != 'OWNER':
             return Response({
                 "success": False,
                 "error": "Invalid class section.",
@@ -61,7 +63,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_404_NOT_FOUND)
 
         # Primary Teacher Restriction
-        if request.user.role == 'TEACHER':
+        if role == 'TEACHER':
             from staff.models import TeacherAssignment
             is_primary = TeacherAssignment.objects.filter(
                 teacher__user=request.user,

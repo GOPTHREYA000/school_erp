@@ -71,8 +71,8 @@ export default function BranchDashboard({ user }: { user: any }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Today's Collection" value={`₹${(data.stats?.today_collection || 0).toLocaleString()}`} icon={IndianRupee} color="green" />
-        <StatCard title="Outstanding Dues" value={`₹${(data.stats?.total_outstanding || 0).toLocaleString()}`} icon={AlertCircle} color="red" />
+        <StatCard title="Today's Collection" value={`₹${(data.stats?.today_collection || 0).toLocaleString('en-IN')}`} icon={IndianRupee} color="green" />
+        <StatCard title="Outstanding Dues" value={`₹${(data.stats?.total_outstanding || 0).toLocaleString('en-IN')}`} icon={AlertCircle} color="red" />
         <StatCard title="Fee Approvals" value={`${data.stats?.pending_approvals || 0} Pending`} icon={TrendingUp} color="amber" />
         <StatCard title="Today's Attendance" value={`${avgAttendance}%`} icon={Calendar} color="blue" />
       </div>

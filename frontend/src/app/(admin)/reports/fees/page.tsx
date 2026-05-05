@@ -62,7 +62,7 @@ export default function FeeReportsPage() {
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{d.student_name}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{d.class_name}</td>
                     <td className="px-6 py-4 text-sm text-gray-500 font-mono">{d.invoice_number}</td>
-                    <td className="px-6 py-4 text-sm text-red-600 font-bold text-right">₹{d.outstanding.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-sm text-red-600 font-bold text-right">₹{d.outstanding.toLocaleString('en-IN')}</td>
                     <td className="px-6 py-4 text-sm text-gray-500 text-center">{new Date(d.due_date).toLocaleDateString()}</td>
                   </tr>
                 ))

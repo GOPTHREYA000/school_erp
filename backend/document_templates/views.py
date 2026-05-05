@@ -3,7 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from accounts.permissions import IsSchoolAdminOrAbove, has_min_role
+from accounts.permissions import IsSchoolAdminOrAbove, has_min_role, normalize_role
 from django.http import HttpResponse
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         branch = None
-        if user.role != 'SUPER_ADMIN':
+        if normalize_role(user.role) != 'OWNER':
             branch = user.branch if getattr(user, 'branch', None) else None
         serializer.save(tenant=user.tenant, branch=branch, created_by=user)
 
@@ -160,21 +160,22 @@ class DocumentTemplateViewSet(viewsets.ModelViewSet):
         from students.models import ParentStudentRelation
 
         pay_qs = Payment.objects.filter(id=payment_id)
+        role = normalize_role(request.user.role)
         if request.user.tenant:
             pay_qs = pay_qs.filter(tenant=request.user.tenant)
-        elif request.user.role != 'SUPER_ADMIN':
+        elif role != 'OWNER':
             return Response({'error': 'Payment not found.'}, status=status.HTTP_404_NOT_FOUND)
         try:
             payment = pay_qs.get()
         except Payment.DoesNotExist:
             return Response({'error': 'Payment not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if request.user.role == 'PARENT':
+        if role == 'PARENT':
             if not ParentStudentRelation.objects.filter(
                 parent=request.user, student_id=payment.student_id
             ).exists():
                 return Response({'error': 'Payment not found.'}, status=status.HTTP_404_NOT_FOUND)
-        elif request.user.role != 'SUPER_ADMIN' and not has_min_role(request.user, 'ACCOUNTANT'):
+        elif role != 'OWNER' and not has_min_role(request.user, 'ACCOUNTANT'):
             return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
 
         tenant = payment.tenant

@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from accounts.permissions import IsTeacherOrAbove
+from accounts.permissions import IsTeacherOrAbove, normalize_role
 from .models import Homework, HomeworkAttachment
 from .serializers import HomeworkSerializer, HomeworkAttachmentSerializer
 
@@ -19,7 +19,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if user.role == 'TEACHER':
+        if normalize_role(user.role) == 'TEACHER':
             from staff.models import TeacherAssignment
             cls_sec = serializer.validated_data.get('class_section')
             subj = serializer.validated_data.get('subject')
@@ -37,7 +37,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         user = self.request.user
-        if user.role == 'TEACHER':
+        if normalize_role(user.role) == 'TEACHER':
             from staff.models import TeacherAssignment
             # For update, fallback to existing instance values if not provided in request
             cls_sec = serializer.validated_data.get('class_section', getattr(serializer.instance, 'class_section', None))
@@ -76,7 +76,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         if not cs_id:
             return Response({'detail': 'class_section_id is required'}, status=400)
 
-        if request.user.role == 'TEACHER':
+        if normalize_role(request.user.role) == 'TEACHER':
             from staff.models import TeacherAssignment
             if not TeacherAssignment.objects.filter(
                 teacher__user=request.user,

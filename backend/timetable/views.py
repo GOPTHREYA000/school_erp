@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from collections import defaultdict
 
-from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove, IsBranchAdminOrAbove
+from accounts.permissions import IsSchoolAdminOrAbove, IsTeacherOrAbove, IsBranchAdminOrAbove, normalize_role
 from .models import Period, Subject, TimetableSlot, DAY_CHOICES, ClassSubjectDemand
 from .serializers import PeriodSerializer, SubjectSerializer, TimetableSlotSerializer, ClassSubjectDemandSerializer
 import random
@@ -39,15 +39,16 @@ class SubjectViewSet(viewsets.ModelViewSet):
         qs = Subject.objects.filter(tenant=self.request.user.tenant)
         branch = self.request.query_params.get('branch_id')
         user = self.request.user
+        role = normalize_role(user.role)
         
-        if user.role == 'BRANCH_ADMIN' and user.branch:
+        if role in ('PRINCIPAL', 'BRANCH_ADMIN') and user.branch:
             qs = qs.filter(branch=user.branch)
         elif branch:
             qs = qs.filter(branch_id=branch)
             
         # Teachers should only see their assigned subjects if requested
         assigned_only = self.request.query_params.get('assigned_only')
-        if assigned_only == 'true' and user.role == 'TEACHER':
+        if assigned_only == 'true' and role == 'TEACHER':
             qs = qs.filter(teacher_assignments__teacher__user=user).distinct()
             
         return qs
@@ -58,10 +59,11 @@ class SubjectViewSet(viewsets.ModelViewSet):
         
         branch = serializer.validated_data.get('branch')
         user = request.user
+        role = normalize_role(user.role)
         
         # Determine if "All Branches" was requested
         # (branch is null and user is School Admin or above)
-        if not branch and user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN']:
+        if not branch and role in ['OWNER', 'SUPER_ADMIN']:
             branches = user.tenant.branches.filter(is_active=True)
             subjects = []
             for b in branches:

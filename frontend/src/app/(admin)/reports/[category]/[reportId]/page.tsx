@@ -72,7 +72,7 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
         setFetchStatus({
           state: 'success',
           message: totalCount > 0
-            ? `Loaded ${totalCount.toLocaleString()} record${totalCount !== 1 ? 's' : ''} successfully`
+            ? `Loaded ${totalCount.toLocaleString('en-IN')} record${totalCount !== 1 ? 's' : ''} successfully`
             : 'Query executed successfully — no matching records found',
           count: totalCount,
           durationMs

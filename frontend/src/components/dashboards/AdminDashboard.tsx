@@ -71,9 +71,9 @@ export default function AdminDashboard({ user }: { user: any }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Enrollment" value={(data.stats?.total_students || 0).toLocaleString()} icon={Users} color="blue" />
+        <StatCard title="Total Enrollment" value={(data.stats?.total_students || 0).toLocaleString('en-IN')} icon={Users} color="blue" />
         <StatCard title="Active Branches" value={(data.stats?.active_branches || 0).toString()} icon={Building2} color="purple" />
-        <StatCard title="Total Revenue" value={`₹${(data.stats?.total_paid || 0).toLocaleString()}`} icon={TrendingUp} color="green" />
+        <StatCard title="Total Revenue" value={`₹${(data.stats?.total_paid || 0).toLocaleString('en-IN')}`} icon={TrendingUp} color="green" />
         <StatCard 
           title="Avg Attendance" 
           value={`${data.attendance.length > 0 ? Math.round(data.attendance.reduce((a: any, b: any) => a + b.percentage, 0) / data.attendance.length) : 0}%`} 

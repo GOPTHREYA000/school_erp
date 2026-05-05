@@ -79,7 +79,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'id', label: 'App No.', render: (_v: any, row: any) => (row.id || '').toString().split('-')[0].toUpperCase() },
           { key: 'student_name', label: 'Applicant Name', render: (_v: any, row: any) => `${row.first_name || ''} ${row.last_name || ''}`.trim() || '-' },
-          { key: 'application_fee_amount', label: 'Allocated Fee', render: (_v: any, row: any) => `₹${Number(row.application_fee_amount || 0).toLocaleString()}` },
+          { key: 'application_fee_amount', label: 'Allocated Fee', render: (_v: any, row: any) => `₹${Number(row.application_fee_amount || 0).toLocaleString('en-IN')}` },
           { key: 'application_fee_paid', label: 'Fee Paid', render: (_v: any, row: any) => row.application_fee_paid ? 'Yes' : 'No' },
           { key: 'status', label: 'Status' }
         ]
@@ -348,9 +348,9 @@ export const reportsRegistry: ReportCategory[] = [
           { key: 'invoice_number', label: 'Invoice No.' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
           { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
-          { key: 'net_amount', label: 'Net Amount', render: (_v: any, row: any) => `₹${Number(row.net_amount || 0).toLocaleString()}` },
-          { key: 'paid_amount', label: 'Paid', render: (_v: any, row: any) => `₹${Number(row.paid_amount || 0).toLocaleString()}` },
-          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString()}` },
+          { key: 'net_amount', label: 'Net Amount', render: (_v: any, row: any) => `₹${Number(row.net_amount || 0).toLocaleString('en-IN')}` },
+          { key: 'paid_amount', label: 'Paid', render: (_v: any, row: any) => `₹${Number(row.paid_amount || 0).toLocaleString('en-IN')}` },
+          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString('en-IN')}` },
           { key: 'due_date', label: 'Due Date' },
           { key: 'status', label: 'Status' }
         ]
@@ -367,7 +367,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'receipt_number', label: 'Receipt No.' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'payment_mode', label: 'Mode' },
           { key: 'payment_date', label: 'Date' }
         ]
@@ -384,7 +384,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'receipt_number', label: 'Receipt No.' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'payment_mode', label: 'Mode' },
           { key: 'payment_date', label: 'Date' },
           { key: 'status', label: 'Status' }
@@ -402,7 +402,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'receipt_number', label: 'Receipt No.' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'payment_date', label: 'Date' },
           { key: 'status', label: 'Status' }
         ]
@@ -418,7 +418,7 @@ export const reportsRegistry: ReportCategory[] = [
         // Backend returns: .values('category').annotate(total=Sum('amount'))
         columns: [
           { key: 'category', label: 'Category' },
-          { key: 'total', label: 'Total Amount', render: (_v: any, row: any) => `₹${Number(row.total || 0).toLocaleString()}` }
+          { key: 'total', label: 'Total Amount', render: (_v: any, row: any) => `₹${Number(row.total || 0).toLocaleString('en-IN')}` }
         ]
       },
       {
@@ -433,7 +433,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'title', label: 'Title' },
           { key: 'category__name', label: 'Category' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'expense_date', label: 'Date' },
           { key: 'status', label: 'Status' }
         ]
@@ -450,7 +450,7 @@ export const reportsRegistry: ReportCategory[] = [
           { key: 'invoice_number', label: 'Invoice No.' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
           { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
-          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString()}` },
+          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString('en-IN')}` },
           { key: 'due_date', label: 'Due Date' },
           { key: 'status', label: 'Status' },
         ]
@@ -466,7 +466,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'transaction_date', label: 'Date' },
           { key: 'category', label: 'Category' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'description', label: 'Description' },
           { key: 'reference_model', label: 'Ref. type' },
           { key: 'reference_id', label: 'Ref. ID', render: (_v: any, row: any) => (row.reference_id != null ? String(row.reference_id) : '-') },
@@ -483,7 +483,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'transaction_date', label: 'Date' },
           { key: 'category', label: 'Category' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'description', label: 'Description' },
           { key: 'reference_model', label: 'Ref. type' },
         ]
@@ -499,7 +499,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'receipt_number', label: 'Receipt' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'payment_date', label: 'Date' },
           { key: 'reference_number', label: 'Cheque ref' },
           { key: 'bank_name', label: 'Bank' },
@@ -533,7 +533,7 @@ export const reportsRegistry: ReportCategory[] = [
         filters: { showDateRange: true, showClassSection: false, showAcademicYear: false },
         columns: [
           { key: 'payment_mode', label: 'Mode' },
-          { key: 'total', label: 'Total', render: (_v: any, row: any) => `₹${Number(row.total || 0).toLocaleString()}` },
+          { key: 'total', label: 'Total', render: (_v: any, row: any) => `₹${Number(row.total || 0).toLocaleString('en-IN')}` },
         ]
       },
       {
@@ -547,7 +547,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'receipt_number', label: 'Receipt' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'payment_mode', label: 'Mode' },
           { key: 'payment_date', label: 'Date' },
           { key: 'reference_number', label: 'Reference' },
@@ -566,7 +566,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'title', label: 'Title' },
           { key: 'category__name', label: 'Category' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'expense_date', label: 'Date' },
           { key: 'status', label: 'Status' },
         ]
@@ -583,7 +583,7 @@ export const reportsRegistry: ReportCategory[] = [
           { key: 'invoice_number', label: 'Invoice No.' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
           { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
-          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString()}` },
+          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString('en-IN')}` },
           { key: 'due_date', label: 'Due Date' },
           { key: 'status', label: 'Status' },
         ]
@@ -599,7 +599,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'receipt_number', label: 'Receipt' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'payment_mode', label: 'Mode' },
           { key: 'payment_date', label: 'Date' },
           { key: 'status', label: 'Status' },
@@ -632,7 +632,7 @@ export const reportsRegistry: ReportCategory[] = [
         columns: [
           { key: 'transaction_type', label: 'Type' },
           { key: 'category', label: 'Category' },
-          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString()}` },
+          { key: 'amount', label: 'Amount', render: (_v: any, row: any) => `₹${Number(row.amount || 0).toLocaleString('en-IN')}` },
           { key: 'transaction_date', label: 'Date' },
           { key: 'description', label: 'Description' },
         ]
@@ -649,9 +649,9 @@ export const reportsRegistry: ReportCategory[] = [
           { key: 'student__admission_number', label: 'Adm. No.' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
           { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
-          { key: 'total_net', label: 'Net', render: (_v: any, row: any) => `₹${Number(row.total_net || 0).toLocaleString()}` },
-          { key: 'total_paid', label: 'Paid', render: (_v: any, row: any) => `₹${Number(row.total_paid || 0).toLocaleString()}` },
-          { key: 'total_outstanding', label: 'Outstanding', render: (_v: any, row: any) => `₹${Number(row.total_outstanding || 0).toLocaleString()}` },
+          { key: 'total_net', label: 'Net', render: (_v: any, row: any) => `₹${Number(row.total_net || 0).toLocaleString('en-IN')}` },
+          { key: 'total_paid', label: 'Paid', render: (_v: any, row: any) => `₹${Number(row.total_paid || 0).toLocaleString('en-IN')}` },
+          { key: 'total_outstanding', label: 'Outstanding', render: (_v: any, row: any) => `₹${Number(row.total_outstanding || 0).toLocaleString('en-IN')}` },
         ]
       }
     ]
@@ -705,7 +705,7 @@ export const reportsRegistry: ReportCategory[] = [
           { key: 'invoice_number', label: 'Invoice No.' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
           { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
-          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString()}` },
+          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString('en-IN')}` },
           { key: 'due_date', label: 'Due Date' }
         ]
       }
@@ -732,7 +732,7 @@ export const reportsRegistry: ReportCategory[] = [
           { key: 'invoice_number', label: 'Invoice No.' },
           { key: 'student_name', label: 'Student', render: (_v: any, row: any) => `${row.student__first_name || ''} ${row.student__last_name || ''}`.trim() || '-' },
           { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.student__class_section__grade || ''}-${row.student__class_section__section || ''}`.replace(/-$/, '') },
-          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString()}` },
+          { key: 'outstanding_amount', label: 'Balance', render: (_v: any, row: any) => `₹${Number(row.outstanding_amount || 0).toLocaleString('en-IN')}` },
           { key: 'due_date', label: 'Due Date' },
           { key: 'days_overdue', label: 'Days Overdue', render: (_v: any, row: any) => {
             const days = row.days_overdue || 0;

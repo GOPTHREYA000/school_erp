@@ -11,7 +11,7 @@ from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
-from accounts.permissions import IsSchoolAdminOrAbove, IsBranchAdminOrAbove, IsAccountantOrAbove
+from accounts.permissions import IsSchoolAdminOrAbove, IsBranchAdminOrAbove, IsAccountantOrAbove, normalize_role
 from accounts.utils import (
     get_validated_branch_id,
     get_active_academic_year,
@@ -63,6 +63,7 @@ class FeeStructureViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        role = normalize_role(user.role)
         qs = filter_queryset_for_user_tenant(
             FeeStructure.objects.all(), user, 'branch__tenant'
         ).prefetch_related('items')
@@ -72,7 +73,7 @@ class FeeStructureViewSet(viewsets.ModelViewSet):
         branch = self.request.query_params.get('branch') or self.request.query_params.get('branch_id')
         
         # Branch Isolation for multi-tenant roles
-        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+        if role not in ['OWNER', 'SUPER_ADMIN'] and user.branch:
             branch = user.branch.id
 
         if grade:
@@ -178,10 +179,9 @@ class FeeConcessionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        user = self.request.user
-        if user.role == 'SUPER_ADMIN':
-            return FeeConcession.objects.all()
-        return FeeConcession.objects.filter(branch__tenant=user.tenant)
+        return filter_queryset_for_user_tenant(
+            FeeConcession.objects.all(), self.request.user, 'branch__tenant'
+        )
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.user.tenant)
@@ -192,10 +192,9 @@ class LateFeeRuleViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     def get_queryset(self):
-        user = self.request.user
-        if user.role == 'SUPER_ADMIN':
-            return LateFeeRule.objects.all()
-        return LateFeeRule.objects.filter(branch__tenant=user.tenant)
+        return filter_queryset_for_user_tenant(
+            LateFeeRule.objects.all(), self.request.user, 'branch__tenant'
+        )
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.user.tenant)
@@ -236,13 +235,14 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
 
         from .services import generate_monthly_invoices
+        role = normalize_role(request.user.role)
         
         # SCHOOL_ADMIN has branch=None; accept branch_id from request data
         branch = request.user.branch
         if not branch and data.get('branch_id'):
             from tenants.models import Branch
             try:
-                if request.user.role == 'SUPER_ADMIN':
+                if role == 'OWNER':
                     branch = Branch.objects.get(id=data['branch_id'])
                 else:
                     branch = Branch.objects.get(id=data['branch_id'], tenant=request.user.tenant)
@@ -252,7 +252,7 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         if not branch:
             return Response({'detail': 'branch_id is required for school-level admins.'}, status=400)
 
-        if request.user.role != 'SUPER_ADMIN' and request.user.tenant_id and branch.tenant_id != request.user.tenant_id:
+        if role != 'OWNER' and request.user.tenant_id and branch.tenant_id != request.user.tenant_id:
             return Response({'detail': 'Invalid branch_id.'}, status=400)
 
         result = generate_monthly_invoices(
@@ -449,9 +449,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
         # Lock the invoice row to prevent concurrent payment race conditions (tenant-scoped)
         inv_qs = FeeInvoice.objects.select_for_update().filter(id=data['invoice_id'])
+        role = normalize_role(request.user.role)
         if request.user.tenant:
             inv_qs = inv_qs.filter(tenant=request.user.tenant)
-        elif request.user.role != 'SUPER_ADMIN':
+        elif role != 'OWNER':
             return Response({'detail': 'Invoice not found.'}, status=404)
         try:
             invoice = inv_qs.get()
@@ -554,9 +555,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
 
         stu_qs = Student.objects.filter(id=data['student_id'])
+        role = normalize_role(request.user.role)
         if request.user.tenant:
             stu_qs = stu_qs.filter(tenant=request.user.tenant)
-        elif request.user.role != 'SUPER_ADMIN':
+        elif role != 'OWNER':
             return Response({'detail': 'Student not found.'}, status=404)
         try:
             student = stu_qs.get()
@@ -584,9 +586,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Reversal reason is required.'}, status=400)
 
         pay_qs = Payment.objects.select_for_update().filter(id=pk)
+        role = normalize_role(request.user.role)
         if request.user.tenant:
             pay_qs = pay_qs.filter(tenant=request.user.tenant)
-        elif request.user.role != 'SUPER_ADMIN':
+        elif role != 'OWNER':
             return Response({'detail': 'Payment not found.'}, status=404)
         try:
             payment = pay_qs.get()
@@ -600,7 +603,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
         inv_qs = FeeInvoice.objects.select_for_update().filter(id=payment.invoice_id)
         if request.user.tenant:
             inv_qs = inv_qs.filter(tenant=request.user.tenant)
-        elif request.user.role != 'SUPER_ADMIN':
+        elif role != 'OWNER':
             return Response({'detail': 'Payment not found.'}, status=404)
         try:
             invoice = inv_qs.get()

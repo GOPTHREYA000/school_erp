@@ -1,5 +1,5 @@
 from rest_framework import permissions
-from accounts.permissions import ROLE_HIERARCHY, has_min_role
+from accounts.permissions import has_min_role, normalize_role, can_access_domain
 
 class ReportAccessPermission(permissions.BasePermission):
     """
@@ -9,10 +9,11 @@ class ReportAccessPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-            
-        # TEACHER and PARENT have no access
-        if request.user.role in ['TEACHER', 'PARENT']:
+        role = normalize_role(request.user.role)
+        if role in ['TEACHER', 'STUDENT', 'PARENT']:
             return False
-            
-        # Minimum role is ACCOUNTANT
-        return has_min_role(request.user, 'ACCOUNTANT')
+
+        # Preserve backward compatibility with rank checks while enforcing domain capability.
+        return has_min_role(request.user, 'ACCOUNTANT') and (
+            can_access_domain(request.user, 'finance') or can_access_domain(request.user, 'academic')
+        )

@@ -9,6 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from accounts.permissions import normalize_role
 logger = logging.getLogger(__name__)
 
 WEEKDAY_MAP = {0: 'MON', 1: 'TUE', 2: 'WED', 3: 'THU', 4: 'FRI', 5: 'SAT', 6: 'SUN'}
@@ -22,7 +23,7 @@ def teacher_dashboard(request):
     Returns aggregated dashboard data for the logged-in teacher.
     """
     user = request.user
-    if user.role != 'TEACHER':
+    if normalize_role(user.role) != 'TEACHER':
         return Response({'detail': 'Only teachers can access this endpoint.'}, status=403)
 
     today = date.today()

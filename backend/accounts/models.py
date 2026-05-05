@@ -18,23 +18,30 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('role', 'SUPER_ADMIN')
+        extra_fields.setdefault('role', 'OWNER')
         return self.create_user(email, password, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = (
-        ('SUPER_ADMIN', 'Platform Super Admin'),
-        ('SCHOOL_ADMIN', 'School Admin (Group Level)'),
+        ('OWNER', 'Owner (Platform Level)'),
+        ('SUPER_ADMIN', 'Super Admin (Tenant Level)'),
+        ('ZONAL_ADMIN', 'Zonal Admin'),
+        ('CHIEF_ACCOUNTANT', 'Chief Accountant'),
+        ('PRINCIPAL', 'Principal'),
         ('BRANCH_ADMIN', 'Branch Admin (School Level)'),
         ('ACCOUNTANT', 'Accountant'),
         ('TEACHER', 'Teacher'),
+        ('STUDENT', 'Student'),
         ('PARENT', 'Parent'),
+        # Backward-compatible legacy value retained to avoid breaking existing data immediately.
+        ('SCHOOL_ADMIN', 'School Admin (Legacy)'),
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE, null=True, blank=True, related_name='users')
     branch = models.ForeignKey('tenants.Branch', on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    zones = models.ManyToManyField('tenants.Zone', through='UserZoneAccess', blank=True, related_name='users')
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES)
     email = models.EmailField(unique=True) 
     phone = models.CharField(max_length=15, blank=True)
     first_name = models.CharField(max_length=100)
@@ -90,4 +97,17 @@ class BulkActionLog(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class UserZoneAccess(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='zone_accesses')
+    zone = models.ForeignKey('tenants.Zone', on_delete=models.CASCADE, related_name='user_accesses')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'zone')
+
+    def __str__(self):
+        return f"{self.user.email} -> {self.zone.name}"
 

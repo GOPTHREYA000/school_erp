@@ -11,13 +11,26 @@ export default function DocumentTemplatesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
 
+  const normalizeTemplatesResponse = (payload: unknown): DocumentTemplate[] => {
+    if (Array.isArray(payload)) return payload as DocumentTemplate[];
+    if (payload && typeof payload === 'object') {
+      const maybeArrayKeys = ['results', 'data', 'items', 'templates'] as const;
+      for (const key of maybeArrayKeys) {
+        const value = (payload as Record<string, unknown>)[key];
+        if (Array.isArray(value)) return value as DocumentTemplate[];
+      }
+    }
+    return [];
+  };
+
   const fetchTemplates = async () => {
     try {
       setLoading(true);
       const { data } = await api.get('templates/');
-      setTemplates(data || []);
+      setTemplates(normalizeTemplatesResponse(data));
     } catch (e) {
       console.error('Failed to fetch templates', e);
+      setTemplates([]);
     } finally {
       setLoading(false);
     }

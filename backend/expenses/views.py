@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.db.models import Sum
 from decimal import Decimal
 
-from accounts.permissions import IsAccountantOrAbove
+from accounts.permissions import IsAccountantOrAbove, normalize_role, role_in
 from accounts.utils import (
     get_validated_branch_id,
     log_audit_action,
@@ -77,8 +77,9 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
+        role = normalize_role(user.role)
         from rest_framework.exceptions import PermissionDenied, ValidationError
-        if user.role != 'ACCOUNTANT':
+        if role != 'ACCOUNTANT':
             raise PermissionDenied("Only accountants can log expenses.")
         branch = user.branch
         if not branch:
@@ -170,7 +171,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         new_status = request.data.get('status')
         
         # Only School Admin or Super Admin can approve
-        if new_status == 'APPROVED' and request.user.role not in ['SCHOOL_ADMIN', 'SUPER_ADMIN']:
+        if new_status == 'APPROVED' and not role_in(request.user, ['OWNER', 'SUPER_ADMIN']):
             return Response({'detail': 'Only School Admin or Super Admin can approve expenses'}, status=403)
 
         VALID = {'DRAFT': ['SUBMITTED'], 'SUBMITTED': ['APPROVED', 'REJECTED'], 'REJECTED': ['DRAFT']}
@@ -209,7 +210,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='bulk-approve')
     def bulk_approve(self, request):
-        if request.user.role not in ['SCHOOL_ADMIN', 'SUPER_ADMIN']:
+        if not role_in(request.user, ['OWNER', 'SUPER_ADMIN']):
             return Response({'detail': 'Only School Admin or Super Admin can approve expenses'}, status=403)
             
         expense_ids = request.data.get('expense_ids', [])
@@ -366,7 +367,7 @@ class TransactionLogViewSet(viewsets.ReadOnlyModelViewSet):
 
         branch_id = get_validated_branch_id(user, request.data.get('branch_id'))
         if branch_id is None:
-            if user.role in ('SCHOOL_ADMIN', 'SUPER_ADMIN'):
+            if normalize_role(user.role) in ('OWNER', 'SUPER_ADMIN', 'CHIEF_ACCOUNTANT'):
                 return Response({'error': 'branch_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
             branch_id = str(user.branch_id) if user.branch_id else None
         if not branch_id:

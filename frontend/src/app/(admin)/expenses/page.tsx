@@ -364,7 +364,7 @@ export default function ExpensesPage() {
                       <tr key={row.id}>
                         <td className="px-3 py-2 whitespace-nowrap text-slate-600">{row.transaction_date}</td>
                         <td className="px-3 py-2 font-medium text-slate-800">{row.category}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">₹{Number(row.amount || 0).toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">₹{Number(row.amount || 0).toLocaleString('en-IN')}</td>
                         <td className="px-3 py-2 text-slate-500 max-w-[200px] truncate">{row.description || '—'}</td>
                         <td className="px-3 py-2">
                           <button

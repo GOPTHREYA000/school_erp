@@ -100,7 +100,7 @@ export default function PaymentModal({ invoice, onClose, onSuccess }: PaymentMod
             </div>
             <h3 className="text-2xl font-black text-slate-900 mb-2">Payment Recorded!</h3>
             <p className="text-slate-500 text-sm mb-6">
-              ₹{Number(data.amount).toLocaleString()} paid for {invoice.invoice_number}
+              ₹{Number(data.amount).toLocaleString('en-IN')} paid for {invoice.invoice_number}
             </p>
 
             <div className="bg-slate-50 rounded-2xl p-4 mb-6 text-left space-y-2">
@@ -193,7 +193,7 @@ export default function PaymentModal({ invoice, onClose, onSuccess }: PaymentMod
                   className="w-full pl-8 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-lg font-black text-slate-700 focus:bg-white focus:border-emerald-500 transition-all outline-none"
                 />
               </div>
-              <p className="text-[10px] font-bold text-amber-500 mt-1 ml-1">Pending: ₹{invoice.outstanding_amount.toLocaleString()}</p>
+              <p className="text-[10px] font-bold text-amber-500 mt-1 ml-1">Pending: ₹{invoice.outstanding_amount.toLocaleString('en-IN')}</p>
             </div>
 
             {/* Mode */}

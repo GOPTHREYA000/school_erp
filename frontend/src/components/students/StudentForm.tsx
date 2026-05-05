@@ -670,7 +670,7 @@ export default function StudentForm({
                     <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                       <div>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Standard Total</p>
-                        <p className="text-xl font-black text-slate-900 leading-none">₹{formData.standard_total.toLocaleString()}</p>
+                        <p className="text-xl font-black text-slate-900 leading-none">₹{formData.standard_total.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Items</p>
@@ -681,7 +681,7 @@ export default function StudentForm({
                       {(feeStructure?.items || []).map((item: any) => (
                         <div key={item.id} className="flex justify-between items-center bg-gray-50/50 p-3 rounded-xl border border-transparent hover:border-gray-100 transition-all">
                           <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">{item.category_name || item.category}</span>
-                          <span className="text-sm font-black text-slate-900">₹{Number(item.amount).toLocaleString()}</span>
+                          <span className="text-sm font-black text-slate-900">₹{Number(item.amount).toLocaleString('en-IN')}</span>
                         </div>
                       ))}
                       {isEdit && (
@@ -697,7 +697,7 @@ export default function StudentForm({
                       {!isEdit && (
                         <div className="text-right">
                           <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Agreed Total</p>
-                          <p className="text-3xl font-black text-blue-600 leading-none tabular-nums tracking-tighter">₹{formData.offered_total.toLocaleString()}</p>
+                          <p className="text-3xl font-black text-blue-600 leading-none tabular-nums tracking-tighter">₹{formData.offered_total.toLocaleString('en-IN')}</p>
                         </div>
                       )}
                     </div>

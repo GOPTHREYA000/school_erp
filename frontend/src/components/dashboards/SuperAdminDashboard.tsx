@@ -73,10 +73,10 @@ export default function SuperAdminDashboard({ user }: { user: any }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Active Schools" value={(data.summary?.active_tenants || 0).toLocaleString()} icon={Building2} color="blue" />
-        <StatCard title="Total Branches" value={(data.summary?.total_branches || 0).toLocaleString()} icon={TrendingUp} color="purple" />
-        <StatCard title="Global Students" value={(data.summary?.total_students || 0).toLocaleString()} icon={GraduationCap} color="green" />
-        <StatCard title="System Users" value={(data.summary?.total_users || 0).toLocaleString()} icon={Users} color="purple" />
+        <StatCard title="Active Schools" value={(data.summary?.active_tenants || 0).toLocaleString('en-IN')} icon={Building2} color="blue" />
+        <StatCard title="Total Branches" value={(data.summary?.total_branches || 0).toLocaleString('en-IN')} icon={TrendingUp} color="purple" />
+        <StatCard title="Global Students" value={(data.summary?.total_students || 0).toLocaleString('en-IN')} icon={GraduationCap} color="green" />
+        <StatCard title="System Users" value={(data.summary?.total_users || 0).toLocaleString('en-IN')} icon={Users} color="purple" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

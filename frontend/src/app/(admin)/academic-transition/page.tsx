@@ -297,7 +297,7 @@ function YearOverviewTab({ branch, user }: { branch: string; user: any }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Students to Process" value={closingResult.students_to_process} />
             <Stat label="Students with Dues" value={closingResult.students_with_dues} />
-            <Stat label="Est. Carry-Forward" value={`₹${Number(closingResult.estimated_carry_forward_amount).toLocaleString()}`} />
+            <Stat label="Est. Carry-Forward" value={`₹${Number(closingResult.estimated_carry_forward_amount).toLocaleString('en-IN')}`} />
             <Stat label="Status" value={closingResult.status} />
           </div>
           <div className="flex gap-3 pt-2">
@@ -381,7 +381,7 @@ function YearOverviewTab({ branch, user }: { branch: string; user: any }) {
                     <td className="px-4 py-4 text-center tabular-nums">{log.dropout_count}</td>
                     <td className="px-4 py-4 text-center tabular-nums">{log.graduated_count}</td>
                     <td className="px-4 py-4 tabular-nums">{log.carry_forwards_created}</td>
-                    <td className="px-4 py-4 font-bold tabular-nums">₹{Number(log.total_carry_forward_amount).toLocaleString()}</td>
+                    <td className="px-4 py-4 font-bold tabular-nums">₹{Number(log.total_carry_forward_amount).toLocaleString('en-IN')}</td>
                     <td className="px-4 py-4">
                       <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase ${closingLogStatusStyles[log.status]}`}>
                         {log.status.replace('_', ' ')}
@@ -586,7 +586,7 @@ function PromotionTab({ branch, user }: { branch: string; user: any }) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Stat label="Total Students" value={previewMeta.total_students} />
               <Stat label="Students with Dues" value={previewMeta.students_with_dues} />
-              <Stat label="Total Outstanding" value={`₹${Number(previewMeta.total_outstanding).toLocaleString()}`} />
+              <Stat label="Total Outstanding" value={`₹${Number(previewMeta.total_outstanding).toLocaleString('en-IN')}`} />
               <Stat label="Unmapped Classes" value={previewMeta.unmapped_classes?.length || 0} highlight={previewMeta.unmapped_classes?.length > 0} />
             </div>
 
@@ -626,7 +626,7 @@ function PromotionTab({ branch, user }: { branch: string; user: any }) {
                       </td>
                       <td className="px-4 py-3">
                         {Number(s.outstanding_dues) > 0 ? (
-                          <span className="text-rose-600 font-bold">₹{Number(s.outstanding_dues).toLocaleString()}</span>
+                          <span className="text-rose-600 font-bold">₹{Number(s.outstanding_dues).toLocaleString('en-IN')}</span>
                         ) : (
                           <span className="text-emerald-500 text-xs">Clear</span>
                         )}
@@ -691,7 +691,7 @@ function CarryForwardTab({ branch }: { branch: string }) {
         </div>
         <div className="bg-white rounded-2xl border p-6 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Outstanding</p>
-          <p className="text-3xl font-black text-rose-600 mt-1">₹{totalPending.toLocaleString()}</p>
+          <p className="text-3xl font-black text-rose-600 mt-1">₹{totalPending.toLocaleString('en-IN')}</p>
         </div>
         <div className="bg-white rounded-2xl border p-6 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fully Cleared</p>
@@ -743,11 +743,11 @@ function CarryForwardTab({ branch }: { branch: string }) {
                     <p className="text-[10px] text-slate-400 font-mono">{cf.admission_number}</p>
                   </td>
                   <td className="px-6 py-4 text-slate-500">{cf.source_year_name}</td>
-                  <td className="px-6 py-4 font-bold">₹{Number(cf.carry_forward_amount).toLocaleString()}</td>
-                  <td className="px-6 py-4 text-emerald-600 font-bold">₹{Number(cf.paid_amount).toLocaleString()}</td>
+                  <td className="px-6 py-4 font-bold">₹{Number(cf.carry_forward_amount).toLocaleString('en-IN')}</td>
+                  <td className="px-6 py-4 text-emerald-600 font-bold">₹{Number(cf.paid_amount).toLocaleString('en-IN')}</td>
                   <td className="px-6 py-4">
                     <span className={`font-bold ${Number(cf.remaining_amount) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      ₹{Number(cf.remaining_amount).toLocaleString()}
+                      ₹{Number(cf.remaining_amount).toLocaleString('en-IN')}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -807,7 +807,7 @@ function WriteOffTab({ branch, user }: { branch: string; user: any }) {
         </div>
         <div className="bg-white rounded-2xl border p-6 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Written Off</p>
-          <p className="text-3xl font-black text-red-600 mt-1">₹{totalWrittenOff.toLocaleString()}</p>
+          <p className="text-3xl font-black text-red-600 mt-1">₹{totalWrittenOff.toLocaleString('en-IN')}</p>
         </div>
         <div className="bg-white rounded-2xl border p-6 shadow-sm">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Requests</p>
@@ -859,7 +859,7 @@ function WriteOffTab({ branch, user }: { branch: string; user: any }) {
                     <p className="font-bold text-slate-900">{wo.student_name}</p>
                     <p className="text-[10px] text-slate-400 font-mono">{wo.admission_number}</p>
                   </td>
-                  <td className="px-6 py-4 font-black text-rose-600">₹{Number(wo.amount).toLocaleString()}</td>
+                  <td className="px-6 py-4 font-black text-rose-600">₹{Number(wo.amount).toLocaleString('en-IN')}</td>
                   <td className="px-6 py-4 text-slate-600 max-w-[200px] truncate" title={wo.reason}>{wo.reason}</td>
                   <td className="px-6 py-4 text-slate-500 text-xs">{wo.requested_by_name}</td>
                   <td className="px-6 py-4">

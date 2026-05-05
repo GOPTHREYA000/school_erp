@@ -5,6 +5,7 @@ import threading
 
 from django.conf import settings
 from django.http import JsonResponse
+from accounts.permissions import normalize_role
 
 logger = logging.getLogger(__name__)
 _thread_local = threading.local()
@@ -89,12 +90,13 @@ class TenantMiddleware:
 
         user = request.user
         enforce = getattr(settings, 'TENANT_HOST_ENFORCEMENT', True)
+        normalized_role = normalize_role(getattr(user, 'role', None))
         if (
             enforce
             and request.path.startswith('/api/')
             and host_tenant
             and getattr(user, 'tenant_id', None)
-            and user.role != 'SUPER_ADMIN'
+            and normalized_role != 'OWNER'
             and user.tenant_id != host_tenant.id
         ):
             return JsonResponse(
@@ -108,7 +110,7 @@ class TenantMiddleware:
             )
 
         tenant_for_thread = getattr(user, 'tenant', None)
-        if user.role == 'SUPER_ADMIN':
+        if normalized_role == 'OWNER':
             tenant_for_thread = None
         set_current_tenant(tenant_for_thread)
         if tenant_for_thread:

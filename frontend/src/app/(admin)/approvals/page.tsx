@@ -175,8 +175,8 @@ export default function AdminApprovalsQueue() {
                     <div className="mt-2 text-sm text-gray-600">
                       {req.reason || (
                         <span>
-                          Reduction of <span className="font-bold text-red-600">₹{Number(req.reduction_amount).toLocaleString()}</span> requested
-                          {' '}(Standard: ₹{Number(req.standard_total).toLocaleString()} → Offered: ₹{Number(req.offered_total).toLocaleString()})
+                          Reduction of <span className="font-bold text-red-600">₹{Number(req.reduction_amount).toLocaleString('en-IN')}</span> requested
+                          {' '}(Standard: ₹{Number(req.standard_total).toLocaleString('en-IN')} → Offered: ₹{Number(req.offered_total).toLocaleString('en-IN')})
                         </span>
                       )}
                     </div>

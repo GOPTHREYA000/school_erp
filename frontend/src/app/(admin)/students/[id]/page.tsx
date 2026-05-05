@@ -522,7 +522,7 @@ export default function StudentProfilePage() {
                     <CreditCard size={80} />
                   </div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Fee</p>
-                  <h3 className="text-4xl font-black italic">₹{student.fee_stats?.total_fee?.toLocaleString()}</h3>
+                  <h3 className="text-4xl font-black italic">₹{student.fee_stats?.total_fee?.toLocaleString('en-IN')}</h3>
                   <p className="text-[10px] font-bold text-slate-500 mt-4 flex items-center gap-2">
                     <CheckCircle2 size={12} className="text-emerald-500" /> Locked for {student.academic_year_name}
                   </p>
@@ -533,7 +533,7 @@ export default function StudentProfilePage() {
                     <CheckCircle2 size={80} />
                   </div>
                   <p className="text-[10px] font-black text-emerald-600/50 uppercase tracking-[0.2em] mb-2">Fees Paid</p>
-                  <h3 className="text-4xl font-black text-emerald-700">₹{student.fee_stats?.total_paid?.toLocaleString()}</h3>
+                  <h3 className="text-4xl font-black text-emerald-700">₹{student.fee_stats?.total_paid?.toLocaleString('en-IN')}</h3>
                   <p className="text-[10px] font-bold text-emerald-600/60 mt-4 uppercase tracking-widest">Total Collected</p>
                 </div>
 
@@ -542,7 +542,7 @@ export default function StudentProfilePage() {
                     <Clock size={80} />
                   </div>
                   <p className="text-[10px] font-black text-amber-600/50 uppercase tracking-[0.2em] mb-2">Balance Left</p>
-                  <h3 className="text-4xl font-black text-amber-700">₹{student.fee_stats?.balance?.toLocaleString()}</h3>
+                  <h3 className="text-4xl font-black text-amber-700">₹{student.fee_stats?.balance?.toLocaleString('en-IN')}</h3>
                   <p className="text-[10px] font-bold text-amber-600/60 mt-4 uppercase tracking-widest text-destructive">Outstanding Dues</p>
                 </div>
               </div>
@@ -596,10 +596,10 @@ export default function StudentProfilePage() {
                             <p className="text-xs font-black text-slate-700">{item.desc}</p>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {item.credit ? <p className="text-xs font-black text-emerald-600">+₹{item.credit.toLocaleString()}</p> : '-'}
+                            {item.credit ? <p className="text-xs font-black text-emerald-600">+₹{item.credit.toLocaleString('en-IN')}</p> : '-'}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {item.debit ? <p className="text-xs font-black text-rose-600">₹{item.debit.toLocaleString()}</p> : '-'}
+                            {item.debit ? <p className="text-xs font-black text-rose-600">₹{item.debit.toLocaleString('en-IN')}</p> : '-'}
                           </td>
                           <td className="px-6 py-4 text-center">
                             <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
@@ -649,7 +649,7 @@ export default function StudentProfilePage() {
                       <div className="flex items-end justify-between">
                         <div>
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Amount</p>
-                          <p className="text-2xl font-black text-slate-900 italic tracking-tighter">₹{inv.outstanding_amount.toLocaleString()}</p>
+                          <p className="text-2xl font-black text-slate-900 italic tracking-tighter">₹{inv.outstanding_amount.toLocaleString('en-IN')}</p>
                         </div>
                         <button 
                           onClick={() => {
@@ -683,7 +683,7 @@ export default function StudentProfilePage() {
                       <div className="flex items-end justify-between">
                         <div>
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Monthly Fee</p>
-                          <p className="text-2xl font-black text-slate-900 italic tracking-tighter">₹{(student.transport_info.monthly_fee || 0).toLocaleString()}</p>
+                          <p className="text-2xl font-black text-slate-900 italic tracking-tighter">₹{(student.transport_info.monthly_fee || 0).toLocaleString('en-IN')}</p>
                         </div>
                         <button 
                           onClick={generateTransportInvoice}

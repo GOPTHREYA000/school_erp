@@ -13,7 +13,7 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from accounts.models import AuditLog
-from accounts.permissions import has_min_role
+from accounts.permissions import has_min_role, normalize_role
 from accounts.utils import log_audit_action
 from expenses.models import TransactionLog
 from students.models import ParentStudentRelation
@@ -25,13 +25,14 @@ logger = logging.getLogger(__name__)
 
 
 def _assert_can_pay_invoice(user, invoice: FeeInvoice) -> None:
-    if user.role == 'PARENT':
+    role = normalize_role(user.role)
+    if role == 'PARENT':
         if not ParentStudentRelation.objects.filter(
             parent=user, student_id=invoice.student_id
         ).exists():
             raise PermissionDenied('You cannot pay this invoice.')
         return
-    if user.role == 'SUPER_ADMIN':
+    if role == 'OWNER':
         return
     if not user.tenant or invoice.tenant_id != user.tenant_id:
         raise PermissionDenied('You cannot pay this invoice.')
@@ -48,9 +49,10 @@ def create_razorpay_order_for_invoice(user, invoice_id, idempotency_key: str | N
 
     with transaction.atomic():
         inv_qs = FeeInvoice.objects.select_for_update().filter(id=invoice_id)
+        role = normalize_role(user.role)
         if user.tenant:
             inv_qs = inv_qs.filter(tenant=user.tenant)
-        elif user.role != 'SUPER_ADMIN':
+        elif role != 'OWNER':
             raise PermissionDenied('Invoice not found.')
         try:
             invoice = inv_qs.get()

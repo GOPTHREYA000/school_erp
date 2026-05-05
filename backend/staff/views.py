@@ -3,7 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from accounts.permissions import IsBranchAdminOrAbove, IsTeacherOrAbove
+from accounts.permissions import IsBranchAdminOrAbove, IsTeacherOrAbove, normalize_role
 from .models import TeacherProfile, TeacherAssignment
 from .serializers import TeacherProfileSerializer, TeacherAssignmentSerializer
 
@@ -19,7 +19,8 @@ class StaffViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'SUPER_ADMIN':
+        role = normalize_role(user.role)
+        if role == 'OWNER':
             # Scope to tenant if one is assigned, otherwise show all
             if user.tenant:
                 return TeacherProfile.objects.filter(tenant=user.tenant)
@@ -27,7 +28,7 @@ class StaffViewSet(viewsets.ModelViewSet):
         # Non-super admins only see teachers in their tenant
         qs = TeacherProfile.objects.filter(tenant=user.tenant)
         # Branch Isolation (using direct branch tagging)
-        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+        if role not in ['OWNER', 'SUPER_ADMIN'] and user.branch:
             qs = qs.filter(branch=user.branch)
         return qs
 
@@ -50,15 +51,16 @@ class StaffViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
+        role = normalize_role(user.role)
         branch = serializer.validated_data.get('branch')
         
-        if user.role == 'SUPER_ADMIN':
+        if role == 'OWNER':
             teacher_user = serializer.validated_data.get('user')
             tenant = teacher_user.tenant if teacher_user else None
         else:
             tenant = user.tenant
             
-        if user.role == 'BRANCH_ADMIN' and user.branch:
+        if role in ('PRINCIPAL', 'BRANCH_ADMIN') and user.branch:
             branch = user.branch
 
         serializer.save(tenant=tenant, branch=branch)

@@ -121,7 +121,7 @@ export default function TransportPage() {
                          </span>
                       </td>
                       <td className="px-6 py-4 text-right font-black text-slate-900 italic">
-                        ₹{parseFloat(s.monthly_fee).toLocaleString()}
+                        ₹{parseFloat(s.monthly_fee).toLocaleString('en-IN')}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${s.is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
@@ -167,7 +167,7 @@ export default function TransportPage() {
                         </div>
                      </div>
                      <div className="text-2xl font-black text-blue-600 tracking-tight">
-                        ₹{parseFloat(slab.monthly_rate).toLocaleString()}
+                        ₹{parseFloat(slab.monthly_rate).toLocaleString('en-IN')}
                      </div>
                   </div>
                 ))}

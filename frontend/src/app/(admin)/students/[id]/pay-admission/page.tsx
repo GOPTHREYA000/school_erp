@@ -80,7 +80,7 @@ export default function PayAdmissionPage() {
         <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 text-left space-y-4">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Total Paid</span>
-            <span className="font-black text-gray-900 text-lg">₹{Number(result?.total_paid).toLocaleString()}</span>
+            <span className="font-black text-gray-900 text-lg">₹{Number(result?.total_paid).toLocaleString('en-IN')}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Receipts Generated</span>
@@ -118,7 +118,7 @@ export default function PayAdmissionPage() {
           </div>
           <div className="text-right">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Finalized Academic Fee</p>
-            <p className="text-2xl font-black text-slate-900 tracking-tighter">₹{Number(student.fee_stats?.total_fee || student.proposed_fee || 0).toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 tracking-tighter">₹{Number(student.fee_stats?.total_fee || student.proposed_fee || 0).toLocaleString('en-IN')}</p>
           </div>
         </div>
 
@@ -205,17 +205,17 @@ export default function PayAdmissionPage() {
             <div className="flex-1 bg-slate-900 rounded-[2rem] p-10 text-white space-y-10 shadow-2xl shadow-slate-900/20">
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Total Amount to Pay</p>
-                <p className="text-6xl font-black tracking-tighter">₹{totalAmount.toLocaleString()}</p>
+                <p className="text-6xl font-black tracking-tighter">₹{totalAmount.toLocaleString('en-IN')}</p>
               </div>
 
               <div className="space-y-6 pt-10 border-t border-slate-800">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Admission Fee</span>
-                  <span className="font-black">₹{Number(admissionFee).toLocaleString()}</span>
+                  <span className="font-black">₹{Number(admissionFee).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Initial Academic</span>
-                  <span className="font-black">₹{Number(tuitionPayment).toLocaleString()}</span>
+                  <span className="font-black">₹{Number(tuitionPayment).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="pt-4 flex justify-between items-center text-sm text-emerald-400">
                   <span className="font-bold uppercase tracking-widest text-[10px]">Processing via</span>

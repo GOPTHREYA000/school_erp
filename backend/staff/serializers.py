@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .models import TeacherProfile, TeacherAssignment
 from accounts.models import User
 from accounts.serializers import UserSerializer
+from accounts.permissions import normalize_role
 
 from tenants.models import Branch
 
@@ -53,7 +54,7 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
         from tenants.models import Branch
         request = self.context.get('request')
         if request and request.user:
-            if request.user.role == 'SUPER_ADMIN':
+            if normalize_role(request.user.role) == 'OWNER':
                 self.fields['branch'].queryset = Branch.objects.all()
             else:
                 self.fields['branch'].queryset = Branch.objects.filter(tenant=request.user.tenant)

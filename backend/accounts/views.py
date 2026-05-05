@@ -137,36 +137,37 @@ from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied
 from .models import User
 from .serializers import UserSerializer
-from .permissions import IsBranchAdminOrAbove, ROLE_HIERARCHY
+from .permissions import IsBranchAdminOrAbove, ROLE_HIERARCHY, normalize_role, role_in
 
 # Only these roles can manage (create/update/delete) other users
-ROLES_THAT_CAN_MANAGE_USERS = ['SUPER_ADMIN', 'SCHOOL_ADMIN', 'BRANCH_ADMIN']
+ROLES_THAT_CAN_MANAGE_USERS = ['OWNER', 'SUPER_ADMIN', 'BRANCH_ADMIN']
 
 class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsBranchAdminOrAbove]
 
     def _get_rank(self, role):
-        return ROLE_HIERARCHY.get(role, 0)
+        return ROLE_HIERARCHY.get(normalize_role(role), 0)
 
     def check_permissions(self, request):
         super().check_permissions(request)
         # For mutation operations, only admins can manage users
         if request.method not in ('GET', 'HEAD', 'OPTIONS'):
-            if request.user.role not in ROLES_THAT_CAN_MANAGE_USERS:
+            if not role_in(request.user, ROLES_THAT_CAN_MANAGE_USERS):
                 raise PermissionDenied("Only admins can manage users.")
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'SUPER_ADMIN':
+        role = normalize_role(user.role)
+        if role == 'OWNER':
             qs = User.objects.all()
         else:
-            # Non-super admins only see users in their tenant
+            # Non-platform users only see users in their tenant
             qs = User.objects.filter(tenant=user.tenant)
         
-        # Filtering by tenant (Super Admin only)
+        # Filtering by tenant (Owner only)
         tenant_id = self.request.query_params.get('tenant_id')
-        if tenant_id and user.role == 'SUPER_ADMIN':
+        if tenant_id and role == 'OWNER':
             qs = qs.filter(tenant_id=tenant_id)
 
         # Filtering by branch
@@ -177,7 +178,7 @@ class UserViewSet(viewsets.ModelViewSet):
             qs = qs.filter(branch_id=branch_id)
         
         # Branch isolation enforcement for lower roles
-        if user.role not in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] and user.branch:
+        if role not in ['OWNER', 'SUPER_ADMIN'] and user.branch:
             qs = qs.filter(branch=user.branch)
 
         # Filtering by role
@@ -188,23 +189,23 @@ class UserViewSet(viewsets.ModelViewSet):
         return qs.order_by('first_name', 'last_name')
 
     def perform_create(self, serializer):
-        creator_role = self.request.user.role
+        creator_role = normalize_role(self.request.user.role)
         target_role = serializer.validated_data.get('role')
 
         creator_rank = self._get_rank(creator_role)
         target_rank = self._get_rank(target_role)
 
         # Cannot create user with equal or higher privilege (higher rank = more privilege)
-        if target_rank >= creator_rank and creator_role != 'SUPER_ADMIN':
+        if target_rank >= creator_rank and creator_role != 'OWNER':
             raise PermissionDenied("You do not have permission to create a user with this role.")
 
         tenant = None
-        if creator_role != 'SUPER_ADMIN':
+        if creator_role != 'OWNER':
             tenant = self.request.user.tenant
         else:
-            # If super admin, they must specify a tenant for non-platform roles
+            # If owner, they must specify a tenant for non-platform roles
             tenant = serializer.validated_data.get('tenant')
-            if not tenant and target_role != 'SUPER_ADMIN':
+            if not tenant and normalize_role(target_role) != 'OWNER':
                tenant_id = self.request.data.get('tenant_id') or self.request.data.get('tenant')
                if tenant_id:
                    from tenants.models import Tenant
@@ -213,8 +214,8 @@ class UserViewSet(viewsets.ModelViewSet):
                    except (Tenant.DoesNotExist, ValueError):
                        pass
             
-            if not tenant and target_role != 'SUPER_ADMIN':
-                if target_role == 'SCHOOL_ADMIN':
+            if not tenant and normalize_role(target_role) != 'OWNER':
+                if normalize_role(target_role) == 'SUPER_ADMIN':
                     from tenants.models import Tenant
                     first_name = serializer.validated_data.get('first_name', '')
                     last_name = serializer.validated_data.get('last_name', '')
@@ -232,31 +233,31 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.save(tenant=tenant, branch=branch)
 
     def perform_update(self, serializer):
-        creator_role = self.request.user.role
+        creator_role = normalize_role(self.request.user.role)
         target_role = serializer.validated_data.get('role', serializer.instance.role)
 
         creator_rank = self._get_rank(creator_role)
         target_rank = self._get_rank(target_role)
         instance_rank = self._get_rank(serializer.instance.role)
 
-        if (target_rank >= creator_rank or instance_rank >= creator_rank) and creator_role != 'SUPER_ADMIN':
+        if (target_rank >= creator_rank or instance_rank >= creator_rank) and creator_role != 'OWNER':
             raise PermissionDenied("You cannot modify users of this role level.")
 
         serializer.save()
 
     def perform_destroy(self, instance):
-        creator_role = self.request.user.role
+        creator_role = normalize_role(self.request.user.role)
         creator_rank = self._get_rank(creator_role)
         instance_rank = self._get_rank(instance.role)
 
         if instance.id == self.request.user.id:
             raise PermissionDenied("You cannot delete your own account.")
 
-        if instance_rank >= creator_rank and creator_role != 'SUPER_ADMIN':
+        if instance_rank >= creator_rank and creator_role != 'OWNER':
             raise PermissionDenied("You cannot delete a user with equal or higher privileges.")
 
-        # PROTECT: Deactivate SCHOOL_ADMIN instead of deleting to preserve tenant data.
-        if instance.role == 'SCHOOL_ADMIN':
+        # PROTECT: Deactivate tenant-level super admin instead of deleting to preserve tenant data.
+        if normalize_role(instance.role) == 'SUPER_ADMIN':
             instance.is_active = False
             instance.save()
             return

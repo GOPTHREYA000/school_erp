@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Tenant, Branch, AcademicYear, GlobalSetting
+from .models import Tenant, Branch, AcademicYear, GlobalSetting, Zone
 
 class GlobalSettingSerializer(serializers.ModelSerializer):
     class Meta:
@@ -19,11 +19,21 @@ class TenantSerializer(serializers.ModelSerializer):
 
 class BranchSerializer(serializers.ModelSerializer):
     tenant_name = serializers.CharField(source='tenant.name', read_only=True)
+    zone_name = serializers.CharField(source='zone.name', read_only=True, default=None)
 
     class Meta:
         model = Branch
-        fields = ['id', 'tenant', 'tenant_name', 'name', 'branch_code', 'address', 'is_active']
+        fields = ['id', 'tenant', 'tenant_name', 'zone', 'zone_name', 'name', 'branch_code', 'address', 'is_active']
         read_only_fields = ['id', 'tenant']
+
+
+class ZoneSerializer(serializers.ModelSerializer):
+    tenant_name = serializers.CharField(source='tenant.name', read_only=True)
+
+    class Meta:
+        model = Zone
+        fields = ['id', 'tenant', 'tenant_name', 'name', 'is_active']
+        read_only_fields = ['id']
 
 class AcademicYearSerializer(serializers.ModelSerializer):
     class Meta:

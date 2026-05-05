@@ -8,11 +8,12 @@ from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 
+from accounts.permissions import normalize_role
 
 class IsParent(BasePermission):
     """Only allow users with PARENT role."""
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == 'PARENT'
+        return request.user.is_authenticated and normalize_role(request.user.role) == 'PARENT'
 
 from students.models import Student, ParentStudentRelation
 from students.serializers import StudentSerializer

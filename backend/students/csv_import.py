@@ -32,6 +32,7 @@ from django.db import transaction
 from django.db.models import Q
 from rest_framework.response import Response
 
+from accounts.permissions import normalize_role
 from tenants.models import AcademicYear, Branch
 from students.models import ClassSection, Student, GRADE_CHOICES, CsvImportJob
 from fees.models import FeeInvoice, Payment, FeeCarryForward, DocumentSequence
@@ -66,9 +67,9 @@ def handle_csv_import(request):
         if academic_year_id in ['undefined', '']: academic_year_id = None
 
         try:
-            if user.role == 'SUPER_ADMIN':
+            if normalize_role(user.role) == 'OWNER':
                 if not branch_id:
-                    return Response({'success': False, 'detail': 'SUPER_ADMIN must provide a branch_id.'}, status=400)
+                    return Response({'success': False, 'detail': 'Owner must provide a branch_id.'}, status=400)
                 branch = Branch.objects.get(id=branch_id)
                 tenant = branch.tenant
             else:

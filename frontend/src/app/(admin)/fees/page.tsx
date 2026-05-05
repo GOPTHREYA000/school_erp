@@ -182,8 +182,8 @@ export default function FeesPage() {
                            <p className="text-[10px] font-mono text-slate-400 uppercase">{req.admission_number}</p>
                         </div>
                         <div className="text-right">
-                           <p className="text-sm font-black text-emerald-600">Offered: ₹{Number(req.offered_total).toLocaleString()}</p>
-                           <p className="text-[10px] text-slate-400 line-through">Standard: ₹{Number(req.standard_total).toLocaleString()}</p>
+                           <p className="text-sm font-black text-emerald-600">Offered: ₹{Number(req.offered_total).toLocaleString('en-IN')}</p>
+                           <p className="text-[10px] text-slate-400 line-through">Standard: ₹{Number(req.standard_total).toLocaleString('en-IN')}</p>
                         </div>
                      </div>
                      <div className="bg-slate-50 p-2 rounded-lg text-xs italic text-slate-600 mb-4 border-l-2 border-blue-400">
@@ -270,8 +270,8 @@ export default function FeesPage() {
                        <td className="px-6 py-4 font-bold text-slate-900">{inv.student_name}</td>
                        <td className="px-6 py-4 text-slate-500">{inv.due_date}</td>
                        <td className="px-6 py-4">
-                          <p className="font-bold">₹{Number(inv.net_amount).toLocaleString()}</p>
-                          {Number(inv.outstanding_amount) > 0 && <p className="text-[10px] text-rose-500 font-bold">₹{Number(inv.outstanding_amount).toLocaleString()} left</p>}
+                          <p className="font-bold">₹{Number(inv.net_amount).toLocaleString('en-IN')}</p>
+                          {Number(inv.outstanding_amount) > 0 && <p className="text-[10px] text-rose-500 font-bold">₹{Number(inv.outstanding_amount).toLocaleString('en-IN')} left</p>}
                        </td>
                        <td className="px-6 py-4">
                           <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-tight ${statusStyles[inv.status]}`}>

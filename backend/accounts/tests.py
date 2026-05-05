@@ -2,10 +2,12 @@ from django.test import TestCase
 from datetime import date
 from rest_framework.test import APIClient
 from accounts.models import User
-from tenants.models import Tenant, Branch, AcademicYear
+from tenants.models import Tenant, Branch, AcademicYear, Zone
 from students.models import Student
 from fees.models import FeeInvoice
 from django.urls import reverse
+from accounts.permissions import normalize_role, get_user_scope
+from accounts.utils import apply_scope_filter
 
 class SecurityAndIsolationTests(TestCase):
     def setUp(self):
@@ -13,13 +15,15 @@ class SecurityAndIsolationTests(TestCase):
         
         # Tenant A Setup
         self.tenant_a = Tenant.objects.create(name='School A', owner_email='a@schoola.com', city='City', state='State', pincode='123456')
-        self.branch_a = Branch.objects.create(name='Branch A', tenant=self.tenant_a)
+        self.zone_a = Zone.objects.create(name='Zone A', tenant=self.tenant_a)
+        self.branch_a = Branch.objects.create(name='Branch A', tenant=self.tenant_a, zone=self.zone_a, branch_code='A1')
         self.ay_a = AcademicYear.objects.create(name='2026-27', tenant=self.tenant_a, start_date='2026-06-01', end_date='2027-05-31')
         self.user_a = User.objects.create_user(email='admin@schoola.com', password='password123', tenant=self.tenant_a, branch=self.branch_a, role='SCHOOL_ADMIN')
         
         # Tenant B Setup
         self.tenant_b = Tenant.objects.create(name='School B', owner_email='b@schoolb.com', city='City', state='State', pincode='123456')
-        self.branch_b = Branch.objects.create(name='Branch B', tenant=self.tenant_b)
+        self.zone_b = Zone.objects.create(name='Zone B', tenant=self.tenant_b)
+        self.branch_b = Branch.objects.create(name='Branch B', tenant=self.tenant_b, zone=self.zone_b, branch_code='B1')
         self.ay_b = AcademicYear.objects.create(name='2026-27', tenant=self.tenant_b, start_date='2026-06-01', end_date='2027-05-31')
         self.user_b = User.objects.create_user(email='admin@schoolb.com', password='password123', tenant=self.tenant_b, branch=self.branch_b, role='SCHOOL_ADMIN')
         
@@ -110,11 +114,11 @@ class SecurityAndIsolationTests(TestCase):
         self.assertIn('You do not have permission to perform this action', str(response.data))
 
     def test_super_admin_tenant_validation(self):
-        """SUPER_ADMIN cannot create a non-platform user without specifying a tenant."""
+        """OWNER cannot create a non-platform user without specifying a tenant."""
         super_admin = User.objects.create_user(
             email='super@admin.com', 
             password='password123', 
-            role='SUPER_ADMIN'
+            role='OWNER'
         )
         self.client.force_authenticate(user=super_admin)
         url = reverse('user-list')
@@ -128,3 +132,71 @@ class SecurityAndIsolationTests(TestCase):
         # Expect either 403 or 400 since tenant is required
         self.assertIn(response.status_code, [400, 403])
         self.assertIn('Tenant', str(response.data))
+
+
+class RoleScopeCompatibilityTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            name='Scope School',
+            owner_email='owner@scope.test',
+            city='City',
+            state='State',
+            pincode='123456',
+        )
+        self.zone_1 = Zone.objects.create(name='Zone 1', tenant=self.tenant)
+        self.zone_2 = Zone.objects.create(name='Zone 2', tenant=self.tenant)
+        self.branch_1 = Branch.objects.create(name='Branch 1', tenant=self.tenant, zone=self.zone_1, branch_code='S1')
+        self.branch_2 = Branch.objects.create(name='Branch 2', tenant=self.tenant, zone=self.zone_2, branch_code='S2')
+        self.ay = AcademicYear.objects.create(
+            name='2026-27',
+            tenant=self.tenant,
+            start_date='2026-06-01',
+            end_date='2027-05-31',
+        )
+        self.student_1 = Student.objects.create(
+            tenant=self.tenant,
+            branch=self.branch_1,
+            academic_year=self.ay,
+            first_name='S1',
+            last_name='One',
+            date_of_birth='2010-01-01',
+            status='ACTIVE',
+        )
+        self.student_2 = Student.objects.create(
+            tenant=self.tenant,
+            branch=self.branch_2,
+            academic_year=self.ay,
+            first_name='S2',
+            last_name='Two',
+            date_of_birth='2010-01-02',
+            status='ACTIVE',
+        )
+
+    def test_legacy_school_admin_normalizes_to_super_admin(self):
+        user = User.objects.create_user(
+            email='legacy@scope.test',
+            password='password123',
+            tenant=self.tenant,
+            role='SCHOOL_ADMIN',
+        )
+        self.assertEqual(normalize_role(user.role), 'SUPER_ADMIN')
+        scope = get_user_scope(user)
+        self.assertEqual(scope['level'], 'tenant')
+        self.assertEqual(scope['tenant_id'], self.tenant.id)
+
+    def test_zonal_admin_scope_filters_only_zone_branches(self):
+        user = User.objects.create_user(
+            email='zonal@scope.test',
+            password='password123',
+            tenant=self.tenant,
+            role='ZONAL_ADMIN',
+        )
+        user.zones.add(self.zone_1)
+        qs = apply_scope_filter(
+            Student.objects.all(),
+            user,
+            tenant_lookup='tenant_id',
+            branch_lookup='branch_id',
+            zone_lookup='branch__zone_id',
+        )
+        self.assertEqual(list(qs.values_list('id', flat=True)), [self.student_1.id])

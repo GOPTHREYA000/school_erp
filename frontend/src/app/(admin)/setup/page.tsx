@@ -671,7 +671,7 @@ function ClassAndFeeSetup() {
                       <div className="flex items-center justify-between">
                         {slab ? (
                           <div className="flex flex-col">
-                            <span className="text-xl font-black text-gray-900 leading-none">₹{Number(slab.monthly_rate).toLocaleString()}</span>
+                            <span className="text-xl font-black text-gray-900 leading-none">₹{Number(slab.monthly_rate).toLocaleString('en-IN')}</span>
                             <button onClick={() => handleUpdateTransportSlab(tier.label, tier.minKm, tier.maxKm, slab)} className="text-[10px] text-blue-600 font-bold mt-2 hover:underline text-left">Change Rate</button>
                           </div>
                         ) : (
@@ -729,7 +729,7 @@ function ClassAndFeeSetup() {
                     <td className="px-6 py-4 font-bold text-gray-900">
                       {tuitionItem ? (
                         <div className="flex items-center gap-2">
-                          <span>₹{Number(tuitionItem.amount).toLocaleString()}</span>
+                          <span>₹{Number(tuitionItem.amount).toLocaleString('en-IN')}</span>
                           <button onClick={() => handleUpdateFee(grade, 'Tuition', tuitionItem.amount)} className="text-blue-600 text-xs hover:underline">Edit</button>
                         </div>
                       ) : (
@@ -798,8 +798,8 @@ function FeeApprovalManager() {
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Offered Fee</p>
-              <p className="text-2xl font-black text-slate-900">₹{Number(req.offered_total).toLocaleString()}</p>
-              <p className="text-xs text-gray-400 line-through">₹{Number(req.standard_total).toLocaleString()}</p>
+              <p className="text-2xl font-black text-slate-900">₹{Number(req.offered_total).toLocaleString('en-IN')}</p>
+              <p className="text-xs text-gray-400 line-through">₹{Number(req.standard_total).toLocaleString('en-IN')}</p>
             </div>
             <div className="flex gap-2">
               <button onClick={() => handleAction(req.id, 'approve')} disabled={actioning === req.id} className="bg-green-600 text-white px-5 py-2.5 rounded-2xl text-sm font-bold hover:bg-green-700">Approve</button>

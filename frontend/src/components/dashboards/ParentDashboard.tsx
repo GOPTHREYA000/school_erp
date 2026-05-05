@@ -368,16 +368,16 @@ export default function ParentDashboard({ user }: { user: any }) {
             <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 min-w-[140px]">
                 <p className="text-blue-200 text-[10px] font-black uppercase tracking-widest mb-1">Total Fee</p>
-                <p className="text-2xl font-black tracking-tighter">₹{currentChild?.committed_fee?.toLocaleString() || '0'}</p>
+                <p className="text-2xl font-black tracking-tighter">₹{currentChild?.committed_fee?.toLocaleString('en-IN') || '0'}</p>
               </div>
               <div className="bg-emerald-500/20 backdrop-blur-md rounded-2xl p-4 border border-emerald-400/20 min-w-[140px]">
                 <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest mb-1">Paid</p>
-                <p className="text-2xl font-black tracking-tighter">₹{totalPaid.toLocaleString()}</p>
+                <p className="text-2xl font-black tracking-tighter">₹{totalPaid.toLocaleString('en-IN')}</p>
               </div>
               {totalDue > 0 && (
                 <div className="bg-rose-500/20 backdrop-blur-md rounded-2xl p-4 border border-rose-400/20 min-w-[140px]">
                   <p className="text-rose-200 text-[10px] font-black uppercase tracking-widest mb-1">Due</p>
-                  <p className="text-2xl font-black tracking-tighter">₹{totalDue.toLocaleString()}</p>
+                  <p className="text-2xl font-black tracking-tighter">₹{totalDue.toLocaleString('en-IN')}</p>
                 </div>
               )}
             </div>
@@ -393,12 +393,12 @@ export default function ParentDashboard({ user }: { user: any }) {
                 </div>
                 <div className="bg-white/5 rounded-xl px-4 py-2 border border-white/10 flex items-center gap-2">
                   <p className="text-emerald-200 text-[10px] font-black uppercase tracking-widest">Paid:</p>
-                  <p className="text-sm font-black text-white">₹{Math.round(transportTotalPaid).toLocaleString()}</p>
+                  <p className="text-sm font-black text-white">₹{Math.round(transportTotalPaid).toLocaleString('en-IN')}</p>
                 </div>
                 {transportTotalDue > 0 && (
                   <div className="bg-rose-500/10 rounded-xl px-4 py-2 border border-rose-400/20 flex items-center gap-2">
                     <p className="text-rose-200 text-[10px] font-black uppercase tracking-widest">Pending:</p>
-                    <p className="text-sm font-black text-rose-100">₹{Math.round(transportTotalDue).toLocaleString()}</p>
+                    <p className="text-sm font-black text-rose-100">₹{Math.round(transportTotalDue).toLocaleString('en-IN')}</p>
                   </div>
                 )}
               </div>
@@ -436,7 +436,7 @@ export default function ParentDashboard({ user }: { user: any }) {
                 </div>
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Outstanding</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">₹{totalDue.toLocaleString()}</p>
+              <p className="text-2xl font-black text-slate-900">₹{totalDue.toLocaleString('en-IN')}</p>
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
@@ -482,7 +482,7 @@ export default function ParentDashboard({ user }: { user: any }) {
                           <p className="text-xs text-slate-400">{p.payment_mode} • {new Date(p.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                         </div>
                       </div>
-                      <p className="font-black text-emerald-600">₹{p.amount.toLocaleString()}</p>
+                      <p className="font-black text-emerald-600">₹{p.amount.toLocaleString('en-IN')}</p>
                     </div>
                   ))}
                 </div>
@@ -531,7 +531,7 @@ export default function ParentDashboard({ user }: { user: any }) {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-right">
-                          <p className="font-black text-emerald-600 text-lg">₹{p.amount.toLocaleString()}</p>
+                          <p className="font-black text-emerald-600 text-lg">₹{p.amount.toLocaleString('en-IN')}</p>
                           <p className="text-[10px] text-slate-400 font-medium">
                             {new Date(p.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </p>
@@ -584,9 +584,9 @@ export default function ParentDashboard({ user }: { user: any }) {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-black text-slate-900">₹{Number(inv.net_amount).toLocaleString()}</p>
+                      <p className="font-black text-slate-900">₹{Number(inv.net_amount).toLocaleString('en-IN')}</p>
                       {Number(inv.outstanding_amount) > 0 && (
-                        <p className="text-xs text-rose-500 font-bold">Balance: ₹{Number(inv.outstanding_amount).toLocaleString()}</p>
+                        <p className="text-xs text-rose-500 font-bold">Balance: ₹{Number(inv.outstanding_amount).toLocaleString('en-IN')}</p>
                       )}
                     </div>
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${statusColor(inv.status)}`}>
@@ -609,21 +609,21 @@ export default function ParentDashboard({ user }: { user: any }) {
                               <span className="text-slate-600">{item.category}</span>
                               <div className="flex items-center gap-3">
                                 {item.concession > 0 && (
-                                  <span className="text-xs text-emerald-600 font-medium">-₹{item.concession.toLocaleString()} concession</span>
+                                  <span className="text-xs text-emerald-600 font-medium">-₹{item.concession.toLocaleString('en-IN')} concession</span>
                                 )}
-                                <span className="font-bold text-slate-900">₹{item.final_amount.toLocaleString()}</span>
+                                <span className="font-bold text-slate-900">₹{item.final_amount.toLocaleString('en-IN')}</span>
                               </div>
                             </div>
                           ))}
                           {inv.late_fee_amount > 0 && (
                             <div className="flex items-center justify-between text-sm pt-2 border-t border-dashed border-slate-200">
                               <span className="text-rose-500">Late Fee</span>
-                              <span className="font-bold text-rose-600">+₹{inv.late_fee_amount.toLocaleString()}</span>
+                              <span className="font-bold text-rose-600">+₹{inv.late_fee_amount.toLocaleString('en-IN')}</span>
                             </div>
                           )}
                           <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-200 font-black">
                             <span className="text-slate-900">Net Amount</span>
-                            <span className="text-slate-900">₹{Number(inv.net_amount).toLocaleString()}</span>
+                            <span className="text-slate-900">₹{Number(inv.net_amount).toLocaleString('en-IN')}</span>
                           </div>
                         </div>
                       </div>
@@ -649,7 +649,7 @@ export default function ParentDashboard({ user }: { user: any }) {
                               </div>
                               <div className="flex items-center gap-3">
                                 <div className="text-right">
-                                  <p className="font-black text-emerald-600">₹{p.amount.toLocaleString()}</p>
+                                  <p className="font-black text-emerald-600">₹{p.amount.toLocaleString('en-IN')}</p>
                                   <p className="text-[10px] text-slate-400">
                                     {new Date(p.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                   </p>
@@ -670,9 +670,9 @@ export default function ParentDashboard({ user }: { user: any }) {
 
                     {/* Summary Row */}
                     <div className="px-6 py-3 bg-slate-50 flex items-center justify-between text-sm border-t border-gray-100">
-                      <span className="text-slate-500">Total Paid: <span className="font-bold text-emerald-600">₹{Number(inv.paid_amount).toLocaleString()}</span></span>
+                      <span className="text-slate-500">Total Paid: <span className="font-bold text-emerald-600">₹{Number(inv.paid_amount).toLocaleString('en-IN')}</span></span>
                       {Number(inv.outstanding_amount) > 0 && (
-                        <span className="text-slate-500">Remaining: <span className="font-bold text-rose-600">₹{Number(inv.outstanding_amount).toLocaleString()}</span></span>
+                        <span className="text-slate-500">Remaining: <span className="font-bold text-rose-600">₹{Number(inv.outstanding_amount).toLocaleString('en-IN')}</span></span>
                       )}
                     </div>
                   </div>
@@ -854,7 +854,7 @@ export default function ParentDashboard({ user }: { user: any }) {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Monthly Fee</p>
-                  <p className="font-black text-blue-600">₹{transportInfo.monthly_fee?.toLocaleString()}</p>
+                  <p className="font-black text-blue-600">₹{transportInfo.monthly_fee?.toLocaleString('en-IN')}</p>
                 </div>
               </div>
             ) : (
@@ -923,16 +923,16 @@ export default function ParentDashboard({ user }: { user: any }) {
                             <h4 className="font-bold text-slate-900">{inv.month || 'Current Period'}</h4>
                             <span className="text-[10px] text-slate-400 font-mono">Invoice #{inv.invoice_number}</span>
                           </div>
-                          <p className="text-xs text-slate-500 font-medium">Transport Fee: ₹{tAmount.toLocaleString()}</p>
+                          <p className="text-xs text-slate-500 font-medium">Transport Fee: ₹{tAmount.toLocaleString('en-IN')}</p>
                         </div>
                         
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             {tPaid > 0 && (
-                              <p className="text-sm font-black text-emerald-600">Paid: ₹{Math.round(tPaid).toLocaleString()}</p>
+                              <p className="text-sm font-black text-emerald-600">Paid: ₹{Math.round(tPaid).toLocaleString('en-IN')}</p>
                             )}
                             {tDue > 0 && (
-                              <p className="text-sm font-black text-rose-500">Due: ₹{Math.round(tDue).toLocaleString()}</p>
+                              <p className="text-sm font-black text-rose-500">Due: ₹{Math.round(tDue).toLocaleString('en-IN')}</p>
                             )}
                           </div>
                           <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${
@@ -955,7 +955,7 @@ export default function ParentDashboard({ user }: { user: any }) {
                                   <CheckCircle2 size={12} className="text-emerald-500" />
                                   {new Date(p.payment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • {p.payment_mode}
                                 </div>
-                                <span className="font-bold text-emerald-600">₹{Number(p.amount).toLocaleString()}</span>
+                                <span className="font-bold text-emerald-600">₹{Number(p.amount).toLocaleString('en-IN')}</span>
                               </div>
                             ))}
                           </div>

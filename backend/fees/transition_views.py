@@ -8,7 +8,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
 
-from accounts.permissions import IsSchoolAdminOrAbove, IsBranchAdminOrAbove, IsAccountantOrAbove, IsSuperAdmin
+from accounts.permissions import (
+    IsSchoolAdminOrAbove,
+    IsBranchAdminOrAbove,
+    IsAccountantOrAbove,
+    IsSuperAdmin,
+    normalize_role,
+)
 from accounts.utils import get_validated_branch_id, log_audit_action
 
 from students.models import StudentAcademicRecord, ClassPromotionMap, Student
@@ -107,7 +113,7 @@ class AcademicYearClosingViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['post'], url_path='rollback')
     def rollback_closing(self, request):
         """POST /api/academic-year-closing/rollback/ — SUPER_ADMIN only"""
-        if request.user.role != 'SUPER_ADMIN':
+        if normalize_role(request.user.role) != 'SUPER_ADMIN':
             return Response({'success': False, 'error': 'Only SUPER_ADMIN can rollback.'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = RollbackClosingSerializer(data=request.data)

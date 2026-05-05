@@ -2,10 +2,9 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from accounts.permissions import IsSchoolAdminOrAbove, IsSuperAdmin
-from .models import Tenant, Branch, AcademicYear, GlobalSetting
-from .serializers import TenantSerializer, BranchSerializer, AcademicYearSerializer, GlobalSettingSerializer
-from .serializers import TenantSerializer, BranchSerializer, AcademicYearSerializer
+from accounts.permissions import IsSchoolAdminOrAbove, IsSuperAdmin, normalize_role
+from .models import Tenant, Branch, AcademicYear, GlobalSetting, Zone
+from .serializers import TenantSerializer, BranchSerializer, AcademicYearSerializer, GlobalSettingSerializer, ZoneSerializer
 from fees.models import FeeCategory, FeeStructure, FeeStructureItem
 from students.models import ClassSection
 
@@ -19,7 +18,8 @@ class TenantViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'SUPER_ADMIN':
+        role = normalize_role(getattr(user, 'role', None))
+        if role == 'OWNER':
             return Tenant.objects.all()
         elif user.tenant:
             return Tenant.objects.filter(id=user.tenant.id)
@@ -61,13 +61,17 @@ class BranchViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        role = normalize_role(getattr(user, 'role', None))
         qs = Branch.objects.none()
         
-        if user.role == 'SUPER_ADMIN':
+        if role == 'OWNER':
             qs = Branch.objects.all()
-        elif user.role == 'SCHOOL_ADMIN' and user.tenant:
+        elif role in ['SUPER_ADMIN', 'CHIEF_ACCOUNTANT'] and user.tenant:
             qs = Branch.objects.filter(tenant=user.tenant)
-        elif user.role in ['BRANCH_ADMIN', 'TEACHER', 'ACCOUNTANT']:
+        elif role == 'ZONAL_ADMIN':
+            zone_ids = list(user.zone_accesses.values_list('zone_id', flat=True))
+            qs = Branch.objects.filter(tenant=user.tenant, zone_id__in=zone_ids)
+        elif role in ['PRINCIPAL', 'BRANCH_ADMIN', 'TEACHER', 'ACCOUNTANT', 'STUDENT', 'PARENT']:
             if user.branch:
                 qs = Branch.objects.filter(id=user.branch.id)
             elif user.tenant:
@@ -75,7 +79,7 @@ class BranchViewSet(viewsets.ModelViewSet):
                 qs = Branch.objects.filter(tenant=user.tenant)
             
         tenant_id = self.request.query_params.get('tenant_id')
-        if tenant_id and (user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN'] or not user.tenant):
+        if tenant_id and (role in ['OWNER', 'SUPER_ADMIN'] or not user.tenant):
             qs = qs.filter(tenant_id=tenant_id)
             
         return qs
@@ -125,16 +129,17 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        role = normalize_role(getattr(user, 'role', None))
         qs = AcademicYear.objects.none()
         
-        if user.role == 'SUPER_ADMIN':
+        if role == 'OWNER':
             qs = AcademicYear.objects.all()
         elif user.tenant:
             qs = AcademicYear.objects.filter(tenant=user.tenant)
         
         # Additional filter by branch if provided, though years are tenant-wide
         branch_id = self.request.query_params.get('branch_id')
-        if branch_id and user.role in ['SUPER_ADMIN', 'SCHOOL_ADMIN']:
+        if branch_id and role in ['OWNER', 'SUPER_ADMIN']:
             qs = qs.filter(tenant__branches__id=branch_id).distinct()
             
         return qs
@@ -249,7 +254,34 @@ class GlobalSettingViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), IsSuperAdmin()]
         
     def get_queryset(self):
-        if self.request.user.is_authenticated and getattr(self.request.user, 'role', '') == 'SUPER_ADMIN':
+        if self.request.user.is_authenticated and normalize_role(getattr(self.request.user, 'role', '')) == 'OWNER':
             return GlobalSetting.objects.all()
         return GlobalSetting.objects.filter(is_public=True)
+
+
+class ZoneViewSet(viewsets.ModelViewSet):
+    serializer_class = ZoneSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsSchoolAdminOrAbove()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        user = self.request.user
+        role = normalize_role(getattr(user, 'role', None))
+        if role == 'OWNER':
+            return Zone.objects.all()
+        if user.tenant:
+            return Zone.objects.filter(tenant=user.tenant)
+        return Zone.objects.none()
+
+    def perform_create(self, serializer):
+        tenant = self.request.user.tenant
+        if normalize_role(getattr(self.request.user, 'role', None)) == 'OWNER' and not tenant:
+            tenant_id = self.request.data.get('tenant')
+            if tenant_id:
+                tenant = Tenant.objects.get(id=tenant_id)
+        serializer.save(tenant=tenant)
 

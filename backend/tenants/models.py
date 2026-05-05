@@ -58,9 +58,28 @@ class Domain(models.Model):
     def __str__(self):
         return self.domain
 
+class Zone(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='zones')
+    name = models.CharField(max_length=120)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('tenant', 'name')
+
+    def __str__(self):
+        return f"{self.name} ({self.tenant.name})"
+
 class Branch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='branches')
+    zone = models.ForeignKey(
+        Zone,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='branches',
+    )
     name = models.CharField(max_length=200)
     branch_code = models.CharField(max_length=50) # e.g. "MAIN"
     address = models.TextField(blank=True)
