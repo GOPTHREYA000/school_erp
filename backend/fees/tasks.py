@@ -61,7 +61,7 @@ def bulk_allocate_fees(branch_id, academic_year_id, class_section_id, fee_struct
                 from fees.models import FeeCategory
                 active_transport = StudentTransport.objects.filter(
                     student=student, is_active=True
-                ).select_related('route').first()
+                ).first()
 
                 transport_cat = None
                 transport_amount = None
@@ -120,3 +120,56 @@ def bulk_allocate_fees(branch_id, academic_year_id, class_section_id, fee_struct
     except Exception as e:
         logger.error(f"Bulk fee allocation failed: {str(e)}")
         raise
+
+
+@shared_task
+def automatic_fee_reminder_notifications():
+    """
+    Monthly in-app fee reminders for parents (Celery Beat: 1st of month).
+
+    One FEE_REMINDER per outstanding invoice per calendar month, unless a fee
+    reminder (FEE_REMINDER or FEE_REMINDER_3DAYS) was already logged this month
+    for that invoice — e.g. after staff used bulk remind.
+
+    Covers academic and transport (TRN-*) invoices.
+    """
+    from fees.models import FeeInvoice
+    from notifications.dispatcher import dispatch_notification
+    from notifications.in_app_helpers import (
+        fee_invoice_parent_payload,
+        invoice_fee_reminder_sent_in_calendar_month,
+    )
+
+    now = timezone.now()
+    y, m = now.year, now.month
+
+    qs = FeeInvoice.objects.filter(
+        status__in=['SENT', 'PARTIALLY_PAID', 'OVERDUE'],
+        outstanding_amount__gt=0,
+    ).select_related('student', 'branch', 'tenant')
+
+    stats = {'fee_reminder_monthly': 0, 'skipped_already_this_month': 0}
+
+    for inv in qs.iterator(chunk_size=200):
+        parent = inv.student.primary_parent
+        if not parent:
+            continue
+        if invoice_fee_reminder_sent_in_calendar_month(parent, inv.id, y, m):
+            stats['skipped_already_this_month'] += 1
+            continue
+
+        payload = fee_invoice_parent_payload(inv)
+        dispatch_notification(
+            tenant=inv.tenant,
+            branch=inv.branch,
+            event_type='FEE_REMINDER',
+            recipient_user=parent,
+            payload=payload,
+            send_sms=False,
+            send_email=False,
+            send_push=True,
+        )
+        stats['fee_reminder_monthly'] += 1
+
+    logger.info('automatic_fee_reminder_notifications: %s', stats)
+    return stats

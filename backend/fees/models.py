@@ -336,8 +336,14 @@ class StudentFeeItem(models.Model):
 
 # ─── FeeApprovalRequest ─────────────────────────────────────────
 class FeeApprovalRequest(models.Model):
-    """Workflow for fee reductions that need School Admin approval."""
+    """Workflow for fee reductions reviewed by zonal admin (small discount) or tenant super admin."""
     APPROVAL_STATUS = [("PENDING", "Pending"), ("APPROVED", "Approved"), ("REJECTED", "Rejected")]
+    ROUTING_ZONAL = 'ZONAL'
+    ROUTING_TENANT_SUPER = 'TENANT_SUPER'
+    ROUTING_CHOICES = [
+        (ROUTING_ZONAL, 'Zonal admin'),
+        (ROUTING_TENANT_SUPER, 'Tenant super admin'),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey('tenants.Tenant', on_delete=models.CASCADE)
@@ -347,6 +353,17 @@ class FeeApprovalRequest(models.Model):
     
     standard_total = models.DecimalField(max_digits=10, decimal_places=2)
     offered_total = models.DecimalField(max_digits=10, decimal_places=2)
+    discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text='standard_total − offered_total at request time',
+    )
+    routing = models.CharField(
+        max_length=20,
+        choices=ROUTING_CHOICES,
+        default=ROUTING_TENANT_SUPER,
+    )
     reason = models.TextField(blank=True)
     
     status = models.CharField(max_length=15, choices=APPROVAL_STATUS, default='PENDING')

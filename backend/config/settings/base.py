@@ -245,3 +245,13 @@ CELERY_TIMEZONE = TIME_ZONE
 if CELERY_BROKER_URL.startswith('rediss://'):
     CELERY_BROKER_USE_SSL = {'ssl_cert_reqs': 'none'}
     CELERY_REDIS_BACKEND_USE_SSL = {'ssl_cert_reqs': 'none'}
+
+# Requires Celery Beat process: `celery -A config beat -l info`
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'automatic-fee-reminder-notifications': {
+        'task': 'fees.tasks.automatic_fee_reminder_notifications',
+        'schedule': crontab(day_of_month=1, hour=8, minute=30),
+    },
+}

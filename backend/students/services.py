@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 def create_student_fees(student, offered_total, standard_total_input, reason, requested_by):
     """Shared logic for creating fees and triggering approvals"""
     from fees.models import FeeStructure, FeeStructureItem, StudentFeeItem, FeeApprovalRequest, FeeInvoice, FeeInvoiceItem
+    from fees.approval_routing import compute_fee_approval_routing
     from .models import Student
 
     branch = student.branch
@@ -84,6 +85,7 @@ def create_student_fees(student, offered_total, standard_total_input, reason, re
         Student.objects.filter(id=student.id).update(status='PENDING_APPROVAL')
         student.refresh_from_db() 
         
+        routing, discount_amount = compute_fee_approval_routing(branch, standard_total, offered_total)
         FeeApprovalRequest.objects.create(
             tenant=tenant,
             branch=branch,
@@ -91,6 +93,8 @@ def create_student_fees(student, offered_total, standard_total_input, reason, re
             requested_by=requested_by,
             standard_total=standard_total,
             offered_total=offered_total,
+            discount_amount=discount_amount,
+            routing=routing,
             reason=reason
         )
     return False

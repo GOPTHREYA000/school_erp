@@ -119,8 +119,10 @@ class StudentSerializer(serializers.ModelSerializer):
         from decimal import Decimal
         from django.db.models import Sum
         
-        # Get all invoices for this student and academic year
-        invoices = FeeInvoice.objects.filter(student=obj, academic_year=obj.academic_year)
+        # Academic-year fees only — exclude one-time admission (ADM-) and transport (TRN-) from structure totals
+        invoices = FeeInvoice.objects.filter(
+            student=obj, academic_year=obj.academic_year
+        ).exclude(invoice_number__startswith='ADM-').exclude(invoice_number__startswith='TRN-')
         total_fee_invoiced = invoices.aggregate(Sum('net_amount'))['net_amount__sum'] or Decimal('0.00')
         total_paid = invoices.aggregate(Sum('paid_amount'))['paid_amount__sum'] or Decimal('0.00')
         

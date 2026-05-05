@@ -28,7 +28,7 @@ export default function SetupPage() {
     { id: 'branches', label: 'Branches', icon: Layers, roles: ['SUPER_ADMIN'] },
     { id: 'subjects', label: 'Subjects', icon: Tag, roles: ['SUPER_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
     { id: 'classes', label: 'Class & Fees', icon: BookOpen, roles: ['SUPER_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
-    { id: 'approvals', label: 'Approvals', icon: CheckCircle2, roles: ['SUPER_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
+    { id: 'approvals', label: 'Approvals', icon: CheckCircle2, roles: ['SUPER_ADMIN'] },
   ].filter(t => user && t.roles.includes(user.role));
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function SetupPage() {
         {activeTab === 'years' && <AcademicYearManager />}
         {activeTab === 'branches' && <BranchManager />}
         {activeTab === 'subjects' && <SubjectManager />}
-        {activeTab === 'classes' && <ClassAndFeeSetup />}
+        {activeTab === 'classes' && <ClassAndFeeSetup user={user} />}
         {activeTab === 'approvals' && <FeeApprovalManager />}
       </div>
     </div>
@@ -463,8 +463,9 @@ function BranchManager() {
   );
 }
 
-function ClassAndFeeSetup() {
+function ClassAndFeeSetup({ user }: { user: any }) {
   const { confirm } = useConfirm();
+  const canEditAdmissionFee = user && ['SUPER_ADMIN', 'OWNER'].includes(user.role);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedAY, setSelectedAY] = useState('');
   const { data: branches } = useApi<any[]>('/tenants/branches/');
@@ -483,10 +484,23 @@ function ClassAndFeeSetup() {
     selectedBranch ? `/transport/rate-slabs/?branch_id=${selectedBranch}` : null
   );
 
+  const { data: admissionConfig, refetch: refetchAdmissionConfig } = useApi<any>(
+    selectedBranch && selectedAY
+      ? `tenants/branches/${selectedBranch}/admission-fee/?academic_year_id=${selectedAY}`
+      : null
+  );
+  const [admissionFeeInput, setAdmissionFeeInput] = useState('0');
+
   useEffect(() => {
     if (branches?.length && !selectedBranch) setSelectedBranch(branches[0].id);
     if (years?.length && !selectedAY) setSelectedAY(years.find(y => y.is_active)?.id || years[0].id);
   }, [branches, years]);
+
+  useEffect(() => {
+    if (admissionConfig && typeof admissionConfig.amount !== 'undefined') {
+      setAdmissionFeeInput(String(admissionConfig.amount));
+    }
+  }, [admissionConfig, selectedBranch, selectedAY]);
 
   const grades = [
     'NURSERY','LKG','UKG','1','2','3','4','5','6','7','8','9','10',
@@ -642,6 +656,54 @@ function ClassAndFeeSetup() {
         <div className="flex items-end">
           <button onClick={handleCreateClass} className="w-full bg-slate-900 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 flex items-center justify-center gap-2">
             <CustomPlus size={16} /> Add Grade/Class
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl border border-amber-100 shadow-sm space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2 bg-amber-50 rounded-xl text-amber-700">
+            <IndianRupee size={22} />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-gray-900">One-time admission fee</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Shown when enrolling a new student. Not part of grade fee structure totals (e.g. not included in the
+              annual tuition figure).
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="space-y-1 flex-1 min-w-[160px]">
+            <label className="text-[10px] font-bold text-gray-400 uppercase">Amount (₹)</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={admissionFeeInput}
+              onChange={(e) => setAdmissionFeeInput(e.target.value)}
+              disabled={!canEditAdmissionFee}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-bold disabled:opacity-50"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await api.patch(`tenants/branches/${selectedBranch}/admission-fee/`, {
+                  academic_year_id: selectedAY,
+                  amount: admissionFeeInput,
+                });
+                toast.success('Admission fee saved for this branch and year.');
+                refetchAdmissionConfig();
+              } catch (err: any) {
+                toast.error(err.response?.data?.detail || 'Could not save admission fee');
+              }
+            }}
+            disabled={!selectedBranch || !selectedAY || !canEditAdmissionFee}
+            className="bg-slate-900 text-white px-6 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50"
+          >
+            Save admission fee
           </button>
         </div>
       </div>

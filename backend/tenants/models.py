@@ -91,6 +91,34 @@ class Branch(models.Model):
     def __str__(self):
         return f"{self.name} ({self.tenant.name})"
 
+
+class BranchAdmissionFee(models.Model):
+    """
+    One-time admission / application fee for a branch and academic year.
+    Not part of per-grade FeeStructure totals (e.g. excludes from annual 24,000).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='admission_fees')
+    academic_year = models.ForeignKey(
+        'AcademicYear',
+        on_delete=models.CASCADE,
+        related_name='branch_admission_fees',
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text='Amount collected as admission fee at enrollment (separate from class fee structure).',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [['branch', 'academic_year']]
+
+    def __str__(self):
+        return f"{self.branch.branch_code} {self.academic_year.name}: ₹{self.amount}"
+
+
 class AcademicYear(models.Model):
     YEAR_STATUS_CHOICES = [
         ('PLANNING', 'Planning'),

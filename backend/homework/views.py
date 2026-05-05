@@ -33,7 +33,41 @@ class HomeworkViewSet(viewsets.ModelViewSet):
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied('You are not assigned to teach this subject in this class.')
                     
-        serializer.save(tenant=self.request.user.tenant, posted_by=self.request.user)
+        instance = serializer.save(tenant=self.request.user.tenant, posted_by=self.request.user)
+        if instance.is_published:
+            from students.models import Student, ParentStudentRelation
+            from notifications.dispatcher import dispatch_notification
+
+            student_ids = Student.objects.filter(
+                class_section=instance.class_section,
+                status='ACTIVE',
+                tenant=instance.tenant,
+            ).values_list('id', flat=True)
+            parent_ids = (
+                ParentStudentRelation.objects.filter(student_id__in=student_ids)
+                .values_list('parent_id', flat=True)
+                .distinct()
+            )
+            from accounts.models import User
+
+            subj_name = instance.subject.name if instance.subject_id else 'a subject'
+            due_s = instance.due_date.isoformat() if instance.due_date else ''
+            branch = instance.class_section.branch
+            for parent in User.objects.filter(id__in=parent_ids, is_active=True):
+                dispatch_notification(
+                    tenant=instance.tenant,
+                    branch=branch,
+                    event_type='HOMEWORK_POSTED',
+                    recipient_user=parent,
+                    payload={
+                        'subject': subj_name,
+                        'due_date': due_s,
+                        'homework_title': instance.title,
+                    },
+                    send_sms=False,
+                    send_email=False,
+                    send_push=True,
+                )
 
     def perform_update(self, serializer):
         user = self.request.user

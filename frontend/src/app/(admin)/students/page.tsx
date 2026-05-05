@@ -30,6 +30,7 @@ interface Student {
 }
 
 export default function StudentsPage() {
+  const router = useRouter();
   const { selectedBranch } = useBranch();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ACTIVE');
@@ -56,9 +57,16 @@ export default function StudentsPage() {
       if (payload.roll_number === '' || payload.roll_number === undefined) {
         payload.roll_number = null;
       }
-      await api.post('/students/', payload);
+      const res = await api.post('/students/', payload);
+      const row = res.data?.data ?? res.data;
       setShowDrawer(false);
       refetch();
+      if (row?.requires_admission_payment && row?.id) {
+        toast.success('Student saved. Continue to admission fee payment.');
+        router.push(`/students/${row.id}/pay-admission`);
+        return;
+      }
+      toast.success('Student enrolled.');
     } catch (err: any) {
       toast.error("Failed to enroll: " + (err.response?.data?.detail || JSON.stringify(err.response?.data)));
     }

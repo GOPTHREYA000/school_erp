@@ -3,7 +3,7 @@ from .models import (
     FeeCategory, FeeStructure, FeeStructureItem, StudentWallet,
     WalletTransaction, FeeConcession, StudentConcession,
     LateFeeRule, FeeInvoice, FeeInvoiceItem, Payment,
-    StudentFeeItem, FeeApprovalRequest,
+    StudentFeeItem, FeeApprovalRequest, PAYMENT_MODE,
 )
 
 
@@ -162,11 +162,14 @@ class FeeApprovalRequestSerializer(serializers.ModelSerializer):
     branch_name = serializers.CharField(source='branch.name', read_only=True)
     requested_by_name = serializers.SerializerMethodField()
     reviewed_by_name = serializers.SerializerMethodField()
+    reduction_amount = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True, source='discount_amount'
+    )
 
     class Meta:
         model = FeeApprovalRequest
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'reviewed_at', 'reviewed_by', 'tenant']
+        exclude = ('discount_amount',)
+        read_only_fields = ['id', 'created_at', 'reviewed_at', 'reviewed_by', 'tenant', 'routing']
 
     def get_student_name(self, obj):
         return f"{obj.student.first_name} {obj.student.last_name}"
@@ -180,8 +183,19 @@ class FeeApprovalRequestSerializer(serializers.ModelSerializer):
         return None
 class InitialPaymentSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
-    admission_fee = serializers.DecimalField(max_digits=10, decimal_places=2)
-    tuition_payment = serializers.DecimalField(max_digits=10, decimal_places=2)
-    payment_mode = serializers.ChoiceField(choices=['CASH', 'UPI'])
+    admission_fee = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
+    tuition_payment = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
+    payment_mode = serializers.ChoiceField(choices=[c[0] for c in PAYMENT_MODE])
     reference_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     payment_date = serializers.DateField()
+
+    def validate(self, attrs):
+        from decimal import Decimal
+
+        a = Decimal(str(attrs.get('admission_fee') or 0))
+        t = Decimal(str(attrs.get('tuition_payment') or 0))
+        if a + t <= 0:
+            raise serializers.ValidationError(
+                'At least one of admission_fee or tuition_payment must be greater than zero.'
+            )
+        return attrs

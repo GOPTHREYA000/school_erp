@@ -1,55 +1,96 @@
-import json
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from fees.models import Payment, FeeInvoice
-from notifications.models import NotificationLog
 
-@receiver(post_save, sender=Payment)
-def payment_completed_notification(sender, instance, created, **kwargs):
-    """
-    Trigger notification when a payment is marked as COMPLETED.
-    """
-    if instance.status == 'COMPLETED':
-        # Check if we already created a notification for this payment
-        payload = {'payment_id': str(instance.id), 'amount': str(instance.amount)}
-        
-        # We look up based on payload payment_id (in an MVP scenario; json search might be DB specific, 
-        # but for simplicity we rely on the logic that completed payments queue it once).
-        
-        parent = instance.student.primary_parent
-        if parent:
-            NotificationLog.objects.create(
-                tenant=instance.tenant,
-                branch=instance.branch,
-                event_type="PAYMENT_CONFIRMED",
-                recipient_user=parent,
-                recipient_phone=parent.phone,
-                recipient_email=parent.email,
-                channel="SMS" if parent.phone else "EMAIL",
-                status="QUEUED",
-                payload=payload
-            )
+from fees.models import Payment, FeeInvoice
+
+from .dispatcher import dispatch_notification
+from .in_app_helpers import (
+    fee_invoice_parent_payload,
+    payment_parent_payload,
+    in_app_invoice_event_exists,
+    in_app_payment_confirmed_exists,
+)
+
+
+@receiver(pre_save, sender=FeeInvoice)
+def _fee_invoice_track_status(sender, instance, **kwargs):
+    if not instance.pk:
+        instance._notif_prev_status = None
+        return
+    try:
+        instance._notif_prev_status = (
+            FeeInvoice.objects.only('status').get(pk=instance.pk).status
+        )
+    except FeeInvoice.DoesNotExist:
+        instance._notif_prev_status = None
+
 
 @receiver(post_save, sender=FeeInvoice)
-def invoice_generated_notification(sender, instance, created, **kwargs):
+def fee_invoice_in_app_to_parent(sender, instance, created, **kwargs):
     """
-    Trigger notification when a fee invoice enters SENT or OVERDUE status.
+    In-app only: new / sent invoices and overdue status for parents.
+    Academic and transport (TRN-*) invoices use the same events with fee_kind in payload.
     """
-    if instance.status in ['SENT', 'OVERDUE']:
-        payload = {'invoice_id': str(instance.id), 'amount': str(instance.outstanding_amount)}
-        
-        parent = instance.student.primary_parent
-        if parent:
-            event = "INVOICE_GENERATED" if instance.status == 'SENT' else "PAYMENT_OVERDUE"
-            
-            NotificationLog.objects.create(
-                tenant=instance.tenant,
-                branch=instance.branch,
-                event_type=event,
-                recipient_user=parent,
-                recipient_phone=parent.phone,
-                recipient_email=parent.email,
-                channel="SMS" if parent.phone else "EMAIL",
-                status="QUEUED",
-                payload=payload
-            )
+    parent = instance.student.primary_parent
+    if not parent:
+        return
+
+    prev = getattr(instance, '_notif_prev_status', None)
+    payload = fee_invoice_parent_payload(instance)
+
+    # Landed on SENT (new issue or workflow send) — one INVOICE_GENERATED per invoice.
+    if instance.status == 'SENT':
+        if not created and prev == 'SENT':
+            return
+        if in_app_invoice_event_exists(parent, 'INVOICE_GENERATED', instance.id):
+            return
+        dispatch_notification(
+            tenant=instance.tenant,
+            branch=instance.branch,
+            event_type='INVOICE_GENERATED',
+            recipient_user=parent,
+            payload=payload,
+            send_sms=False,
+            send_email=False,
+            send_push=True,
+        )
+        return
+
+    # Explicit overdue status
+    if instance.status == 'OVERDUE':
+        if not created and prev == 'OVERDUE':
+            return
+        if in_app_invoice_event_exists(parent, 'PAYMENT_OVERDUE', instance.id):
+            return
+        dispatch_notification(
+            tenant=instance.tenant,
+            branch=instance.branch,
+            event_type='PAYMENT_OVERDUE',
+            recipient_user=parent,
+            payload=payload,
+            send_sms=False,
+            send_email=False,
+            send_push=True,
+        )
+
+
+@receiver(post_save, sender=Payment)
+def payment_completed_in_app_to_parent(sender, instance, **kwargs):
+    if instance.status != 'COMPLETED':
+        return
+    parent = instance.student.primary_parent
+    if not parent:
+        return
+    if in_app_payment_confirmed_exists(parent, instance.id):
+        return
+    payload = payment_parent_payload(instance)
+    dispatch_notification(
+        tenant=instance.tenant,
+        branch=instance.branch,
+        event_type='PAYMENT_CONFIRMED',
+        recipient_user=parent,
+        payload=payload,
+        send_sms=False,
+        send_email=False,
+        send_push=True,
+    )

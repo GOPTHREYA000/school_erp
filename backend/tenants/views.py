@@ -1,10 +1,20 @@
+from decimal import Decimal
+
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from accounts.permissions import IsSchoolAdminOrAbove, IsSuperAdmin, normalize_role
-from .models import Tenant, Branch, AcademicYear, GlobalSetting, Zone
-from .serializers import TenantSerializer, BranchSerializer, AcademicYearSerializer, GlobalSettingSerializer, ZoneSerializer
+from .models import Tenant, Branch, AcademicYear, GlobalSetting, Zone, BranchAdmissionFee
+from .serializers import (
+    TenantSerializer,
+    BranchSerializer,
+    AcademicYearSerializer,
+    GlobalSettingSerializer,
+    ZoneSerializer,
+    BranchAdmissionFeeSerializer,
+)
 from fees.models import FeeCategory, FeeStructure, FeeStructureItem
 from students.models import ClassSection
 
@@ -108,6 +118,49 @@ class BranchViewSet(viewsets.ModelViewSet):
                 code=code,
                 defaults={'name': name}
             )
+        FeeCategory.objects.get_or_create(
+            tenant=self.request.user.tenant,
+            branch=branch,
+            code='ADMISSION',
+            defaults={
+                'name': 'Admission Fee',
+                'description': 'One-time admission / application fee',
+                'is_active': True,
+                'order': 0,
+            },
+        )
+
+    @action(detail=True, methods=['get', 'patch'], url_path='admission-fee')
+    def admission_fee(self, request, pk=None):
+        """GET/PATCH configured admission fee for this branch and an academic year (not part of class fee structure)."""
+        branch = self.get_object()
+        if request.method == 'GET':
+            ay_id = request.query_params.get('academic_year_id')
+        else:
+            ay_id = request.data.get('academic_year_id')
+        if not ay_id:
+            return Response({'detail': 'academic_year_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        ay = get_object_or_404(AcademicYear, id=ay_id, tenant_id=branch.tenant_id)
+        row, _ = BranchAdmissionFee.objects.get_or_create(
+            branch=branch, academic_year=ay, defaults={'amount': Decimal('0.00')}
+        )
+        if request.method == 'GET':
+            return Response({
+                'success': True,
+                'data': BranchAdmissionFeeSerializer(row).data,
+            })
+        # PATCH
+        perm = IsSchoolAdminOrAbove()
+        if not perm.has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        amt = request.data.get('amount')
+        if amt is None:
+            return Response({'detail': 'amount is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        row.amount = Decimal(str(amt))
+        if row.amount < 0:
+            return Response({'detail': 'amount cannot be negative.'}, status=status.HTTP_400_BAD_REQUEST)
+        row.save(update_fields=['amount', 'updated_at'])
+        return Response({'success': True, 'data': BranchAdmissionFeeSerializer(row).data})
 
 
 class AcademicYearViewSet(viewsets.ModelViewSet):
@@ -218,10 +271,22 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
                         }
                     )
 
+        # 3. Clone branch admission fees (one-time admission amount per branch/year)
+        cloned_adm = 0
+        for old_row in BranchAdmissionFee.objects.filter(academic_year=source_year):
+            _, created = BranchAdmissionFee.objects.get_or_create(
+                branch=old_row.branch,
+                academic_year=target_year,
+                defaults={'amount': old_row.amount},
+            )
+            if created:
+                cloned_adm += 1
+
         return Response({
             'message': f'Successfully cloned {cloned_sections} sections and {cloned_structures} structures.',
             'sections_cloned': cloned_sections,
-            'structures_cloned': cloned_structures
+            'structures_cloned': cloned_structures,
+            'admission_fees_cloned': cloned_adm,
         })
 
 class SuperAdminTenantViewSet(viewsets.ModelViewSet):

@@ -12,6 +12,7 @@ from django.utils import timezone
 from datetime import timedelta
 from expenses.models import TransactionLog
 from fees.models import FeeInvoice, FeeApprovalRequest, Payment
+from fees.approval_routing import fee_approval_queryset_for_user
 from attendance.models import AttendanceRecord
 from students.models import Student, AdmissionInquiry, AdmissionApplication
 from tenants.models import Branch, Tenant
@@ -106,8 +107,11 @@ class ReportingViewSet(viewsets.ViewSet):
         # Branch count (for admin dashboard)
         active_branches = Branch.objects.filter(tenant=request.user.tenant, is_active=True).count()
 
-        # Pending approval count
-        approval_qs = FeeApprovalRequest.objects.filter(tenant=request.user.tenant, status='PENDING')
+        # Pending fee reduction approvals (zonal vs school admin routing)
+        approval_qs = fee_approval_queryset_for_user(
+            request.user,
+            FeeApprovalRequest.objects.filter(status='PENDING'),
+        )
         if branch_id:
             approval_qs = approval_qs.filter(branch_id=branch_id)
         pending_approvals = approval_qs.count()

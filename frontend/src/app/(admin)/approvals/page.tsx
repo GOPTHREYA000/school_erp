@@ -5,6 +5,7 @@ import api from '@/lib/axios';
 import { CheckCircle, XCircle, Clock, ShieldCheck, AlertTriangle, Inbox } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '@/components/common/ConfirmProvider';
+import { useAuth } from '@/components/common/AuthProvider';
 
 type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -25,13 +26,21 @@ interface ApprovalRequest {
   reviewed_at: string | null;
 }
 
+const APPROVAL_REVIEW_ROLES = new Set(['SUPER_ADMIN', 'ZONAL_ADMIN']);
+
 export default function AdminApprovalsQueue() {
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<ApprovalStatus>('PENDING');
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const { confirm } = useConfirm();
+  const canReview = user?.role ? APPROVAL_REVIEW_ROLES.has(user.role) : false;
 
   const fetchApprovals = useCallback(() => {
+    if (!canReview) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     api.get(`fees/approvals/?status=${activeTab}`)
       .then(res => {
@@ -40,7 +49,7 @@ export default function AdminApprovalsQueue() {
       })
       .catch(() => toast.error('Failed to load approval requests'))
       .finally(() => setLoading(false));
-  }, [activeTab]);
+  }, [activeTab, canReview]);
 
   useEffect(() => { fetchApprovals(); }, [fetchApprovals]);
 
@@ -86,6 +95,24 @@ export default function AdminApprovalsQueue() {
     { key: 'REJECTED', label: 'Rejected', icon: <XCircle size={14} /> },
   ];
 
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-gray-500">Loading…</div>
+    );
+  }
+
+  if (!canReview) {
+    return (
+      <div className="p-8 max-w-lg mx-auto text-center space-y-3">
+        <AlertTriangle className="mx-auto text-amber-500" size={40} />
+        <h1 className="text-xl font-bold text-gray-900">Access restricted</h1>
+        <p className="text-gray-600 text-sm">
+          Fee concession approvals are only available to tenant super admin and zonal admin.
+        </p>
+      </div>
+    );
+  }
+
   const formatTimeAgo = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -103,8 +130,8 @@ export default function AdminApprovalsQueue() {
           <ShieldCheck size={24} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Principal Approvals Queue</h1>
-          <p className="text-gray-500 text-sm">Review pending fee waivers and concession requests.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Fee approvals</h1>
+          <p className="text-gray-500 text-sm">Review pending fee reductions for your scope (zonal or tenant super admin).</p>
         </div>
       </div>
 

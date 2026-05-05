@@ -69,33 +69,31 @@ export default function LoginPage() {
     }
   };
 
+  const inputClass =
+    'block w-full px-4 py-3.5 text-base text-slate-900 placeholder:text-slate-400 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 transition-all';
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex flex-col items-center">
-          <div className="rounded-xl bg-black px-6 py-4 shadow-lg ring-1 ring-slate-200/80">
-            <Image
-              src="/vaarahi.png"
-              alt="Vaarahi Edu Smart Services — Passion for Excellence"
-              width={280}
-              height={72}
-              className="h-auto w-[min(100%,280px)] object-contain"
-              priority
-            />
-          </div>
-        </div>
-        <h2 className="mt-8 text-center text-3xl font-extrabold text-slate-900">
+    <div className="min-h-screen flex flex-col items-center justify-center px-5 py-16 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgb(241,245,249),rgb(248,250,252))]">
+      <div className="w-full max-w-[26rem] flex flex-col items-center text-center">
+        <Image
+          src="/vaarahi.png"
+          alt="Vaarahi Edu Smart Services — Passion for Excellence"
+          width={560}
+          height={140}
+          className="h-auto w-full max-w-[min(92vw,22rem)] sm:max-w-[min(88vw,26rem)] object-contain select-none"
+          priority
+        />
+
+        <h1 className="mt-10 sm:mt-12 text-[1.65rem] sm:text-3xl font-semibold tracking-tight text-slate-900">
           Sign in to your account
-        </h2>
-        <p className="mt-2 text-center text-sm text-slate-600">
+        </h1>
+        <p className="mt-2 text-[0.9375rem] text-slate-500 leading-relaxed max-w-sm">
           {mfaChallenge ? 'Enter the code from your authenticator app' : 'Enter your credentials to continue'}
         </p>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-slate-100">
+        <div className="mt-10 w-full text-left">
           {serverError && (
-            <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium flex items-start gap-2">
+            <div className="mb-6 p-4 bg-red-50/90 text-red-700 border border-red-100/80 rounded-2xl text-sm font-medium flex items-start gap-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
               <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
@@ -106,85 +104,75 @@ export default function LoginPage() {
           {mfaChallenge ? (
             <form className="space-y-6" onSubmit={onMfaSubmit}>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Authentication code</label>
-                <div className="mt-2">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    value={mfaCode}
-                    onChange={(e) => setMfaCode(e.target.value)}
-                    className="appearance-none block w-full px-4 py-3 border border-slate-200 rounded-xl shadow-sm placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-all"
-                    placeholder="6-digit code"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Authentication code</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value)}
+                  className={inputClass}
+                  placeholder="6-digit code"
+                />
               </div>
               <button
                 type="submit"
                 disabled={mfaSubmitting || !mfaCode.trim()}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all disabled:opacity-50"
+                className="w-full flex justify-center py-3.5 px-4 rounded-2xl text-[0.9375rem] font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 focus:ring-offset-transparent shadow-lg shadow-slate-900/15 transition-all disabled:opacity-50 disabled:shadow-none"
               >
                 {mfaSubmitting ? 'Verifying…' : 'Continue'}
               </button>
               <button
                 type="button"
                 onClick={() => { setMfaChallenge(null); setMfaCode(''); setServerError(''); }}
-                className="w-full text-sm text-slate-600 hover:text-slate-900"
+                className="w-full text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
               >
                 ← Back to sign in
               </button>
             </form>
           ) : (
-            <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+            <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Email or Phone Number</label>
-                <div className="mt-2">
-                  <input
-                    type="text"
-                    {...register('email')}
-                    className="appearance-none block w-full px-4 py-3 border border-slate-200 rounded-xl shadow-sm placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-all"
-                    placeholder="Enter your email or phone number"
-                    autoComplete="email"
-                  />
-                  {errors.email && <p className="mt-1 text-sm text-red-600 font-medium">{errors.email.message}</p>}
-                </div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Email or Phone Number</label>
+                <input
+                  type="text"
+                  {...register('email')}
+                  className={inputClass}
+                  placeholder="Enter your email or phone number"
+                  autoComplete="email"
+                />
+                {errors.email && <p className="mt-2 text-sm text-red-600 font-medium">{errors.email.message}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700">Password</label>
-                <div className="mt-2">
-                  <input
-                    type="password"
-                    {...register('password')}
-                    className="appearance-none block w-full px-4 py-3 border border-slate-200 rounded-xl shadow-sm placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-all"
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                  />
-                  {errors.password && <p className="mt-1 text-sm text-red-600 font-medium">{errors.password.message}</p>}
-                </div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
+                <input
+                  type="password"
+                  {...register('password')}
+                  className={inputClass}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                />
+                {errors.password && <p className="mt-2 text-sm text-red-600 font-medium">{errors.password.message}</p>}
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4 pt-1">
                 <div className="flex items-center">
-                  <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded" />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-900">Remember me</label>
+                  <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20" />
+                  <label htmlFor="remember-me" className="ml-2.5 block text-sm text-slate-600">Remember me</label>
                 </div>
-                <div className="text-sm">
-                  <Link href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500 transition-colors">
-                    Forgot your password?
-                  </Link>
-                </div>
+                <Link href="/forgot-password" className="text-sm font-semibold text-slate-700 hover:text-slate-900 underline-offset-4 hover:underline transition-colors shrink-0">
+                  Forgot password?
+                </Link>
               </div>
 
-              <div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Signing in...' : 'Sign in'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="mt-2 w-full flex justify-center py-3.5 px-4 rounded-2xl text-[0.9375rem] font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 focus:ring-offset-transparent shadow-lg shadow-slate-900/15 transition-all disabled:opacity-50 disabled:shadow-none"
+              >
+                {isSubmitting ? 'Signing in...' : 'Sign in'}
+              </button>
             </form>
           )}
         </div>

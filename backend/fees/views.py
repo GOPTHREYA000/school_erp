@@ -1,9 +1,10 @@
 from datetime import date, timedelta
 import logging
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
 from django.db import transaction, models
 from django.db.models import Sum, Q, F, ExpressionWrapper
@@ -12,6 +13,7 @@ from decimal import Decimal
 logger = logging.getLogger(__name__)
 
 from accounts.permissions import IsSchoolAdminOrAbove, IsBranchAdminOrAbove, IsAccountantOrAbove, normalize_role
+from .approval_routing import fee_approval_queryset_for_user, user_can_act_on_fee_approval, user_can_access_fee_approval_api
 from accounts.utils import (
     get_validated_branch_id,
     get_active_academic_year,
@@ -33,6 +35,20 @@ from .serializers import (
     StudentFeeItemSerializer, FeeApprovalRequestSerializer, InitialPaymentSerializer,
 )
 from .services import process_initial_payment
+
+
+class IsFeeApprovalReviewer(permissions.BasePermission):
+    """List/retrieve only for tenant SUPER_ADMIN and ZONAL_ADMIN; mutating writes disallowed."""
+
+    def has_permission(self, request, view):
+        if view.action in ('create', 'update', 'partial_update', 'destroy'):
+            return False
+        return user_can_access_fee_approval_api(request.user)
+
+
+class CanActOnFeeApproval(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return user_can_access_fee_approval_api(request.user)
 
 
 class FeeCategoryViewSet(viewsets.ModelViewSet):
@@ -119,25 +135,26 @@ class StudentFeeItemViewSet(viewsets.ModelViewSet):
 
 class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
     serializer_class = FeeApprovalRequestSerializer
-    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
+    permission_classes = [IsAuthenticated, IsFeeApprovalReviewer]
 
     def get_permissions(self):
-        if self.action in ['approve', 'reject']:
-            return [IsAuthenticated(), IsBranchAdminOrAbove()]
-        return [IsAuthenticated(), IsAccountantOrAbove()]
+        if self.action in ('approve', 'reject'):
+            return [IsAuthenticated(), CanActOnFeeApproval()]
+        return [IsAuthenticated(), IsFeeApprovalReviewer()]
 
     def get_queryset(self):
         user = self.request.user
-        qs = filter_queryset_for_user_tenant(
-            FeeApprovalRequest.objects.all(), user, 'tenant'
+        base = FeeApprovalRequest.objects.select_related(
+            'branch', 'branch__zone', 'student', 'requested_by', 'reviewed_by'
         )
+        qs = fee_approval_queryset_for_user(user, base)
         branch_id = get_validated_branch_id(user, self.request.query_params.get('branch_id'))
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
         stat = self.request.query_params.get('status')
         if stat:
             qs = qs.filter(status=stat)
-        return qs
+        return qs.order_by('-created_at')
 
     def perform_create(self, serializer):
         serializer.save(
@@ -148,6 +165,8 @@ class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         approval = self.get_object()
+        if not user_can_act_on_fee_approval(request.user, approval):
+            raise PermissionDenied('You cannot approve this request.')
         approval.status = 'APPROVED'
         approval.reviewed_by = request.user
         approval.reviewed_at = timezone.now()
@@ -165,6 +184,8 @@ class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         approval = self.get_object()
+        if not user_can_act_on_fee_approval(request.user, approval):
+            raise PermissionDenied('You cannot reject this request.')
         approval.status = 'REJECTED'
         approval.reviewed_by = request.user
         approval.reviewed_at = timezone.now()
@@ -335,6 +356,7 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
         ).select_related('student', 'branch')
 
         from notifications.dispatcher import dispatch_notification
+        from notifications.in_app_helpers import fee_invoice_parent_payload
 
         reminded = 0
         skipped_no_parent = 0
@@ -345,13 +367,7 @@ class FeeInvoiceViewSet(viewsets.ModelViewSet):
                 skipped_no_parent += 1
                 continue
             event_type = 'PAYMENT_OVERDUE' if inv.due_date and inv.due_date < today else 'FEE_REMINDER'
-            student_name = f'{inv.student.first_name} {inv.student.last_name}'.strip()
-            payload = {
-                'amount': str(inv.outstanding_amount),
-                'student_name': student_name,
-                'invoice_number': inv.invoice_number,
-                'due_date': inv.due_date.isoformat() if inv.due_date else '',
-            }
+            payload = fee_invoice_parent_payload(inv)
             log = dispatch_notification(
                 tenant=inv.branch.tenant,
                 branch=inv.branch,
@@ -565,16 +581,21 @@ class PaymentViewSet(viewsets.ModelViewSet):
         except Student.DoesNotExist:
             return Response({'detail': 'Student not found.'}, status=404)
 
-        result = process_initial_payment(
-            user=request.user,
-            student=student,
-            admission_fee=data['admission_fee'],
-            tuition_payment=data['tuition_payment'],
-            payment_mode=data['payment_mode'],
-            payment_date=data['payment_date'],
-            reference_number=data.get('reference_number')
-        )
-        
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+
+        try:
+            result = process_initial_payment(
+                user=request.user,
+                student=student,
+                admission_fee=data['admission_fee'],
+                tuition_payment=data['tuition_payment'],
+                payment_mode=data['payment_mode'],
+                payment_date=data['payment_date'],
+                reference_number=data.get('reference_number'),
+            )
+        except DRFValidationError as e:
+            return Response({'detail': e.detail}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response({'success': True, 'data': result}, status=status.HTTP_201_CREATED)
 
     @transaction.atomic

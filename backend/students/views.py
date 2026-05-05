@@ -301,11 +301,17 @@ class AdmissionApplicationViewSet(viewsets.ModelViewSet):
             application.status = 'ENROLLED'
             application.save()
 
+            from tenants.admission_fee import get_configured_admission_fee, student_requires_admission_payment
+
             return Response({
-                'success': True, 
+                'success': True,
                 'message': f"Student {student.admission_number} enrolled successfully.",
                 'student_id': str(student.id),
-                'data': StudentSerializer(student).data
+                'requires_admission_payment': student_requires_admission_payment(student),
+                'admission_fee_config': str(
+                    get_configured_admission_fee(student.branch_id, student.academic_year_id)
+                ),
+                'data': StudentSerializer(student).data,
             })
         except Exception as e:
             logger.error(f"Enrollment fatal error: {str(e)}")
@@ -382,6 +388,20 @@ class StudentViewSet(viewsets.ModelViewSet):
         if gender:
             qs = qs.filter(gender=gender)
         return qs
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        student = serializer.instance
+        from tenants.admission_fee import get_configured_admission_fee, student_requires_admission_payment
+
+        out = dict(serializer.data)
+        out['admission_fee_config'] = str(
+            get_configured_admission_fee(student.branch_id, student.academic_year_id)
+        )
+        out['requires_admission_payment'] = student_requires_admission_payment(student)
+        return Response({'success': True, 'data': out}, status=status.HTTP_201_CREATED)
 
     @transaction.atomic
     def perform_create(self, serializer):

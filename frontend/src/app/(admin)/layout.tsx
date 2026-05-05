@@ -41,7 +41,7 @@ const tenantSuperAdminNavGroups = [
       { href: '/reports', label: 'Reports Center', icon: BarChart3 },
       { href: '/audit-logs', label: 'Activity ledger', icon: ClipboardCheck },
       { href: '/exam-marks', label: 'Exam marks entry', icon: Award },
-      { href: '/approvals', label: 'Principal Queue', icon: ClipboardCheck },
+      { href: '/approvals', label: 'Fee approvals', icon: ClipboardCheck },
       { href: '/reports/financial', label: 'Financial Analytics', icon: TrendingUp },
     ],
   },
@@ -74,6 +74,23 @@ const getNavGroups = (user: { role: string; tenant?: string | null }) => {
   if (role === 'SUPER_ADMIN' && tenant) return tenantSuperAdminNavGroups;
 
   switch (role) {
+    case 'ZONAL_ADMIN':
+      return [
+        {
+          group: 'Queue',
+          items: [
+            { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { href: '/approvals', label: 'Fee approvals', icon: ClipboardCheck },
+          ],
+        },
+        {
+          group: 'Oversight',
+          items: [
+            { href: '/reports', label: 'Reports Center', icon: BarChart3 },
+            { href: '/students', label: 'Students', icon: Users },
+          ],
+        },
+      ];
     case 'BRANCH_ADMIN':
     case 'ACCOUNTANT':
     case 'PRINCIPAL':

@@ -7,6 +7,9 @@ import { Receipt, AlertTriangle, Plus, DollarSign, CheckCircle2, Search, Filter 
 import { toast } from 'react-hot-toast';
 import { useBranch } from '@/components/common/BranchContext';
 import FloatingActionBar from '@/components/common/FloatingActionBar';
+import { useAuth } from '@/components/common/AuthProvider';
+
+const FEE_APPROVAL_REVIEW_ROLES = new Set(['SUPER_ADMIN', 'ZONAL_ADMIN']);
 
 interface Invoice {
   id: string;
@@ -44,18 +47,23 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function FeesPage() {
+  const { user } = useAuth();
   const { selectedBranch } = useBranch();
   const [activeTab, setActiveTab] = useState<'ACTION_ITEMS' | 'ALL_INVOICES'>('ACTION_ITEMS');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const canReviewFeeApprovals = user?.role ? FEE_APPROVAL_REVIEW_ROLES.has(user.role) : false;
 
   // Data fetching
   const { data: invoices, loading: invLoading, error: invError, refetch: refetchInvoices } = useApi<Invoice[]>(
     `/fees/invoices/?status=${statusFilter}&branch_id=${selectedBranch}`
   );
 
+  const approvalsUrl = canReviewFeeApprovals
+    ? `/fees/approvals/?status=PENDING&branch_id=${selectedBranch}`
+    : null;
   const { data: approvals, loading: appLoading, refetch: refetchApprovals } = useApi<FeeApprovalRequest[]>(
-    `/fees/approvals/?status=PENDING&branch_id=${selectedBranch}`
+    approvalsUrl
   );
 
   const [showPayForm, setShowPayForm] = useState<string | null>(null);
@@ -138,7 +146,7 @@ export default function FeesPage() {
           }`}
         >
           Priority Actions
-          {(approvals?.length || 0) > 0 && (
+          {canReviewFeeApprovals && (approvals?.length || 0) > 0 && (
             <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] animate-pulse">
               {approvals?.length}
             </span>
@@ -156,7 +164,8 @@ export default function FeesPage() {
 
       {activeTab === 'ACTION_ITEMS' ? (
         <div className="space-y-8">
-           {/* Section 1: Pending Approvals */}
+           {/* Section 1: Pending Approvals — tenant super admin & zonal admin only */}
+           {canReviewFeeApprovals && (
            <div>
              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
@@ -210,6 +219,7 @@ export default function FeesPage() {
                </div>
              )}
            </div>
+           )}
 
            {/* Section 2: Overdue items (Shortcut) */}
            <div>

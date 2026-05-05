@@ -1,7 +1,8 @@
 """
-In-app notification dispatcher for parent accounts.
-Writes notifications to NotificationLog with channel='IN_APP'.
-No external services (SMS/Email/WhatsApp) are used.
+Notification dispatcher: creates NotificationLog rows.
+
+In-app (push) uses channel IN_APP with status DELIVERED immediately.
+Optional SMS/EMAIL create separate PENDING rows for Celery workers.
 """
 import logging
 from django.utils import timezone
@@ -49,9 +50,18 @@ def dispatch_notification(
         branch__isnull=True,
     ).first()
 
-    # Construct the notification message
-    message = _build_message(event_type, template, payload or {})
-    title = _event_title(event_type)
+    base_payload = dict(payload or {})
+    message = _build_message(event_type, template, base_payload)
+    title = _event_title(event_type, base_payload)
+
+    # Published announcements supply their own title/body; keep them for the bell.
+    if event_type == 'CUSTOM_ANNOUNCEMENT':
+        if base_payload.get('title'):
+            title = base_payload['title']
+        if base_payload.get('message'):
+            message = base_payload['message']
+
+    final_payload = {**base_payload, 'title': title, 'message': message}
 
     logs = []
     
@@ -64,11 +74,7 @@ def dispatch_notification(
             recipient_email=recipient_user.email,
             channel='IN_APP',
             status='DELIVERED',
-            payload={
-                **(payload or {}),
-                'message': message,
-                'title': title,
-            },
+            payload=final_payload,
             sent_at=timezone.now(),
         ))
         
@@ -81,11 +87,7 @@ def dispatch_notification(
             recipient_phone=getattr(recipient_user, 'phone', ''),
             channel='SMS',
             status='PENDING', # Ready to be picked up by Celery task
-            payload={
-                **(payload or {}),
-                'message': message,
-                'title': title,
-            }
+            payload=final_payload,
         ))
         
     if send_email and getattr(recipient_user, 'email', None):
@@ -97,11 +99,7 @@ def dispatch_notification(
             recipient_email=recipient_user.email,
             channel='EMAIL',
             status='PENDING', # Ready to be picked up by Celery task
-            payload={
-                **(payload or {}),
-                'message': message,
-                'title': title,
-            }
+            payload=final_payload,
         ))
 
     return logs[0] if logs else None
@@ -138,8 +136,23 @@ def dispatch_bulk_notifications(
     return results
 
 
-def _event_title(event_type: str) -> str:
+def _event_title(event_type: str, context: dict = None) -> str:
     """Human-readable title for each event type."""
+    context = context or {}
+    if context.get('fee_kind') == 'admission':
+        if event_type == 'INVOICE_GENERATED':
+            return 'Admission Fee Due'
+        if event_type == 'PAYMENT_CONFIRMED':
+            return 'Admission Fee Received'
+        if event_type in ('PAYMENT_OVERDUE', 'FEE_REMINDER', 'FEE_REMINDER_3DAYS'):
+            return 'Admission Fee Reminder'
+    if context.get('fee_kind') == 'transport':
+        if event_type == 'INVOICE_GENERATED':
+            return 'Transport Fee Invoice'
+        if event_type == 'PAYMENT_CONFIRMED':
+            return 'Transport Fee Paid'
+        if event_type in ('PAYMENT_OVERDUE', 'FEE_REMINDER', 'FEE_REMINDER_3DAYS'):
+            return 'Transport Fee Reminder'
     titles = {
         'INVOICE_GENERATED': 'New Fee Invoice',
         'PAYMENT_CONFIRMED': 'Payment Received',
@@ -151,6 +164,7 @@ def _event_title(event_type: str) -> str:
         'WELCOME_ENROLLMENT': 'Welcome!',
         'FEE_REMINDER_3DAYS': 'Fee Reminder',
         'FEE_REMINDER': 'Fee Reminder',
+        'CUSTOM_ANNOUNCEMENT': 'Announcement',
     }
     return titles.get(event_type, event_type.replace('_', ' ').title())
 
@@ -164,21 +178,61 @@ def _build_message(event_type: str, template, context: dict) -> str:
             msg = msg.replace(f'{{{{{key}}}}}', str(val))
         return msg
 
-    # Default messages
+    amt = context.get('amount', '—')
+    stu = context.get('student_name', 'your child')
+    inv_no = context.get('invoice_number', '—')
+
     defaults = {
-        'INVOICE_GENERATED': f"A new fee invoice of ₹{context.get('amount', '—')} has been generated for {context.get('student_name', 'your child')}.",
-        'PAYMENT_CONFIRMED': f"Payment of ₹{context.get('amount', '—')} for {context.get('student_name', 'your child')} has been confirmed.",
-        'PAYMENT_OVERDUE': f"Fee payment of ₹{context.get('amount', '—')} for {context.get('student_name', 'your child')} is overdue.",
+        'INVOICE_GENERATED': f"A new fee invoice of ₹{amt} has been generated for {stu}.",
+        'PAYMENT_CONFIRMED': f"Payment of ₹{amt} for {stu} has been confirmed.",
+        'PAYMENT_OVERDUE': f"Fee payment of ₹{amt} for {stu} is overdue.",
         'ABSENCE_ALERT': f"{context.get('student_name', 'Your child')} was marked absent on {context.get('date', 'today')}.",
         'ANNOUNCEMENT_PUBLISHED': f"New announcement: {context.get('title', 'Check the notice board')}.",
-        'HOMEWORK_POSTED': f"New homework in {context.get('subject', 'a subject')} — due {context.get('due_date', 'soon')}.",
+        'HOMEWORK_POSTED': (
+            f"New homework: {context.get('homework_title', '').strip()} — "
+            f"{context.get('subject', 'a subject')}, due {context.get('due_date', 'soon')}."
+            if context.get('homework_title')
+            else f"New homework in {context.get('subject', 'a subject')} — due {context.get('due_date', 'soon')}."
+        ),
         'WELCOME_ENROLLMENT': f"Welcome! {context.get('student_name', 'Your child')} has been enrolled successfully.",
-        'FEE_REMINDER_3DAYS': f"Reminder: Fee payment of ₹{context.get('amount', '—')} for {context.get('student_name', 'your child')} is due in 3 days.",
+        'FEE_REMINDER_3DAYS': f"Reminder: Fee payment of ₹{amt} for {stu} is due in 3 days.",
         'FEE_REMINDER': (
-            f"Fee reminder: Invoice {context.get('invoice_number', '—')} for "
-            f"{context.get('student_name', 'your child')} — "
-            f"₹{context.get('amount', '—')} outstanding"
+            f"Fee reminder: Invoice {inv_no} for {stu} — ₹{amt} outstanding"
             + (f", due {context.get('due_date')}." if context.get('due_date') else '.')
         ),
     }
+    if context.get('fee_kind') == 'admission':
+        defaults['INVOICE_GENERATED'] = (
+            f"Admission fee ({inv_no}) of ₹{amt} for {stu} is due — separate from annual school fees."
+        )
+        defaults['PAYMENT_CONFIRMED'] = (
+            f"Admission fee payment of ₹{amt} for {stu} has been received. Thank you."
+        )
+        defaults['PAYMENT_OVERDUE'] = (
+            f"Admission fee ({inv_no}) of ₹{amt} for {stu} is overdue."
+        )
+        defaults['FEE_REMINDER_3DAYS'] = (
+            f"Reminder: Admission fee ({inv_no}) of ₹{amt} for {stu} is due in 3 days."
+        )
+        defaults['FEE_REMINDER'] = (
+            f"Admission fee reminder: {inv_no} for {stu} — ₹{amt} outstanding."
+        )
+    if context.get('fee_kind') == 'transport':
+        defaults['INVOICE_GENERATED'] = (
+            f"A new transport fee invoice ({inv_no}) of ₹{amt} for {stu} is ready to pay."
+        )
+        defaults['PAYMENT_CONFIRMED'] = (
+            f"Transport fee payment of ₹{amt} for {stu} has been received. Thank you."
+        )
+        defaults['PAYMENT_OVERDUE'] = (
+            f"Transport fee ({inv_no}) of ₹{amt} for {stu} is overdue. Please pay at the earliest."
+        )
+        defaults['FEE_REMINDER_3DAYS'] = (
+            f"Reminder: Transport fee ({inv_no}) of ₹{amt} for {stu} is due in 3 days."
+        )
+        defaults['FEE_REMINDER'] = (
+            f"Transport fee reminder: {inv_no} for {stu} — ₹{amt} outstanding"
+            + (f", due {context.get('due_date')}." if context.get('due_date') else '.')
+        )
+
     return defaults.get(event_type, f"You have a new notification: {event_type}")

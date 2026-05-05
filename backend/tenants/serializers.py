@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Tenant, Branch, AcademicYear, GlobalSetting, Zone
+from .models import Tenant, Branch, AcademicYear, GlobalSetting, Zone, BranchAdmissionFee
 
 class GlobalSettingSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,3 +40,10 @@ class AcademicYearSerializer(serializers.ModelSerializer):
         model = AcademicYear
         fields = ['id', 'tenant', 'name', 'start_date', 'end_date', 'is_active']
         read_only_fields = ['id', 'tenant']
+
+
+class BranchAdmissionFeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BranchAdmissionFee
+        fields = ['id', 'branch', 'academic_year', 'amount', 'updated_at']
+        read_only_fields = ['id', 'updated_at']
