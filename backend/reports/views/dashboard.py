@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from accounts.permissions import IsAccountantOrAbove, IsSuperAdmin
+from accounts.permissions import IsAccountantOrAbove, IsSuperAdmin, normalize_role
 from accounts.utils import get_validated_branch_id, get_active_academic_year
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -38,6 +38,33 @@ class ReportingViewSet(viewsets.ViewSet):
             if active_ay:
                 ay_id = str(active_ay.id)
         return ay_id
+
+    def _branch_and_zone_scope(self, request):
+        """
+        branch_id from get_validated_branch_id; when zonal admin omits branch,
+        restrict to branches in assigned zones (not the whole tenant).
+        """
+        branch_id = self._get_branch_id(request)
+        zone_ids = None
+        if normalize_role(request.user.role) == 'ZONAL_ADMIN' and not branch_id:
+            zone_ids = list(
+                request.user.zone_accesses.values_list('zone_id', flat=True)
+            )
+        return branch_id, zone_ids
+
+    def _filter_fee_invoice_qs(self, qs, branch_id, zone_ids):
+        if branch_id:
+            return qs.filter(branch_id=branch_id)
+        if zone_ids is not None:
+            return qs.filter(branch__zone_id__in=zone_ids)
+        return qs
+
+    def _filter_payment_qs(self, qs, branch_id, zone_ids):
+        if branch_id:
+            return qs.filter(branch_id=branch_id)
+        if zone_ids is not None:
+            return qs.filter(branch__zone_id__in=zone_ids)
+        return qs
 
     # ─── Finance Summary (Charts) ──────────────────────────────
     @action(detail=False, methods=['get'], url_path='finance/summary')
@@ -80,12 +107,11 @@ class ReportingViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'], url_path='fees/stats')
     def fee_stats(self, request):
         """Fee collection vs outstanding — filtered by branch AND academic year."""
-        branch_id = self._get_branch_id(request)
+        branch_id, zone_ids = self._branch_and_zone_scope(request)
         ay_id = self._get_academic_year_id(request)
 
         qs = FeeInvoice.objects.filter(tenant=request.user.tenant)
-        if branch_id:
-            qs = qs.filter(branch_id=branch_id)
+        qs = self._filter_fee_invoice_qs(qs, branch_id, zone_ids)
         if ay_id:
             qs = qs.filter(academic_year_id=ay_id)
 
@@ -100,12 +126,19 @@ class ReportingViewSet(viewsets.ViewSet):
         student_qs = Student.objects.filter(tenant=request.user.tenant, status='ACTIVE')
         if branch_id:
             student_qs = student_qs.filter(branch_id=branch_id)
+        elif zone_ids is not None:
+            student_qs = student_qs.filter(branch__zone_id__in=zone_ids)
         if ay_id:
             student_qs = student_qs.filter(academic_year_id=ay_id)
         total_students = student_qs.count()
 
         # Branch count (for admin dashboard)
-        active_branches = Branch.objects.filter(tenant=request.user.tenant, is_active=True).count()
+        br_q = Branch.objects.filter(tenant=request.user.tenant, is_active=True)
+        if branch_id:
+            br_q = br_q.filter(id=branch_id)
+        elif zone_ids is not None:
+            br_q = br_q.filter(zone_id__in=zone_ids)
+        active_branches = br_q.count()
 
         # Pending fee reduction approvals (zonal vs school admin routing)
         approval_qs = fee_approval_queryset_for_user(
@@ -114,6 +147,8 @@ class ReportingViewSet(viewsets.ViewSet):
         )
         if branch_id:
             approval_qs = approval_qs.filter(branch_id=branch_id)
+        elif zone_ids is not None:
+            approval_qs = approval_qs.filter(branch__zone_id__in=zone_ids)
         pending_approvals = approval_qs.count()
 
         # Today's collection
@@ -122,17 +157,24 @@ class ReportingViewSet(viewsets.ViewSet):
             payment_date=timezone.now().date(),
             status='COMPLETED',
         )
-        if branch_id:
-            today_payments = today_payments.filter(branch_id=branch_id)
+        today_payments = self._filter_payment_qs(today_payments, branch_id, zone_ids)
         if ay_id:
             today_payments = today_payments.filter(invoice__academic_year_id=ay_id)
         today_collection = today_payments.aggregate(total=Sum('amount'))['total'] or 0
+
+        # Revenue received to date (completed payments only — source of truth for cash-in)
+        revenue_qs = Payment.objects.filter(tenant=request.user.tenant, status='COMPLETED')
+        revenue_qs = self._filter_payment_qs(revenue_qs, branch_id, zone_ids)
+        if ay_id:
+            revenue_qs = revenue_qs.filter(invoice__academic_year_id=ay_id)
+        revenue_collected = revenue_qs.aggregate(total=Sum('amount'))['total'] or 0
 
         return Response({
             'success': True,
             'data': {
                 'total_gross': float(stats['total_gross'] or 0),
                 'total_paid': float(stats['total_paid'] or 0),
+                'revenue_collected': float(revenue_collected),
                 'today_collection': float(today_collection),
                 'total_outstanding': float(stats['total_outstanding'] or 0),
                 'invoice_count': stats['count'],
@@ -268,19 +310,49 @@ class ReportingViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='analytics/fee-collection-by-branch')  
     def fee_collection_by_branch(self, request):
-        """Total collected vs outstanding per branch"""
+        """Collected (completed payments) vs outstanding per branch."""
         ay_id = self._get_academic_year_id(request)
-        
-        qs = FeeInvoice.objects.filter(tenant=request.user.tenant)
+        branch_id, zone_ids = self._branch_and_zone_scope(request)
+
+        inv_qs = FeeInvoice.objects.filter(tenant=request.user.tenant)
+        inv_qs = self._filter_fee_invoice_qs(inv_qs, branch_id, zone_ids)
         if ay_id:
-            qs = qs.filter(academic_year_id=ay_id)
-            
-        data = qs.values('branch__name').annotate(
-            collected=Sum('paid_amount'),
+            inv_qs = inv_qs.filter(academic_year_id=ay_id)
+
+        pay_qs = Payment.objects.filter(tenant=request.user.tenant, status='COMPLETED')
+        pay_qs = self._filter_payment_qs(pay_qs, branch_id, zone_ids)
+        if ay_id:
+            pay_qs = pay_qs.filter(invoice__academic_year_id=ay_id)
+
+        collected_rows = pay_qs.values('branch_id', 'branch__name').annotate(
+            collected=Sum('amount')
+        )
+        out_rows = inv_qs.values('branch_id', 'branch__name').annotate(
             outstanding=Sum('outstanding_amount')
-        ).order_by('branch__name')
-        
-        return Response({'success': True, 'data': list(data)})
+        )
+        merged = {}
+        for r in collected_rows:
+            bid = r['branch_id']
+            merged[bid] = {
+                'branch__name': r['branch__name'],
+                'collected': float(r['collected'] or 0),
+                'outstanding': 0.0,
+            }
+        for r in out_rows:
+            bid = r['branch_id']
+            if bid not in merged:
+                merged[bid] = {
+                    'branch__name': r['branch__name'],
+                    'collected': 0.0,
+                    'outstanding': float(r['outstanding'] or 0),
+                }
+            else:
+                merged[bid]['outstanding'] = float(r['outstanding'] or 0)
+                if not merged[bid]['branch__name']:
+                    merged[bid]['branch__name'] = r['branch__name']
+
+        data = sorted(merged.values(), key=lambda x: (x['branch__name'] or ''))
+        return Response({'success': True, 'data': data})
 
     @action(detail=False, methods=['get'], url_path='analytics/expense-breakdown')
     def expense_breakdown(self, request):

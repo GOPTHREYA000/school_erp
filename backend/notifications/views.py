@@ -58,6 +58,7 @@ def my_notifications(request):
         'event_type': n.event_type,
         'title': n.payload.get('title', '') if n.payload else n.event_type,
         'message': n.payload.get('message', '') if n.payload else '',
+        'link': (n.payload or {}).get('link'),
         'is_read': n.is_read,
         'created_at': n.created_at.isoformat(),
     } for n in qs]

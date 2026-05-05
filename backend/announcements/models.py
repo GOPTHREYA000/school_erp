@@ -2,7 +2,14 @@ import uuid
 from django.db import models
 from django.conf import settings
 
-AUDIENCE_CHOICES = [("ALL", "All"), ("PARENTS", "Parents"), ("TEACHERS", "Teachers"), ("CLASS", "Specific Classes")]
+AUDIENCE_CHOICES = [
+    ("ALL", "All"),
+    ("PARENTS", "Parents"),
+    ("TEACHERS", "Teachers"),
+    ("STAFF", "All staff (non-parent)"),
+    ("CLASS", "Specific Classes"),
+    ("INDIVIDUAL", "One person (by email)"),
+]
 
 
 class Announcement(models.Model):
@@ -12,7 +19,12 @@ class Announcement(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='announcements')
     title = models.CharField(max_length=200)
     body = models.TextField()
-    target_audience = models.CharField(max_length=10, choices=AUDIENCE_CHOICES)
+    target_audience = models.CharField(max_length=12, choices=AUDIENCE_CHOICES)
+    recipient_email = models.EmailField(
+        null=True,
+        blank=True,
+        help_text='For INDIVIDUAL audience: active user email within the tenant.',
+    )
     target_classes = models.ManyToManyField('students.ClassSection', blank=True, related_name='announcements')
     is_published = models.BooleanField(default=False)
     published_at = models.DateTimeField(null=True, blank=True)

@@ -31,6 +31,8 @@ export default function DashboardController() {
     case 'SUPER_ADMIN':
       if (!user.tenant) return <SuperAdminDashboard user={user} />;
       return <AdminDashboard user={user} />;
+    case 'CHIEF_ACCOUNTANT':
+      return <AdminDashboard user={user} />;
     case 'ZONAL_ADMIN':
     case 'BRANCH_ADMIN':
     case 'ACCOUNTANT':

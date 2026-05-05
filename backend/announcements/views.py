@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -6,6 +7,17 @@ from django.utils import timezone
 from accounts.permissions import IsBranchAdminOrAbove
 from .models import Announcement, AnnouncementReadReceipt
 from .serializers import AnnouncementSerializer, AnnouncementReadReceiptSerializer
+
+# Roles that may see unpublished announcement drafts in the admin API.
+ANNOUNCEMENT_ADMIN_ROLES = frozenset({
+    'SUPER_ADMIN', 'BRANCH_ADMIN', 'CHIEF_ACCOUNTANT', 'ZONAL_ADMIN', 'PRINCIPAL', 'ACCOUNTANT',
+})
+
+STAFF_AUDIENCE_ROLES = (
+    'SUPER_ADMIN', 'CHIEF_ACCOUNTANT', 'ZONAL_ADMIN', 'PRINCIPAL',
+    'BRANCH_ADMIN', 'ACCOUNTANT', 'TEACHER',
+)
+
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
     serializer_class = AnnouncementSerializer
@@ -16,11 +28,12 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), IsBranchAdminOrAbove()]
 
     def get_queryset(self):
-        qs = Announcement.objects.filter(branch__tenant=self.request.user.tenant)
-        # Parents and non-admin roles only see published notices (drafts are admin-only).
-        if self.request.user.role not in (
-            'SUPER_ADMIN', 'BRANCH_ADMIN',
-        ):
+        qs = (
+            Announcement.objects.filter(branch__tenant=self.request.user.tenant)
+            .select_related('branch')
+            .prefetch_related('target_classes')
+        )
+        if self.request.user.role not in ANNOUNCEMENT_ADMIN_ROLES:
             qs = qs.filter(is_published=True)
         return qs
 
@@ -30,42 +43,75 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'], url_path='publish')
     def publish(self, request, pk=None):
         ann = self.get_object()
-        
-        if not ann.is_published:
-            ann.is_published = True
-            ann.published_at = timezone.now()
-            ann.save()
-            
-            # Dispatch Push Notifications
-            from accounts.models import User
-            from notifications.dispatcher import dispatch_bulk_notifications
-            
-            users = User.objects.filter(tenant=ann.tenant, is_active=True)
-            if ann.target_audience == 'PARENTS':
-                users = users.filter(role='PARENT')
-            elif ann.target_audience == 'TEACHERS':
-                users = users.filter(role='TEACHER')
-            elif ann.target_audience == 'CLASS':
-                from students.models import ParentStudentRelation
-                from staff.models import TeacherAssignment
-                class_ids = ann.target_classes.values_list('id', flat=True)
-                parent_ids = ParentStudentRelation.objects.filter(student__class_section__id__in=class_ids).values_list('parent_id', flat=True)
-                teacher_ids = TeacherAssignment.objects.filter(class_section__id__in=class_ids).values_list('teacher__user_id', flat=True)
-                users = users.filter(id__in=list(parent_ids) + list(teacher_ids))
-            
-            if ann.branch:
-                users = users.filter(branch=ann.branch)
-                
-            dispatch_bulk_notifications(
-                tenant=ann.tenant,
-                branch=ann.branch,
-                event_type='CUSTOM_ANNOUNCEMENT',
-                recipient_users=users.distinct(),
-                payload={'title': ann.title, 'message': ann.body},
-                send_sms=ann.send_sms,
-                send_email=ann.send_email,
-                send_push=ann.send_push
+
+        if ann.is_published:
+            return Response({'success': True, 'data': AnnouncementSerializer(ann).data})
+
+        from accounts.models import User
+        from notifications.dispatcher import dispatch_bulk_notifications
+
+        users = User.objects.filter(tenant=ann.tenant, is_active=True)
+        if ann.target_audience == 'PARENTS':
+            users = users.filter(role='PARENT')
+        elif ann.target_audience == 'TEACHERS':
+            users = users.filter(role='TEACHER')
+        elif ann.target_audience == 'STAFF':
+            users = users.filter(role__in=STAFF_AUDIENCE_ROLES)
+        elif ann.target_audience == 'CLASS':
+            from students.models import ParentStudentRelation
+            class_ids = list(ann.target_classes.values_list('id', flat=True))
+            if not class_ids:
+                return Response(
+                    {'detail': 'Choose at least one class before publishing a class-scoped announcement.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            parent_ids = ParentStudentRelation.objects.filter(
+                student__class_section_id__in=class_ids,
+            ).values_list('parent_id', flat=True).distinct()
+            users = users.filter(id__in=parent_ids, role='PARENT')
+        elif ann.target_audience == 'INDIVIDUAL':
+            email = (ann.recipient_email or '').strip()
+            if not email:
+                return Response(
+                    {'detail': 'recipient_email is required for individual announcements.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            target = User.objects.filter(
+                tenant=ann.tenant, email__iexact=email, is_active=True,
+            ).first()
+            if not target:
+                return Response(
+                    {'detail': f'No active user with email {email} in this organization.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            users = User.objects.filter(id=target.id)
+
+        if ann.branch and ann.target_audience != 'INDIVIDUAL':
+            users = users.filter(Q(branch=ann.branch) | Q(branch__isnull=True))
+
+        users = users.distinct()
+        if not users.exists():
+            return Response(
+                {'detail': 'No recipients match this announcement.'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+        ann.is_published = True
+        ann.published_at = timezone.now()
+        if ann.target_audience == 'INDIVIDUAL' and not ann.send_email:
+            ann.send_email = True
+        ann.save()
+
+        dispatch_bulk_notifications(
+            tenant=ann.tenant,
+            branch=ann.branch,
+            event_type='CUSTOM_ANNOUNCEMENT',
+            recipient_users=users,
+            payload={'title': ann.title, 'message': ann.body},
+            send_sms=ann.send_sms,
+            send_email=ann.send_email,
+            send_push=ann.send_push,
+        )
 
         return Response({'success': True, 'data': AnnouncementSerializer(ann).data})
 

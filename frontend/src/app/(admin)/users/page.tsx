@@ -30,6 +30,9 @@ interface Branch {
 const ROLE_RANKS: Record<string, number> = {
   OWNER: -1,
   SUPER_ADMIN: 0,
+  CHIEF_ACCOUNTANT: 1,
+  ZONAL_ADMIN: 1,
+  PRINCIPAL: 2,
   BRANCH_ADMIN: 2,
   ACCOUNTANT: 3,
   TEACHER: 3,
@@ -39,11 +42,17 @@ const ROLE_RANKS: Record<string, number> = {
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Owner',
   SUPER_ADMIN: 'Super Admin',
+  CHIEF_ACCOUNTANT: 'Chief Accountant',
+  ZONAL_ADMIN: 'Zonal Admin',
+  PRINCIPAL: 'Principal',
   BRANCH_ADMIN: 'Branch Admin',
   ACCOUNTANT: 'Accountant',
   TEACHER: 'Teacher',
   PARENT: 'Parent',
 };
+
+/** Home branch optional at signup (tenant- or zone-scoped roles). */
+const BRANCH_OPTIONAL_ROLES = new Set(['CHIEF_ACCOUNTANT', 'ZONAL_ADMIN']);
 
 export default function UsersPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -124,7 +133,11 @@ export default function UsersPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('users/', formData);
+      const payload: Record<string, string> = { ...formData };
+      if (BRANCH_OPTIONAL_ROLES.has(formData.role) && !formData.branch?.trim()) {
+        delete payload.branch;
+      }
+      await api.post('users/', payload);
       setShowForm(false);
       setFormData({ first_name: '', last_name: '', email: '', password: '', role: 'TEACHER', phone: '', branch: '' });
       refetch();
@@ -340,12 +353,14 @@ export default function UsersPage() {
                   <Building2 size={18} />
                 </div>
                 <select 
-                  required
+                  required={!BRANCH_OPTIONAL_ROLES.has(formData.role)}
                   value={formData.branch} 
                   onChange={e => setFormData({...formData, branch: e.target.value})}
                   className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-2xl text-sm bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none appearance-none"
                 >
-                  <option value="">Select Branch</option>
+                  <option value="">
+                    {BRANCH_OPTIONAL_ROLES.has(formData.role) ? 'Home branch (optional)' : 'Select Branch'}
+                  </option>
                   {allBranches?.filter(b => !selectedTenant || b.tenant === selectedTenant).map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
@@ -485,7 +500,11 @@ export default function UsersPage() {
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium 
                         ${u.role === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-700' : 
-                          u.role === 'OWNER' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'}`}>
+                          u.role === 'OWNER' ? 'bg-indigo-100 text-indigo-700' : 
+                          u.role === 'CHIEF_ACCOUNTANT' ? 'bg-amber-100 text-amber-800' :
+                          u.role === 'ZONAL_ADMIN' ? 'bg-cyan-100 text-cyan-800' :
+                          u.role === 'PRINCIPAL' ? 'bg-violet-100 text-violet-800' :
+                          'bg-slate-100 text-slate-700'}`}>
                         <Shield size={12} />
                         {ROLE_LABELS[u.role] || u.role}
                       </span>

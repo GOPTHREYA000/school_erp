@@ -1,19 +1,22 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
-import { Bell, Check, CheckCheck, X } from 'lucide-react';
+import { Bell, CheckCheck, X } from 'lucide-react';
 
 interface Notification {
   id: string;
   event_type: string;
   title: string;
   message: string;
+  link?: string | null;
   is_read: boolean;
   created_at: string;
 }
 
 export default function NotificationBell() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -119,7 +122,13 @@ export default function NotificationBell() {
               notifications.map(notif => (
                 <div
                   key={notif.id}
-                  onClick={() => !notif.is_read && markRead(notif.id)}
+                  onClick={() => {
+                    if (!notif.is_read) markRead(notif.id);
+                    if (notif.link) {
+                      router.push(notif.link);
+                      setOpen(false);
+                    }
+                  }}
                   className={`px-5 py-3.5 border-b border-gray-50 last:border-0 cursor-pointer transition-colors ${
                     notif.is_read ? 'bg-white' : 'bg-blue-50/50 hover:bg-blue-50'
                   }`}

@@ -34,6 +34,7 @@ interface StudentFormData {
   father_aadhaar: string;
   mother_name: string;
   mother_phone: string;
+  mother_email: string;
   mother_qualification: string;
   mother_occupation: string;
   mother_aadhaar: string;
@@ -74,6 +75,8 @@ interface StudentFormProps {
   title?: string;
   submitLabel?: string;
   isEdit?: boolean;
+  /** When true (default), father/mother email is required if name or phone is set — skipped for profile edit / admission-style flows. */
+  requireParentEmails?: boolean;
 }
 
 const DEFAULT_FORM_DATA: StudentFormData = {
@@ -90,7 +93,7 @@ const DEFAULT_FORM_DATA: StudentFormData = {
   // Parents
   father_name: '', father_phone: '', father_email: '', father_qualification: '', 
   father_occupation: '', father_aadhaar: '',
-  mother_name: '', mother_phone: '', mother_qualification: '', 
+  mother_name: '', mother_phone: '', mother_email: '', mother_qualification: '', 
   mother_occupation: '', mother_aadhaar: '',
   guardian_name: '', guardian_phone: '', guardian_relation: '',
 
@@ -121,7 +124,8 @@ export default function StudentForm({
   onCancel, 
   title = "Student Details", 
   submitLabel = "Save Changes",
-  isEdit = false
+  isEdit = false,
+  requireParentEmails = true,
 }: StudentFormProps) {
   const [activeTab, setActiveTab] = useState('personal');
   const [formData, setFormData] = useState<StudentFormData>({ ...DEFAULT_FORM_DATA, ...initialData });
@@ -227,6 +231,22 @@ export default function StudentForm({
   const handleActualSubmit = async () => {
     if (!isEdit && activeTab !== 'fees') return;
     if (isEdit && activeTab !== 'academic') return;
+
+    if (requireParentEmails) {
+      const hasFather = !!(formData.father_name?.trim() || formData.father_phone?.trim());
+      const hasMother = !!(formData.mother_name?.trim() || formData.mother_phone?.trim());
+      if (hasFather && !formData.father_email?.trim()) {
+        toast.error('Father email is required when father name or phone is provided (for parent login).');
+        setActiveTab('parents');
+        return;
+      }
+      if (hasMother && !formData.mother_email?.trim()) {
+        toast.error('Mother email is required when mother name or phone is provided (for parent login).');
+        setActiveTab('parents');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       await onSubmit(formData);
@@ -373,6 +393,11 @@ export default function StudentForm({
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
                 </div>
                 <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Email (for parent login)</label>
+                  <input type="email" autoComplete="email" value={formData.father_email} onChange={e => setFormData(prev => ({...prev, father_email: e.target.value}))}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" placeholder="father@example.com" />
+                </div>
+                <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Occupation</label>
                   <input value={formData.father_occupation} onChange={e => setFormData(prev => ({...prev, father_occupation: e.target.value}))}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
@@ -403,6 +428,11 @@ export default function StudentForm({
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Phone Number</label>
                   <input value={formData.mother_phone} onChange={e => setFormData(prev => ({...prev, mother_phone: e.target.value}))}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-pink-500" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Email (for parent login)</label>
+                  <input type="email" autoComplete="email" value={formData.mother_email} onChange={e => setFormData(prev => ({...prev, mother_email: e.target.value}))}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-pink-500" placeholder="mother@example.com" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Qualification</label>

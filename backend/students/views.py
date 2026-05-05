@@ -292,7 +292,10 @@ class AdmissionApplicationViewSet(viewsets.ModelViewSet):
             # 2. Create/Link Parent accounts
             father_info = {'phone': application.father_phone, 'email': application.father_email, 'name': application.father_name}
             mother_info = {'phone': application.mother_phone, 'email': application.mother_email, 'name': application.mother_name}
-            link_parent_accounts_to_student(student, father_info, mother_info, application.tenant, branch)
+            link_parent_accounts_to_student(
+                student, father_info, mother_info, application.tenant, branch,
+                strict_parent_email=False,
+            )
 
             # Handle Fees
             create_student_fees(student, offered_total, standard_total, fee_reason, request.user)
@@ -453,6 +456,18 @@ class StudentViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"Error creating student: {str(e)}")
             raise e
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        student = serializer.save()
+        tenant = student.tenant
+        branch = student.branch
+        father_info = {'phone': student.father_phone, 'email': student.father_email, 'name': student.father_name}
+        mother_info = {'phone': student.mother_phone, 'email': student.mother_email, 'name': student.mother_name}
+        link_parent_accounts_to_student(
+            student, father_info, mother_info, tenant, branch,
+            strict_parent_email=False,
+        )
 
     def destroy(self, request, *args, **kwargs):
         """Soft-delete student by setting status to INACTIVE."""

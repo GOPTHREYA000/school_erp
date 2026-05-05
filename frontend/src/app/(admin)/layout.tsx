@@ -40,9 +40,8 @@ const tenantSuperAdminNavGroups = [
       { href: '/dashboard', label: 'School Analytics', icon: LayoutDashboard },
       { href: '/reports', label: 'Reports Center', icon: BarChart3 },
       { href: '/audit-logs', label: 'Activity ledger', icon: ClipboardCheck },
-      { href: '/exam-marks', label: 'Exam marks entry', icon: Award },
-      { href: '/approvals', label: 'Fee approvals', icon: ClipboardCheck },
       { href: '/reports/financial', label: 'Financial Analytics', icon: TrendingUp },
+      { href: '/approvals', label: 'Fee approvals', icon: ClipboardCheck },
     ],
   },
   {
@@ -74,21 +73,60 @@ const getNavGroups = (user: { role: string; tenant?: string | null }) => {
   if (role === 'SUPER_ADMIN' && tenant) return tenantSuperAdminNavGroups;
 
   switch (role) {
-    case 'ZONAL_ADMIN':
+    case 'CHIEF_ACCOUNTANT':
       return [
         {
-          group: 'Queue',
+          group: 'Overview',
           items: [
             { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { href: '/approvals', label: 'Fee approvals', icon: ClipboardCheck },
+            { href: '/reports', label: 'Reports Center', icon: BarChart3 },
           ],
         },
         {
-          group: 'Oversight',
+          group: 'Directories',
           items: [
+            { href: '/users', label: 'Global Staff', icon: Shield },
+            { href: '/students', label: 'All Students', icon: Users },
+          ],
+        },
+        {
+          group: 'Finance',
+          items: [
+            { href: '/fees', label: 'Fee Collection', icon: Receipt },
+            { href: '/expenses', label: 'Expenses & Approvals', icon: TrendingDown },
+            { href: '/approvals', label: 'Fee approvals', icon: ClipboardCheck },
+            { href: '/reports/financial', label: 'Financial Analytics', icon: TrendingUp },
+            { href: '/academic-transition', label: 'Year Transition', icon: ArrowUpRight },
+          ],
+        },
+        {
+          group: 'Communicate',
+          items: [{ href: '/announcements', label: 'Announcements', icon: Megaphone }],
+        },
+      ];
+    case 'ZONAL_ADMIN':
+      return [
+        {
+          group: 'Overview',
+          items: [
+            { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
             { href: '/reports', label: 'Reports Center', icon: BarChart3 },
             { href: '/students', label: 'Students', icon: Users },
+            { href: '/users', label: 'Staff directory', icon: Shield },
           ],
+        },
+        {
+          group: 'Finance',
+          items: [
+            { href: '/fees', label: 'Fee Collection', icon: Receipt },
+            { href: '/expenses', label: 'Expenses', icon: TrendingDown },
+            { href: '/approvals', label: 'Fee approvals', icon: ClipboardCheck },
+            { href: '/reports/financial', label: 'Financial Analytics', icon: TrendingUp },
+          ],
+        },
+        {
+          group: 'Communicate',
+          items: [{ href: '/announcements', label: 'Announcements', icon: Megaphone }],
         },
       ];
     case 'BRANCH_ADMIN':
@@ -115,6 +153,7 @@ const getNavGroups = (user: { role: string; tenant?: string | null }) => {
           items: [
             { href: '/fees', label: 'Fee Collection', icon: Receipt },
             { href: '/expenses', label: 'Expenses & Approvals', icon: TrendingDown },
+            { href: '/reports/financial', label: 'Financial Analytics', icon: TrendingUp },
             { href: '/academic-transition', label: 'Year Transition', icon: ArrowUpRight },
           ]
         },
@@ -124,7 +163,6 @@ const getNavGroups = (user: { role: string; tenant?: string | null }) => {
             { href: '/classes', label: 'Classes', icon: BookOpen },
             { href: '/attendance', label: 'Attendance Overview', icon: ClipboardCheck },
             { href: '/timetable', label: 'Timetable', icon: Calendar },
-            { href: '/exam-marks', label: 'Exam marks', icon: Award },
           ]
         },
         {

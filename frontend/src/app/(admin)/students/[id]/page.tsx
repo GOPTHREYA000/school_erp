@@ -444,6 +444,7 @@ export default function StudentProfilePage() {
                   <div className="space-y-3">
                     <InfoTag label="Full Name" value={student.father_name} icon={User} />
                     <InfoTag label="Phone Number" value={student.father_phone} icon={Phone} />
+                    <InfoTag label="Email" value={student.father_email} icon={Mail} />
                     <InfoTag label="Occupation" value={student.father_occupation} icon={Building2} />
                     <InfoTag label="Education" value={student.father_qualification} icon={GraduationCap} />
                   </div>
@@ -456,6 +457,7 @@ export default function StudentProfilePage() {
                   <div className="space-y-3">
                     <InfoTag label="Full Name" value={student.mother_name} icon={User} />
                     <InfoTag label="Phone Number" value={student.mother_phone} icon={Phone} />
+                    <InfoTag label="Email" value={student.mother_email} icon={Mail} />
                     <InfoTag label="Occupation" value={student.mother_occupation} icon={Building2} />
                     <InfoTag label="Education" value={student.mother_qualification} icon={GraduationCap} />
                   </div>
@@ -725,6 +727,7 @@ export default function StudentProfilePage() {
           onSubmit={handleUpdate}
           onCancel={() => setShowEditForm(false)}
           isEdit={true}
+          requireParentEmails={false}
         />
       </Modal>
 

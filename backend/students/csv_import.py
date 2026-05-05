@@ -334,9 +334,12 @@ def process_csv_file(job, decoded_file):
                             created_by=user, status='ACTIVE',
                         )
 
-                        father_info  = {'phone': student.father_phone,  'email': student.father_email,  'first_name': student.father_name or ''}
-                        mother_info  = {'phone': student.mother_phone,  'email': student.mother_email,  'first_name': student.mother_name or ''}
-                        link_parent_accounts_to_student(student, father_info, mother_info, tenant, branch)
+                        father_info = {'phone': student.father_phone, 'email': student.father_email, 'name': student.father_name or ''}
+                        mother_info = {'phone': student.mother_phone, 'email': student.mother_email, 'name': student.mother_name or ''}
+                        link_parent_accounts_to_student(
+                            student, father_info, mother_info, tenant, branch,
+                            strict_parent_email=False,
+                        )
 
                     total_fee_raw   = get_val(row, 'total_fee', 'total amount (₹)', 'total fee').replace(',', '').replace('"', '').strip()
                     fee_paid_raw    = get_val(row, 'fee_paid', 'amount paid (₹)', 'fee paid').replace(',', '').replace('"', '').strip()
