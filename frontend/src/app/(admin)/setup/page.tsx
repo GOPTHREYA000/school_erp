@@ -12,7 +12,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '@/components/common/ConfirmProvider';
 
-type TabType = 'school' | 'years' | 'branches' | 'classes' | 'subjects' | 'approvals';
+type TabType = 'school' | 'years' | 'branches' | 'classes' | 'subjects';
 
 export default function SetupPage() {
   const [activeTab, setActiveTab] = useState<TabType>('school');
@@ -28,7 +28,6 @@ export default function SetupPage() {
     { id: 'branches', label: 'Branches', icon: Layers, roles: ['SUPER_ADMIN'] },
     { id: 'subjects', label: 'Subjects', icon: Tag, roles: ['SUPER_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
     { id: 'classes', label: 'Class & Fees', icon: BookOpen, roles: ['SUPER_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
-    { id: 'approvals', label: 'Approvals', icon: CheckCircle2, roles: ['SUPER_ADMIN'] },
   ].filter(t => user && t.roles.includes(user.role));
 
   useEffect(() => {
@@ -87,7 +86,6 @@ export default function SetupPage() {
         {activeTab === 'branches' && <BranchManager />}
         {activeTab === 'subjects' && <SubjectManager />}
         {activeTab === 'classes' && <ClassAndFeeSetup user={user} />}
-        {activeTab === 'approvals' && <FeeApprovalManager />}
       </div>
     </div>
   );

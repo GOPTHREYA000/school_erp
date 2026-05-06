@@ -5,7 +5,7 @@ import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '@/components/common/ConfirmProvider';
-import { Plus, Search, Shield, UserCog, Trash2, Mail, Lock, Phone, Building2, User, KeyRound } from 'lucide-react';
+import { Plus, Search, Shield, UserCog, Trash2, Mail, Lock, Phone, Building2, User, KeyRound, Edit2 } from 'lucide-react';
 
 interface User {
   id: string;
@@ -18,6 +18,7 @@ interface User {
   tenant?: string | null;
   branch: string | null;
   branch_name: string | null;
+  zone_ids?: string[];
   mfa_enabled?: boolean;
 }
 
@@ -25,6 +26,11 @@ interface Branch {
   id: string;
   name: string;
   tenant: string; // The tenant ID
+}
+
+interface Zone {
+  id: string;
+  name: string;
 }
 
 const ROLE_RANKS: Record<string, number> = {
@@ -66,6 +72,7 @@ export default function UsersPage() {
   // Fetching Base Data
   const { data: tenants } = useApi<any[]>('/tenants/');
   const { data: allBranches } = useApi<Branch[]>('/tenants/branches/');
+  const { data: allZones } = useApi<Zone[]>('/tenants/zones/');
   
   // Build query for users
   const usersUrl = React.useMemo(() => {
@@ -81,9 +88,14 @@ export default function UsersPage() {
 
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    first_name: '', last_name: '', email: '', password: '', role: 'TEACHER', phone: '', branch: ''
+    first_name: '', last_name: '', email: '', password: '', role: 'TEACHER', phone: '', branch: '', zone_ids: [] as string[]
   });
   const [saving, setSaving] = useState(false);
+  const [editTarget, setEditTarget] = useState<User | null>(null);
+  const [editData, setEditData] = useState({
+    first_name: '', last_name: '', role: 'TEACHER', branch: '', zone_ids: [] as string[]
+  });
+  const [editSaving, setEditSaving] = useState(false);
   const [resetTarget, setResetTarget] = useState<User | null>(null);
   const [resetPassword, setResetPassword] = useState('');
   const [resetMustChange, setResetMustChange] = useState(true);
@@ -130,22 +142,78 @@ export default function UsersPage() {
     return false;
   };
 
+  const canEditUser = (u: User) => {
+    if (!currentUser || currentUser.role !== 'SUPER_ADMIN') return false;
+    if (u.id === currentUser.id) return false;
+    return true;
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload: Record<string, string> = { ...formData };
+      if (formData.role === 'ZONAL_ADMIN' && formData.zone_ids.length === 0) {
+        toast.error('Select at least one zone for Zonal Admin.');
+        setSaving(false);
+        return;
+      }
+      const payload: any = { ...formData };
       if (BRANCH_OPTIONAL_ROLES.has(formData.role) && !formData.branch?.trim()) {
         delete payload.branch;
       }
+      if (formData.role !== 'ZONAL_ADMIN') {
+        delete (payload as any).zone_ids;
+      }
       await api.post('users/', payload);
       setShowForm(false);
-      setFormData({ first_name: '', last_name: '', email: '', password: '', role: 'TEACHER', phone: '', branch: '' });
+      setFormData({ first_name: '', last_name: '', email: '', password: '', role: 'TEACHER', phone: '', branch: '', zone_ids: [] });
       refetch();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Error creating user');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openEdit = (u: User) => {
+    setEditTarget(u);
+    setEditData({
+      first_name: u.first_name || '',
+      last_name: u.last_name || '',
+      role: u.role || 'TEACHER',
+      branch: u.branch || '',
+      zone_ids: u.zone_ids || [],
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    if (editData.role === 'ZONAL_ADMIN' && editData.zone_ids.length === 0) {
+      toast.error('Select at least one zone for Zonal Admin.');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const payload: any = {
+        first_name: editData.first_name.trim(),
+        last_name: editData.last_name.trim(),
+        role: editData.role,
+      };
+      if (!BRANCH_OPTIONAL_ROLES.has(editData.role) && editData.role !== 'SUPER_ADMIN') {
+        payload.branch = editData.branch || null;
+      } else {
+        payload.branch = null;
+      }
+      if (editData.role === 'ZONAL_ADMIN') payload.zone_ids = editData.zone_ids;
+      await api.patch(`users/${editTarget.id}/`, payload);
+      toast.success('User updated');
+      setEditTarget(null);
+      refetch();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || err.response?.data?.zone_ids || 'Failed to update user');
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -338,7 +406,12 @@ export default function UsersPage() {
               </div>
               <select 
                 value={formData.role} 
-                onChange={e => setFormData({...formData, role: e.target.value})}
+                onChange={e => setFormData({
+                  ...formData,
+                  role: e.target.value,
+                  branch: BRANCH_OPTIONAL_ROLES.has(e.target.value) || e.target.value === 'SUPER_ADMIN' ? '' : formData.branch,
+                  zone_ids: e.target.value === 'ZONAL_ADMIN' ? formData.zone_ids : [],
+                })}
                 className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-2xl text-sm bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none appearance-none"
               >
                 {allowedRolesToCreate.map(role => (
@@ -364,6 +437,29 @@ export default function UsersPage() {
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {formData.role === 'ZONAL_ADMIN' && (
+              <div className="md:col-span-3">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Assign Zones</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-2xl border border-gray-200 p-3">
+                  {(allZones || []).map((z) => (
+                    <label key={z.id} className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formData.zone_ids.includes(z.id)}
+                        onChange={(e) => setFormData((prev) => ({
+                          ...prev,
+                          zone_ids: e.target.checked
+                            ? [...prev.zone_ids, z.id]
+                            : prev.zone_ids.filter((id) => id !== z.id),
+                        }))}
+                      />
+                      {z.name}
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
             
@@ -531,6 +627,15 @@ export default function UsersPage() {
                       }
                     </td>
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
+                      {canEditUser(u) && (
+                        <button
+                          onClick={() => openEdit(u)}
+                          className="text-gray-400 hover:text-indigo-600 p-1.5 rounded bg-white hover:bg-indigo-50 transition-colors"
+                          title="Edit user"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      )}
                       {canImpersonateUser(u) && (
                         <button 
                           onClick={() => handleImpersonate(u)}
@@ -571,6 +676,86 @@ export default function UsersPage() {
           </table>
         )}
       </div>
+
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <form onSubmit={handleSaveEdit} className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl p-6 space-y-4">
+            <h3 className="text-lg font-bold text-gray-900">Edit User</h3>
+            <p className="text-sm text-gray-500">{editTarget.email}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                required
+                value={editData.first_name}
+                onChange={(e) => setEditData({ ...editData, first_name: e.target.value })}
+                placeholder="First name"
+                className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+              />
+              <input
+                required
+                value={editData.last_name}
+                onChange={(e) => setEditData({ ...editData, last_name: e.target.value })}
+                placeholder="Last name"
+                className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+              />
+              <select
+                value={editData.role}
+                onChange={(e) => setEditData({
+                  ...editData,
+                  role: e.target.value,
+                  branch: BRANCH_OPTIONAL_ROLES.has(e.target.value) || e.target.value === 'SUPER_ADMIN' ? '' : editData.branch,
+                  zone_ids: e.target.value === 'ZONAL_ADMIN' ? editData.zone_ids : [],
+                })}
+                className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+              >
+                {Array.from(new Set([...allowedRolesToCreate, editTarget.role])).map(role => (
+                  <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                ))}
+              </select>
+              {editData.role !== 'SUPER_ADMIN' && !BRANCH_OPTIONAL_ROLES.has(editData.role) ? (
+                <select
+                  required
+                  value={editData.branch}
+                  onChange={(e) => setEditData({ ...editData, branch: e.target.value })}
+                  className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                >
+                  <option value="">Select Branch</option>
+                  {(allBranches || []).map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              ) : <div />}
+            </div>
+            {editData.role === 'ZONAL_ADMIN' && (
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Assign Zones</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-2xl border border-gray-200 p-3">
+                  {(allZones || []).map((z) => (
+                    <label key={z.id} className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={editData.zone_ids.includes(z.id)}
+                        onChange={(e) => setEditData((prev) => ({
+                          ...prev,
+                          zone_ids: e.target.checked
+                            ? [...prev.zone_ids, z.id]
+                            : prev.zone_ids.filter((id) => id !== z.id),
+                        }))}
+                      />
+                      {z.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setEditTarget(null)} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Cancel</button>
+              <button type="submit" disabled={editSaving} className="px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+                {editSaving ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {resetTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">

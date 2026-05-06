@@ -134,12 +134,13 @@ class ChangePasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 from rest_framework import viewsets
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.pagination import PageNumberPagination
-from .models import User
+from .models import User, UserZoneAccess
 from .serializers import UserSerializer
 from .permissions import IsBranchAdminOrAbove, ROLE_HIERARCHY, normalize_role, role_in
 from .utils import log_audit_action
+from tenants.models import Zone
 
 # Only these roles can manage (create/update/delete) other users
 ROLES_THAT_CAN_MANAGE_USERS = ['OWNER', 'SUPER_ADMIN', 'BRANCH_ADMIN']
@@ -150,6 +151,32 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def _get_rank(self, role):
         return ROLE_HIERARCHY.get(normalize_role(role), 0)
+
+    def _parse_zone_ids(self):
+        raw = self.request.data.get('zone_ids')
+        if raw is None:
+            return None
+        if isinstance(raw, str):
+            raw = [x.strip() for x in raw.split(',') if x.strip()]
+        if not isinstance(raw, list):
+            raise ValidationError({'zone_ids': 'zone_ids must be a list of zone IDs.'})
+        return [str(z).strip() for z in raw if str(z).strip()]
+
+    def _set_user_zones(self, user, zone_ids):
+        if zone_ids is None:
+            return
+        if normalize_role(user.role) != 'ZONAL_ADMIN':
+            UserZoneAccess.objects.filter(user=user).delete()
+            return
+        if not zone_ids:
+            raise ValidationError({'zone_ids': 'At least one zone is required for Zonal Admin.'})
+        zones = list(Zone.objects.filter(id__in=zone_ids, tenant=user.tenant))
+        if len(zones) != len(set(zone_ids)):
+            raise ValidationError({'zone_ids': 'One or more selected zones are invalid.'})
+        UserZoneAccess.objects.filter(user=user).delete()
+        UserZoneAccess.objects.bulk_create(
+            [UserZoneAccess(user=user, zone=z) for z in zones]
+        )
 
     def check_permissions(self, request):
         super().check_permissions(request)
@@ -233,8 +260,10 @@ class UserViewSet(viewsets.ModelViewSet):
         # If the creator is a BRANCH_ADMIN, they can ONLY create users for their own branch.
         if creator_role == 'BRANCH_ADMIN':
             branch = self.request.user.branch
-            
-        serializer.save(tenant=tenant, branch=branch)
+
+        zone_ids = self._parse_zone_ids()
+        user = serializer.save(tenant=tenant, branch=branch)
+        self._set_user_zones(user, zone_ids)
 
     def perform_update(self, serializer):
         creator_role = normalize_role(self.request.user.role)
@@ -247,8 +276,14 @@ class UserViewSet(viewsets.ModelViewSet):
         if (target_rank >= creator_rank or instance_rank >= creator_rank) and creator_role != 'OWNER':
             raise PermissionDenied("You cannot modify users of this role level.")
 
+        role_or_name_fields = {'first_name', 'last_name', 'role'}
+        if creator_role != 'SUPER_ADMIN' and any(f in self.request.data for f in role_or_name_fields):
+            raise PermissionDenied("Only Super Admin can change user name or role.")
+
         password_in = bool((self.request.data.get('password') or '').strip())
-        serializer.save()
+        zone_ids = self._parse_zone_ids()
+        updated_user = serializer.save()
+        self._set_user_zones(updated_user, zone_ids)
 
         if password_in:
             u = serializer.instance

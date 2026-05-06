@@ -38,13 +38,14 @@ class UserSerializer(serializers.ModelSerializer):
     branch_name = serializers.CharField(source='branch.name', read_only=True, default=None)
     tenant_name = serializers.CharField(source='tenant.name', read_only=True, default=None)
     tenant_logo = serializers.CharField(source='tenant.logo_url', read_only=True, default=None)
+    zone_ids = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'phone', 'role', 'is_active',
             'password', 'tenant', 'branch', 'branch_name', 'tenant_name', 'tenant_logo',
-            'must_change_password', 'mfa_enabled',
+            'must_change_password', 'mfa_enabled', 'zone_ids',
         ]
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
@@ -58,6 +59,9 @@ class UserSerializer(serializers.ModelSerializer):
         if branch and tenant and branch.tenant != tenant:
             raise serializers.ValidationError({"branch": "Branch must belong to the user's tenant."})
         return data
+
+    def get_zone_ids(self, obj):
+        return [str(z) for z in obj.zone_accesses.values_list('zone_id', flat=True)]
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
