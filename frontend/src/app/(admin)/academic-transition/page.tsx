@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApi } from '@/lib/hooks';
 import api from '@/lib/axios';
 import { useAuth } from '@/components/common/AuthProvider';
@@ -86,6 +86,24 @@ interface PromotionMap {
   academic_year: string;
   from_grade: string;
   to_grade: string;
+}
+
+interface ClassSectionRow {
+  id: string;
+  branch: string;
+  academic_year: string;
+  grade: string;
+  section: string;
+  display_name: string;
+}
+
+interface PromoteStudentRow {
+  id: string;
+  admission_number: string;
+  first_name: string;
+  last_name: string;
+  roll_number: number | null;
+  class_section_display: string | null;
 }
 
 /* ═══════════════ STATUS CHIPS ═══════════════ */
@@ -178,8 +196,8 @@ export default function AcademicTransitionPage() {
 /* ═══════════════ TAB 1: YEAR OVERVIEW ═══════════════ */
 
 function YearOverviewTab({ branch, user }: { branch: string; user: any }) {
-  const { data: years, loading, refetch } = useApi<AcademicYear[]>(
-    `/academic-years/?branch_id=${branch}`
+  const { data: years, loading, error, refetch } = useApi<AcademicYear[]>(
+    `tenants/academic-years/?branch_id=${branch}`
   );
   const { data: closingLogs, refetch: refetchLogs } = useApi<ClosingLog[]>(
     `/academic-year-closing/logs/`
@@ -226,6 +244,15 @@ function YearOverviewTab({ branch, user }: { branch: string; user: any }) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[1, 2, 3].map(i => <div key={i} className="h-48 bg-white rounded-2xl border animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">
+        <p className="font-bold">Could not load academic years</p>
+        <p className="text-sm mt-1">{error}</p>
       </div>
     );
   }
@@ -326,6 +353,11 @@ function YearOverviewTab({ branch, user }: { branch: string; user: any }) {
           All Academic Years
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {years && years.length === 0 && (
+            <p className="text-sm text-slate-500 col-span-full py-8 text-center border border-dashed rounded-2xl">
+              No academic years found for this organization. Add years under Setup → Academic Years.
+            </p>
+          )}
           {years?.map(year => {
             const style = yearStatusStyles[year.status] || yearStatusStyles.PLANNING;
             return (
@@ -403,31 +435,127 @@ function YearOverviewTab({ branch, user }: { branch: string; user: any }) {
 /* ═══════════════ TAB 2: PROMOTION ENGINE ═══════════════ */
 
 function PromotionTab({ branch, user }: { branch: string; user: any }) {
-  const { data: years } = useApi<AcademicYear[]>(`/academic-years/?branch_id=${branch}`);
+  void user;
+  const { data: years, loading: yearsLoading, error: yearsError } = useApi<AcademicYear[]>(
+    `tenants/academic-years/?branch_id=${branch}`
+  );
   const { data: promotionMaps, refetch: refetchMaps } = useApi<PromotionMap[]>(
     `/promotion-maps/?branch_id=${branch}`
   );
 
-  const [targetYearId, setTargetYearId] = useState('');
+  const activeYear = years?.find(y => y.is_active);
+
+  const [fromYearId, setFromYearId] = useState('');
+  const [toYearId, setToYearId] = useState('');
+  const [fromSectionId, setFromSectionId] = useState('');
+  const [toSectionId, setToSectionId] = useState('');
+  const [sameGradeSection, setSameGradeSection] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [promoting, setPromoting] = useState(false);
+
+  const [advTargetYearId, setAdvTargetYearId] = useState('');
   const [preview, setPreview] = useState<PromotionPreview[] | null>(null);
   const [previewMeta, setPreviewMeta] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
-
-  // Promotion map editor
   const [newFromGrade, setNewFromGrade] = useState('');
   const [newToGrade, setNewToGrade] = useState('');
   const [addingMap, setAddingMap] = useState(false);
 
-  const activeYear = years?.find(y => y.is_active);
+  useEffect(() => {
+    if (!activeYear?.id) return;
+    setFromYearId(prev => prev || activeYear.id);
+  }, [activeYear?.id]);
+
+  useEffect(() => {
+    setFromSectionId('');
+  }, [fromYearId]);
+
+  useEffect(() => {
+    setToSectionId('');
+  }, [toYearId]);
+
+  const fromClassesUrl =
+    branch && fromYearId ? `classes/?branch_id=${branch}&academic_year_id=${fromYearId}` : null;
+  const { data: fromClasses, loading: fromClassesLoading } = useApi<ClassSectionRow[]>(fromClassesUrl);
+
+  const toClassesUrl =
+    branch && toYearId ? `classes/?branch_id=${branch}&academic_year_id=${toYearId}` : null;
+  const { data: toClasses, loading: toClassesLoading } = useApi<ClassSectionRow[]>(toClassesUrl);
+
+  const studentsUrl = fromSectionId ? `classes/${fromSectionId}/students/` : null;
+  const { data: classStudents, loading: studentsLoading, refetch: refetchStudents } = useApi<
+    PromoteStudentRow[]
+  >(studentsUrl);
+
+  const fromSection = useMemo(
+    () => fromClasses?.find(c => c.id === fromSectionId),
+    [fromClasses, fromSectionId]
+  );
+  const toSection = useMemo(() => toClasses?.find(c => c.id === toSectionId), [toClasses, toSectionId]);
+
+  useEffect(() => {
+    if (!sameGradeSection || !fromSection || !toClasses?.length) return;
+    const match = toClasses.find(c => c.grade === fromSection.grade && c.section === fromSection.section);
+    if (match) setToSectionId(match.id);
+  }, [sameGradeSection, fromSection, toClasses]);
+
+  useEffect(() => {
+    if (!classStudents?.length) {
+      setSelectedIds([]);
+      return;
+    }
+    setSelectedIds(classStudents.map(s => s.id));
+  }, [fromSectionId, classStudents]);
+
+  const toggleRow = (id: string) => {
+    setSelectedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  };
+
+  const allSelected = !!classStudents?.length && selectedIds.length === classStudents.length;
+  const toggleAll = () => {
+    if (!classStudents?.length) return;
+    setSelectedIds(allSelected ? [] : classStudents.map(s => s.id));
+  };
+
+  const handleQuickPromote = async () => {
+    if (!branch || !toYearId || !toSectionId || selectedIds.length === 0) {
+      toast.error('Choose target year, target class, and at least one student.');
+      return;
+    }
+    if (fromYearId === toYearId && fromSectionId === toSectionId) {
+      toast.error('Source and target class must be different.');
+      return;
+    }
+    setPromoting(true);
+    try {
+      const res = await api.post('/students/promote/', {
+        student_ids: selectedIds,
+        target_academic_year_id: toYearId,
+        target_class_section_id: toSectionId,
+      });
+      const msg =
+        res.data?.message || `Promoted ${res.data?.promoted_count ?? selectedIds.length} student(s).`;
+      toast.success(msg);
+      await refetchStudents();
+      setSelectedIds([]);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Promotion failed.');
+    } finally {
+      setPromoting(false);
+    }
+  };
 
   const handlePreview = async () => {
-    if (!targetYearId || !branch) { toast.error('Select branch and target year.'); return; }
+    if (!advTargetYearId || !branch) {
+      toast.error('Select branch and target year.');
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await api.post('/promotions/preview/', {
-        target_academic_year_id: targetYearId,
+        target_academic_year_id: advTargetYearId,
         branch_id: branch,
         scope: 'BRANCH',
       });
@@ -435,11 +563,13 @@ function PromotionTab({ branch, user }: { branch: string; user: any }) {
       setPreviewMeta(res.data.data);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Preview failed.');
-    } finally { setIsLoading(false); }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExecute = async () => {
-    if (!preview || !targetYearId) return;
+    if (!preview || !advTargetYearId) return;
     const overrideList = Object.entries(overrides)
       .filter(([_, action]) => action !== 'PROMOTE')
       .map(([student_id, action]) => ({ student_id, action }));
@@ -447,7 +577,7 @@ function PromotionTab({ branch, user }: { branch: string; user: any }) {
     setIsExecuting(true);
     try {
       const res = await api.post('/promotions/execute/', {
-        target_academic_year_id: targetYearId,
+        target_academic_year_id: advTargetYearId,
         branch_id: branch,
         scope: 'BRANCH',
         overrides: overrideList,
@@ -459,13 +589,18 @@ function PromotionTab({ branch, user }: { branch: string; user: any }) {
       setOverrides({});
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Promotion failed.');
-    } finally { setIsExecuting(false); }
+    } finally {
+      setIsExecuting(false);
+    }
   };
 
   const handleAddMap = async () => {
     if (!newFromGrade || !newToGrade || !branch) return;
     const ayId = activeYear?.id;
-    if (!ayId) { toast.error('No active academic year.'); return; }
+    if (!ayId) {
+      toast.error('No active academic year.');
+      return;
+    }
     setAddingMap(true);
     try {
       await api.post('/promotion-maps/', {
@@ -480,7 +615,9 @@ function PromotionTab({ branch, user }: { branch: string; user: any }) {
       refetchMaps();
     } catch (err: any) {
       toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to add mapping.');
-    } finally { setAddingMap(false); }
+    } finally {
+      setAddingMap(false);
+    }
   };
 
   const handleDeleteMap = async (id: string) => {
@@ -488,187 +625,455 @@ function PromotionTab({ branch, user }: { branch: string; user: any }) {
       await api.delete(`/promotion-maps/${id}/`);
       toast.success('Mapping removed.');
       refetchMaps();
-    } catch { toast.error('Failed to delete.'); }
+    } catch {
+      toast.error('Failed to delete.');
+    }
   };
 
-  const actionIcons: Record<string, React.ReactNode> = {
-    PROMOTE: <ArrowUpRight size={14} className="text-emerald-500" />,
-    DETAIN: <Ban size={14} className="text-amber-500" />,
-    DROPOUT: <UserMinus size={14} className="text-red-500" />,
-    GRADUATE: <GraduationCap size={14} className="text-blue-500" />,
-    TRANSFER: <ArrowLeftRight size={14} className="text-purple-500" />,
-    NEEDS_MAPPING: <AlertTriangle size={14} className="text-red-500" />,
-  };
+  if (yearsError) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">
+        <p className="font-bold">Could not load academic years</p>
+        <p className="text-sm mt-1">{yearsError}</p>
+        <p className="text-xs mt-2 text-red-700">Promotion needs academic years for this organization.</p>
+      </div>
+    );
+  }
+
+  if (!branch) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900 text-sm">
+        Select a branch in the header to promote students.
+      </div>
+    );
+  }
+
+  const fromYearLabel = years?.find(y => y.id === fromYearId)?.name ?? '—';
+  const sectionTitle = fromSection ? fromSection.display_name : 'this class';
 
   return (
     <div className="space-y-8">
-      {/* Step 1: Promotion Map Configuration */}
-      <div className="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
-        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xs font-black">1</div>
-          Grade Promotion Map
-        </h3>
-        <p className="text-xs text-slate-400">Define how each grade maps to the next. E.g., Grade 1 → Grade 2.</p>
+      <div className="bg-white rounded-2xl border shadow-sm p-6 space-y-5">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Users size={18} className="text-blue-600" />
+            Promote by class
+          </h3>
+          <p className="text-xs text-slate-500 mt-1">
+            Pick the class you are moving students from, then the target year and class. Students load
+            automatically; uncheck anyone who should stay put for now.
+          </p>
+        </div>
 
-        {/* Existing Maps */}
-        <div className="flex flex-wrap gap-2">
-          {promotionMaps?.map(pm => (
-            <div key={pm.id} className="flex items-center gap-2 bg-slate-50 border rounded-xl px-3 py-2 text-sm group">
-              <span className="font-bold text-slate-700">{pm.from_grade}</span>
-              <ArrowRight size={14} className="text-slate-400" />
-              <span className="font-bold text-emerald-600">{pm.to_grade}</span>
-              <button
-                onClick={() => handleDeleteMap(pm.id)}
-                className="p-0.5 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+        <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+          <input
+            type="checkbox"
+            className="mt-1 rounded border-slate-300"
+            checked={sameGradeSection}
+            onChange={e => setSameGradeSection(e.target.checked)}
+          />
+          <span className="text-sm text-slate-700">
+            <span className="font-semibold text-slate-900">Same grade &amp; section in target year</span>
+            <span className="block text-xs text-slate-500 mt-0.5">
+              Only the academic year changes (e.g. UKG-A → UKG-A in the next session). Target class is filled
+              automatically when it exists.
+            </span>
+          </span>
+        </label>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50/50">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">From (current)</p>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Academic year</label>
+              <select
+                value={fromYearId}
+                onChange={e => setFromYearId(e.target.value)}
+                disabled={yearsLoading}
+                className="w-full border rounded-xl px-3 py-2 text-sm focus:ring-2 ring-blue-200 focus:outline-none disabled:opacity-60"
               >
-                <X size={14} />
-              </button>
+                <option value="">{yearsLoading ? 'Loading…' : 'Select year…'}</option>
+                {years?.map(y => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                    {y.is_active ? ' (active)' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
-          ))}
-          {(!promotionMaps || promotionMaps.length === 0) && (
-            <p className="text-sm text-slate-400 italic">No mappings configured yet. Add below.</p>
-          )}
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Class</label>
+              <select
+                value={fromSectionId}
+                onChange={e => setFromSectionId(e.target.value)}
+                disabled={!fromYearId || fromClassesLoading}
+                className="w-full border rounded-xl px-3 py-2 text-sm focus:ring-2 ring-blue-200 focus:outline-none disabled:opacity-60"
+              >
+                <option value="">
+                  {!fromYearId ? 'Choose a year first…' : fromClassesLoading ? 'Loading classes…' : 'Select class…'}
+                </option>
+                {fromClasses?.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-emerald-200/80 p-4 space-y-3 bg-emerald-50/30">
+            <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">To (target)</p>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Academic year</label>
+              <select
+                value={toYearId}
+                onChange={e => setToYearId(e.target.value)}
+                disabled={yearsLoading}
+                className="w-full border rounded-xl px-3 py-2 text-sm focus:ring-2 ring-emerald-200 focus:outline-none disabled:opacity-60"
+              >
+                <option value="">{yearsLoading ? 'Loading…' : 'Select target year…'}</option>
+                {years?.map(y => (
+                  <option key={y.id} value={y.id}>
+                    {y.name} ({y.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Class</label>
+              <select
+                value={toSectionId}
+                onChange={e => setToSectionId(e.target.value)}
+                disabled={!toYearId || toClassesLoading}
+                className="w-full border rounded-xl px-3 py-2 text-sm focus:ring-2 ring-emerald-200 focus:outline-none disabled:opacity-60"
+              >
+                <option value="">
+                  {!toYearId ? 'Choose target year first…' : toClassesLoading ? 'Loading classes…' : 'Select class…'}
+                </option>
+                {toClasses?.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Add new map */}
-        <div className="flex items-end gap-3 pt-2 border-t border-slate-100">
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">From Grade</label>
-            <select value={newFromGrade} onChange={e => setNewFromGrade(e.target.value)}
-              className="border rounded-xl px-3 py-2 text-sm focus:ring-2 ring-blue-200 focus:outline-none">
-              <option value="">Select...</option>
-              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </div>
-          <ArrowRight size={20} className="text-slate-300 mb-2" />
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">To Grade</label>
-            <select value={newToGrade} onChange={e => setNewToGrade(e.target.value)}
-              className="border rounded-xl px-3 py-2 text-sm focus:ring-2 ring-blue-200 focus:outline-none">
-              <option value="">Select...</option>
-              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </div>
-          <button onClick={handleAddMap} disabled={addingMap || !newFromGrade || !newToGrade}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all disabled:opacity-50">
-            {addingMap ? <Loader2 size={16} className="animate-spin" /> : 'Add'}
-          </button>
-        </div>
-      </div>
-
-      {/* Step 2: Preview */}
-      <div className="bg-white rounded-2xl border shadow-sm p-6 space-y-4">
-        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xs font-black">2</div>
-          Preview & Execute Promotions
-        </h3>
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Promote to Year</label>
-            <select value={targetYearId} onChange={e => setTargetYearId(e.target.value)}
-              className="w-full border rounded-xl px-4 py-2.5 text-sm focus:ring-2 ring-blue-200 focus:outline-none">
-              <option value="">Select target year...</option>
-              {years?.filter(y => !y.is_active).map(y => (
-                <option key={y.id} value={y.id}>{y.name} ({y.status})</option>
-              ))}
-            </select>
-          </div>
-          <button onClick={handlePreview} disabled={isLoading || !targetYearId}
-            className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center gap-2">
-            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
-            Preview
-          </button>
-        </div>
-
-        {/* Preview Results */}
-        {previewMeta && (
-          <div className="space-y-4 pt-4 border-t">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Stat label="Total Students" value={previewMeta.total_students} />
-              <Stat label="Students with Dues" value={previewMeta.students_with_dues} />
-              <Stat label="Total Outstanding" value={`₹${Number(previewMeta.total_outstanding).toLocaleString('en-IN')}`} />
-              <Stat label="Unmapped Classes" value={previewMeta.unmapped_classes?.length || 0} highlight={previewMeta.unmapped_classes?.length > 0} />
+        {fromSectionId && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h4 className="text-sm font-bold text-slate-800">
+                Students in {sectionTitle}
+                <span className="ml-2 text-xs font-normal text-slate-500">({fromYearLabel})</span>
+              </h4>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-slate-600">
+                  {selectedIds.length} of {classStudents?.length ?? 0} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={handleQuickPromote}
+                  disabled={
+                    promoting ||
+                    !toYearId ||
+                    !toSectionId ||
+                    selectedIds.length === 0 ||
+                    studentsLoading
+                  }
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 shadow-sm"
+                >
+                  {promoting ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftRight size={16} />}
+                  Promote selected
+                </button>
+              </div>
             </div>
 
-            {previewMeta.unmapped_classes?.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
-                <AlertTriangle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-700">
-                  <strong>Missing promotion maps:</strong> {previewMeta.unmapped_classes.join(', ')}. Go to Step 1 to add them.
-                </p>
+            {studentsLoading ? (
+              <div className="flex justify-center py-12 border rounded-xl">
+                <Loader2 className="animate-spin text-blue-500" size={28} />
+              </div>
+            ) : !classStudents?.length ? (
+              <p className="text-sm text-slate-500 py-8 text-center border border-dashed rounded-xl">
+                No active students in this class for the selected year.
+              </p>
+            ) : (
+              <div className="border rounded-xl overflow-hidden overflow-x-auto">
+                <table className="w-full text-sm min-w-[640px]">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <th className="px-3 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300"
+                          checked={allSelected}
+                          onChange={toggleAll}
+                          aria-label="Select all students"
+                        />
+                      </th>
+                      <th className="px-3 py-3 text-left font-bold text-slate-600">#</th>
+                      <th className="px-3 py-3 text-left font-bold text-slate-600">Admission</th>
+                      <th className="px-3 py-3 text-left font-bold text-slate-600">Roll</th>
+                      <th className="px-3 py-3 text-left font-bold text-slate-600">Name</th>
+                      <th className="px-3 py-3 text-left font-bold text-slate-600">Target class</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {classStudents.map((s, idx) => (
+                      <tr key={s.id} className="hover:bg-slate-50/80">
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300"
+                            checked={selectedIds.includes(s.id)}
+                            onChange={() => toggleRow(s.id)}
+                          />
+                        </td>
+                        <td className="px-3 py-2 tabular-nums text-slate-500">{idx + 1}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{s.admission_number}</td>
+                        <td className="px-3 py-2 text-slate-600">{s.roll_number ?? '—'}</td>
+                        <td className="px-3 py-2 font-medium text-slate-900">
+                          {s.first_name} {s.last_name}
+                        </td>
+                        <td className="px-3 py-2">
+                          {toSection ? (
+                            <span className="font-semibold text-emerald-700">{toSection.display_name}</span>
+                          ) : (
+                            <span className="text-slate-400">Choose target class</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
-
-            {/* Student List */}
-            <div className="bg-white rounded-xl border overflow-hidden max-h-[400px] overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b sticky top-0">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-bold text-slate-600">Student</th>
-                    <th className="px-4 py-3 text-left font-bold text-slate-600">Current</th>
-                    <th className="px-4 py-3 text-left font-bold text-slate-600">Target</th>
-                    <th className="px-4 py-3 text-left font-bold text-slate-600">Dues</th>
-                    <th className="px-4 py-3 text-left font-bold text-slate-600 w-40">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {preview?.map(s => (
-                    <tr key={s.student_id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="font-bold text-slate-900">{s.student_name}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">{s.admission_number}</p>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">{s.current_class}</td>
-                      <td className="px-4 py-3">
-                        <span className={`font-bold ${s.action === 'NEEDS_MAPPING' ? 'text-red-500' : 'text-emerald-600'}`}>
-                          {s.target_grade || '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {Number(s.outstanding_dues) > 0 ? (
-                          <span className="text-rose-600 font-bold">₹{Number(s.outstanding_dues).toLocaleString('en-IN')}</span>
-                        ) : (
-                          <span className="text-emerald-500 text-xs">Clear</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={overrides[s.student_id] || 'PROMOTE'}
-                          onChange={e => setOverrides(prev => ({ ...prev, [s.student_id]: e.target.value }))}
-                          className="w-full border rounded-lg px-2 py-1.5 text-xs font-bold focus:ring-2 ring-blue-200 focus:outline-none"
-                        >
-                          <option value="PROMOTE">Promote</option>
-                          <option value="DETAIN">Detain</option>
-                          <option value="DROPOUT">Mark Dropout</option>
-                          <option value="GRADUATE">Graduate</option>
-                          <option value="TRANSFER">Transfer</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Execute Button */}
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={handleExecute}
-                disabled={isExecuting}
-                className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-emerald-200"
-              >
-                {isExecuting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-                Execute Promotions ({preview?.length || 0} students)
-              </button>
-            </div>
           </div>
         )}
       </div>
+
+      <details className="bg-white rounded-2xl border shadow-sm group">
+        <summary className="cursor-pointer list-none px-6 py-4 flex items-center justify-between gap-2 text-sm font-bold text-slate-800">
+          <span className="flex items-center gap-2">
+            <ChevronRight
+              size={18}
+              className="text-slate-400 transition-transform group-open:rotate-90"
+            />
+            Advanced: grade maps &amp; whole-branch promotion
+          </span>
+          <span className="text-xs font-normal text-slate-500">Optional — uses mapped grades for every class</span>
+        </summary>
+        <div className="px-6 pb-6 space-y-8 border-t border-slate-100 pt-6">
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xs font-black">
+                1
+              </div>
+              Grade promotion map
+            </h3>
+            <p className="text-xs text-slate-400">
+              Define how each grade maps to the next for automated branch-wide runs.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {promotionMaps?.map(pm => (
+                <div
+                  key={pm.id}
+                  className="flex items-center gap-2 bg-slate-50 border rounded-xl px-3 py-2 text-sm group"
+                >
+                  <span className="font-bold text-slate-700">{pm.from_grade}</span>
+                  <ArrowRight size={14} className="text-slate-400" />
+                  <span className="font-bold text-emerald-600">{pm.to_grade}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMap(pm.id)}
+                    className="p-0.5 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              {(!promotionMaps || promotionMaps.length === 0) && (
+                <p className="text-sm text-slate-400 italic">No mappings configured yet. Add below.</p>
+              )}
+            </div>
+            <div className="flex items-end gap-3 pt-2 border-t border-slate-100 flex-wrap">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">From grade</label>
+                <select
+                  value={newFromGrade}
+                  onChange={e => setNewFromGrade(e.target.value)}
+                  className="border rounded-xl px-3 py-2 text-sm focus:ring-2 ring-blue-200 focus:outline-none"
+                >
+                  <option value="">Select…</option>
+                  {GRADES.map(g => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <ArrowRight size={20} className="text-slate-300 mb-2 hidden sm:block" />
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">To grade</label>
+                <select
+                  value={newToGrade}
+                  onChange={e => setNewToGrade(e.target.value)}
+                  className="border rounded-xl px-3 py-2 text-sm focus:ring-2 ring-blue-200 focus:outline-none"
+                >
+                  <option value="">Select…</option>
+                  {GRADES.map(g => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddMap}
+                disabled={addingMap || !newFromGrade || !newToGrade}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+              >
+                {addingMap ? <Loader2 size={16} className="animate-spin" /> : 'Add'}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xs font-black">
+                2
+              </div>
+              Preview &amp; execute (entire branch)
+            </h3>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Promote to year</label>
+                <select
+                  value={advTargetYearId}
+                  onChange={e => setAdvTargetYearId(e.target.value)}
+                  disabled={yearsLoading}
+                  className="w-full border rounded-xl px-4 py-2.5 text-sm focus:ring-2 ring-blue-200 focus:outline-none disabled:opacity-60"
+                >
+                  <option value="">{yearsLoading ? 'Loading years…' : 'Select target year…'}</option>
+                  {years?.filter(y => !y.is_active).map(y => (
+                    <option key={y.id} value={y.id}>
+                      {y.name} ({y.status})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={handlePreview}
+                disabled={isLoading || !advTargetYearId}
+                className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
+                Preview
+              </button>
+            </div>
+
+            {previewMeta && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Stat label="Total students" value={previewMeta.total_students} />
+                  <Stat label="Students with dues" value={previewMeta.students_with_dues} />
+                  <Stat
+                    label="Total outstanding"
+                    value={`₹${Number(previewMeta.total_outstanding).toLocaleString('en-IN')}`}
+                  />
+                  <Stat
+                    label="Unmapped classes"
+                    value={previewMeta.unmapped_classes?.length || 0}
+                    highlight={previewMeta.unmapped_classes?.length > 0}
+                  />
+                </div>
+
+                {previewMeta.unmapped_classes?.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                    <AlertTriangle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-red-700">
+                      <strong>Missing promotion maps:</strong> {previewMeta.unmapped_classes.join(', ')}.
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-white rounded-xl border overflow-hidden max-h-[400px] overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b sticky top-0">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-bold text-slate-600">Student</th>
+                        <th className="px-4 py-3 text-left font-bold text-slate-600">Current</th>
+                        <th className="px-4 py-3 text-left font-bold text-slate-600">Target</th>
+                        <th className="px-4 py-3 text-left font-bold text-slate-600">Dues</th>
+                        <th className="px-4 py-3 text-left font-bold text-slate-600 w-40">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {preview?.map(s => (
+                        <tr key={s.student_id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-slate-900">{s.student_name}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">{s.admission_number}</p>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">{s.current_class}</td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`font-bold ${s.action === 'NEEDS_MAPPING' ? 'text-red-500' : 'text-emerald-600'}`}
+                            >
+                              {s.target_grade || '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {Number(s.outstanding_dues) > 0 ? (
+                              <span className="text-rose-600 font-bold">
+                                ₹{Number(s.outstanding_dues).toLocaleString('en-IN')}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-500 text-xs">Clear</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={overrides[s.student_id] || 'PROMOTE'}
+                              onChange={e =>
+                                setOverrides(prev => ({ ...prev, [s.student_id]: e.target.value }))
+                              }
+                              className="w-full border rounded-lg px-2 py-1.5 text-xs font-bold focus:ring-2 ring-blue-200 focus:outline-none"
+                            >
+                              <option value="PROMOTE">Promote</option>
+                              <option value="DETAIN">Detain</option>
+                              <option value="DROPOUT">Mark dropout</option>
+                              <option value="GRADUATE">Graduate</option>
+                              <option value="TRANSFER">Transfer</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={handleExecute}
+                    disabled={isExecuting}
+                    className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-emerald-200"
+                  >
+                    {isExecuting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                    Execute promotions ({preview?.length || 0} students)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
-
-
 /* ═══════════════ TAB 3: CARRY-FORWARDS ═══════════════ */
 
 function CarryForwardTab({ branch }: { branch: string }) {

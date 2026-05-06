@@ -27,6 +27,7 @@ import datetime
 from datetime import datetime as dt
 from decimal import Decimal, InvalidOperation
 from datetime import date
+from openpyxl import load_workbook
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
@@ -49,15 +50,16 @@ def handle_csv_import(request):
         academic_year_id = request.data.get('academic_year_id')
         file_obj = request.FILES.get('file')
 
-        if not file_obj or not file_obj.name.endswith('.csv'):
-            return Response({'success': False, 'detail': 'Please upload a valid CSV file.'}, status=400)
+        file_name = (file_obj.name or '').lower() if file_obj else ''
+        if not file_obj or not (file_name.endswith('.csv') or file_name.endswith('.xlsx')):
+            return Response({'success': False, 'detail': 'Please upload a valid CSV or XLSX file.'}, status=400)
 
         max_bytes = getattr(settings, 'STUDENT_CSV_IMPORT_MAX_BYTES', 5 * 1024 * 1024)
         if getattr(file_obj, 'size', 0) and file_obj.size > max_bytes:
             return Response(
                 {
                     'success': False,
-                    'detail': f'CSV file too large. Maximum size is {max_bytes // (1024 * 1024)} MB.',
+                    'detail': f'Import file too large. Maximum size is {max_bytes // (1024 * 1024)} MB.',
                 },
                 status=400,
             )
@@ -103,7 +105,7 @@ def handle_csv_import(request):
 
         return Response({
             'success': True,
-            'message': 'CSV import started in the background.',
+            'message': 'Import started in the background.',
             'job_id': job.id
         })
 
@@ -116,30 +118,14 @@ def handle_csv_import(request):
         }, status=500)
 
 
-def process_csv_file(job, decoded_file):
-    """
-    Actual logic to process the CSV file asynchronously.
-    """
-    io_string = io.StringIO(decoded_file)
-    reader = list(csv.DictReader(io_string))
-
-    if not reader:
+def process_rows(job, rows):
+    """Actual logic to process parsed rows asynchronously."""
+    if not rows:
         job.status = 'FAILED'
-        job.error_log = ['CSV file is empty.']
+        job.error_log = ['Import file is empty.']
         job.save(update_fields=['status', 'error_log'])
         return
 
-    # Normalize headers
-    fieldnames = reader[0].keys() if reader else []
-    normalized_headers = [h.strip().lower() if h else f'col_{i}' for i, h in enumerate(fieldnames)]
-    
-    # recreate reader with normalized headers
-    io_string.seek(0)
-    reader_obj = csv.DictReader(io_string, fieldnames=normalized_headers)
-    next(reader_obj) # skip header row
-    
-    # Count rows
-    rows = list(reader_obj)
     job.total_rows = len(rows)
     job.status = 'PROCESSING'
     job.save(update_fields=['total_rows', 'status'])
@@ -416,3 +402,60 @@ def process_csv_file(job, decoded_file):
     # Finalize job
     job.status = 'COMPLETED'
     job.save(update_fields=['status'])
+
+
+def process_csv_file(job, decoded_file):
+    """Parse CSV content and process rows."""
+    io_string = io.StringIO(decoded_file)
+    reader = list(csv.DictReader(io_string))
+
+    if not reader:
+        job.status = 'FAILED'
+        job.error_log = ['CSV file is empty.']
+        job.save(update_fields=['status', 'error_log'])
+        return
+
+    # Normalize headers
+    fieldnames = reader[0].keys() if reader else []
+    normalized_headers = [h.strip().lower() if h else f'col_{i}' for i, h in enumerate(fieldnames)]
+
+    # Recreate reader with normalized headers
+    io_string.seek(0)
+    reader_obj = csv.DictReader(io_string, fieldnames=normalized_headers)
+    next(reader_obj)  # skip header row
+    rows = list(reader_obj)
+    process_rows(job, rows)
+
+
+def process_xlsx_file(job, raw_bytes):
+    """Parse XLSX content and process rows."""
+    workbook = load_workbook(filename=io.BytesIO(raw_bytes), read_only=True, data_only=True)
+    sheet = workbook.active
+    row_iter = sheet.iter_rows(values_only=True)
+
+    try:
+        header_row = next(row_iter)
+    except StopIteration:
+        workbook.close()
+        job.status = 'FAILED'
+        job.error_log = ['XLSX file is empty.']
+        job.save(update_fields=['status', 'error_log'])
+        return
+
+    headers = []
+    for idx, cell in enumerate(header_row):
+        if cell is None:
+            headers.append(f'col_{idx}')
+        else:
+            headers.append(str(cell).strip().lower() or f'col_{idx}')
+
+    rows = []
+    for values in row_iter:
+        row = {}
+        for idx, header in enumerate(headers):
+            val = values[idx] if idx < len(values) else None
+            row[header] = '' if val is None else str(val).strip()
+        rows.append(row)
+
+    workbook.close()
+    process_rows(job, rows)

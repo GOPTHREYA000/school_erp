@@ -1,7 +1,7 @@
 from celery import shared_task
 from django.core.files.storage import default_storage
 import logging
-from students.csv_import import process_csv_file
+from students.csv_import import process_csv_file, process_xlsx_file
 from students.models import CsvImportJob
 from django.db import transaction
 
@@ -20,20 +20,24 @@ def process_student_csv_import(self, job_id):
         # Read file
         with job.file.open('rb') as f:
             raw_bytes = f.read()
-            
-        try:
-            decoded_file = raw_bytes.decode('utf-8-sig')
-        except UnicodeDecodeError:
+
+        file_name = (job.file.name or '').lower()
+        if file_name.endswith('.xlsx'):
+            process_xlsx_file(job, raw_bytes)
+        else:
             try:
-                decoded_file = raw_bytes.decode('latin-1')
+                decoded_file = raw_bytes.decode('utf-8-sig')
             except UnicodeDecodeError:
-                job.status = 'FAILED'
-                job.error_log = ["File encoding not supported. Please save as UTF-8 CSV."]
-                job.save(update_fields=['status', 'error_log'])
-                return
-                
-        # We pass the decoded content and the job to the actual logic
-        process_csv_file(job, decoded_file)
+                try:
+                    decoded_file = raw_bytes.decode('latin-1')
+                except UnicodeDecodeError:
+                    job.status = 'FAILED'
+                    job.error_log = ["File encoding not supported. Please save as UTF-8 CSV or upload XLSX."]
+                    job.save(update_fields=['status', 'error_log'])
+                    return
+
+            # We pass the decoded content and the job to the actual logic
+            process_csv_file(job, decoded_file)
         
     except Exception as e:
         logger.error(f"Failed to process CSV import job {job_id}: {str(e)}")

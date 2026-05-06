@@ -91,11 +91,12 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
     e.preventDefault();
     if (e.dataTransfer.files?.[0]) {
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.name.endsWith('.csv')) {
+      const lowerName = droppedFile.name.toLowerCase();
+      if (lowerName.endsWith('.csv') || lowerName.endsWith('.xlsx')) {
         setFile(droppedFile);
         setJobData(null);
       } else {
-        toast.error("Please upload a .csv file.");
+        toast.error("Please upload a .csv or .xlsx file.");
       }
     }
   };
@@ -119,7 +120,7 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
       const data = res.data;
 
       if (data.success && data.job_id) {
-        toast.success('CSV import started in the background.');
+        toast.success('Import started in the background.');
         // Set initial job state and start polling
         setJobData({
           id: data.job_id,
@@ -216,7 +217,7 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Bulk Import Students</h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">Upload a CSV to import students, parents, and fee records at once.</p>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Upload a CSV or XLSX to import students, parents, and fee records at once.</p>
           </div>
           <button onClick={handleClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
             <X size={20} />
@@ -275,12 +276,18 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
           >
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx"
               className="hidden"
               ref={fileInputRef}
               onChange={(e) => {
-                if (e.target.files?.[0]) {
-                  setFile(e.target.files[0]);
+                const selectedFile = e.target.files?.[0];
+                if (selectedFile) {
+                  const lowerName = selectedFile.name.toLowerCase();
+                  if (!lowerName.endsWith('.csv') && !lowerName.endsWith('.xlsx')) {
+                    toast.error("Please upload a .csv or .xlsx file.");
+                    return;
+                  }
+                  setFile(selectedFile);
                   setJobData(null);
                 }
               }}
@@ -297,7 +304,7 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
                   <Upload size={20} />
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">Click to upload or drag and drop</h3>
-                <p className="text-xs text-slate-500 mt-1">CSV file only (UTF-8). First row must be headers.</p>
+                <p className="text-xs text-slate-500 mt-1">CSV or XLSX file. First row must be headers.</p>
               </>
             )}
           </div>
