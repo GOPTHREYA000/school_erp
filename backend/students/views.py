@@ -483,11 +483,62 @@ class StudentViewSet(viewsets.ModelViewSet):
         student = self.get_object()
         new_status = request.data.get('status')
         if new_status:
-            student.status = new_status
-            if new_status == 'TRANSFERRED':
+            if new_status == 'TRANSFERRED' and request.data.get('target_branch_id'):
+                from tenants.models import Branch
+
+                target_branch_id = request.data.get('target_branch_id')
+                try:
+                    target_branch = Branch.objects.get(id=target_branch_id, tenant=student.tenant)
+                except Branch.DoesNotExist:
+                    return Response({'detail': 'Target branch not found in this school.'}, status=400)
+
+                if target_branch.id == student.branch_id:
+                    return Response({'detail': 'Student is already in the selected branch.'}, status=400)
+
+                conflict = Student.objects.filter(
+                    branch=target_branch,
+                    academic_year=student.academic_year,
+                    admission_number=student.admission_number,
+                ).exclude(id=student.id).exists()
+                if conflict:
+                    return Response(
+                        {'detail': 'Admission number already exists in target branch for this academic year.'},
+                        status=400
+                    )
+
+                old_branch_name = student.branch.name
+                transfer_reason = (request.data.get('leaving_reason') or '').strip()
+                student.branch = target_branch
+                if student.class_section and student.class_section.branch_id != target_branch.id:
+                    student.class_section = None
+                    student.roll_number = None
+                student.status = 'ACTIVE'  # Student continues in destination branch.
                 student.leaving_date = request.data.get('leaving_date', timezone.now().date())
-                student.leaving_reason = request.data.get('leaving_reason', '')
-            student.save()
+                student.leaving_reason = (
+                    f"Transferred from {old_branch_name} to {target_branch.name}"
+                    + (f". Reason: {transfer_reason}" if transfer_reason else '')
+                )
+                student.save()
+
+                log_audit_action(
+                    user=request.user,
+                    action='TRANSFER_STUDENT_BRANCH',
+                    model_name='Student',
+                    record_id=student.id,
+                    details={
+                        'admission_number': student.admission_number,
+                        'from_branch': old_branch_name,
+                        'to_branch': target_branch.name,
+                        'reason': transfer_reason,
+                    },
+                    tenant=student.tenant,
+                )
+            else:
+                student.status = new_status
+                if new_status == 'TRANSFERRED':
+                    student.leaving_date = request.data.get('leaving_date', timezone.now().date())
+                    student.leaving_reason = request.data.get('leaving_reason', '')
+                student.save()
         return Response({'success': True, 'data': StudentSerializer(student).data})
 
     @action(detail=True, methods=['post'], url_path='setup-promoted-year-fees')

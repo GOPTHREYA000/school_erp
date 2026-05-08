@@ -49,7 +49,10 @@ class AcademicsReportViewSet(viewsets.ViewSet):
         data = qs.values(
             'id', 'admission_number', 'first_name', 'last_name', 
             'class_section__grade', 'class_section__section', 
-            'status', 'gender', 'caste_category'
+            'status', 'gender', 'caste_category',
+            'admission_fee_paid', 'fixed_deposit_paid',
+            'admission_fee_collected', 'fixed_deposit_collected',
+            'total_initial_income',
         )
         
         paginator = ReportPagination()

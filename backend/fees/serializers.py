@@ -202,6 +202,7 @@ class InitialPaymentSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
     admission_fee = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
     tuition_payment = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
+    fixed_deposit = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
     payment_mode = serializers.ChoiceField(choices=[c[0] for c in PAYMENT_MODE])
     reference_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     payment_date = serializers.DateField()
@@ -211,8 +212,9 @@ class InitialPaymentSerializer(serializers.Serializer):
 
         a = Decimal(str(attrs.get('admission_fee') or 0))
         t = Decimal(str(attrs.get('tuition_payment') or 0))
-        if a + t <= 0:
+        f = Decimal(str(attrs.get('fixed_deposit') or 0))
+        if a + t + f <= 0:
             raise serializers.ValidationError(
-                'At least one of admission_fee or tuition_payment must be greater than zero.'
+                'At least one of admission_fee, tuition_payment, or fixed_deposit must be greater than zero.'
             )
         return attrs

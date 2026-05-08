@@ -1,10 +1,12 @@
 from collections import defaultdict
 from decimal import Decimal
 
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Count, DecimalField, Exists, OuterRef, Q, Subquery, Sum, Value
+from django.db.models.functions import Coalesce
 
 from academics.models import ExamResult, ExamTerm
 from attendance.models import AttendanceRecord
+from fees.models import Payment
 from reports.services.base import BaseReportService
 from students.models import ParentStudentRelation, Student, StudentAcademicRecord
 from tenants.models import AcademicYear, Branch
@@ -15,6 +17,47 @@ class AcademicsService:
         qs = Student.objects.select_related('class_section', 'academic_year', 'branch')
         qs = BaseReportService.apply_branch_scope(qs, filters)
         qs = BaseReportService.apply_academic_year(qs, filters.academic_year_id)
+
+        completed_payments = Payment.objects.filter(student_id=OuterRef('pk'), status='COMPLETED')
+        admission_paid_exists = completed_payments.filter(invoice__invoice_number__startswith='ADM-')
+        fixed_deposit_paid_exists = completed_payments.filter(invoice__invoice_number__startswith='FDP-')
+
+        admission_amount_subquery = (
+            completed_payments.filter(invoice__invoice_number__startswith='ADM-')
+            .values('student_id')
+            .annotate(total=Sum('amount'))
+            .values('total')[:1]
+        )
+        fixed_deposit_amount_subquery = (
+            completed_payments.filter(invoice__invoice_number__startswith='FDP-')
+            .values('student_id')
+            .annotate(total=Sum('amount'))
+            .values('total')[:1]
+        )
+        qs = qs.annotate(
+            admission_fee_paid=Exists(admission_paid_exists),
+            fixed_deposit_paid=Exists(fixed_deposit_paid_exists),
+            admission_fee_collected=Coalesce(
+                Subquery(admission_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
+            fixed_deposit_collected=Coalesce(
+                Subquery(fixed_deposit_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
+        ).annotate(
+            total_initial_income=Coalesce(
+                Subquery(admission_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ) + Coalesce(
+                Subquery(fixed_deposit_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            )
+        )
         
         if filters.class_id:
             qs = qs.filter(class_section__grade=filters.class_id)
@@ -22,6 +65,14 @@ class AcademicsService:
             qs = qs.filter(class_section_id=filters.section_id)
         if filters.status:
             qs = qs.filter(status=filters.status)
+        if filters.admission_payment == 'PAID':
+            qs = qs.filter(admission_fee_paid=True)
+        elif filters.admission_payment == 'UNPAID':
+            qs = qs.filter(admission_fee_paid=False)
+        if filters.fixed_deposit_payment == 'PAID':
+            qs = qs.filter(fixed_deposit_paid=True)
+        elif filters.fixed_deposit_payment == 'UNPAID':
+            qs = qs.filter(fixed_deposit_paid=False)
             
         return qs.order_by('class_section__grade', 'class_section__section', 'first_name')
 

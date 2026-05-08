@@ -27,8 +27,10 @@ export default function StudentProfilePage() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawData, setWithdrawData] = useState({
     leaving_date: new Date().toISOString().split('T')[0],
-    leaving_reason: ''
+    leaving_reason: '',
+    target_branch_id: '',
   });
+  const [tenantBranches, setTenantBranches] = useState<any[]>([]);
   const [withdrawing, setWithdrawing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -97,6 +99,22 @@ export default function StudentProfilePage() {
     student?.academic_year,
   ]);
 
+  useEffect(() => {
+    if (!showWithdrawModal) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get('/tenants/branches/');
+        const raw = res.data?.data ?? res.data?.results ?? res.data;
+        const list = Array.isArray(raw) ? raw : [];
+        if (!cancelled) setTenantBranches(list);
+      } catch {
+        if (!cancelled) setTenantBranches([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showWithdrawModal]);
+
   const handleConfirmPromotedYearFees = async () => {
     if (!promotedFeeStructure) {
       toast.error('No fee structure for this class. Configure it under Setup first.');
@@ -133,6 +151,14 @@ export default function StudentProfilePage() {
   const refundedPayments = (student?.payments || []).filter((p: any) => p.status === 'REFUNDED');
   const completedAmount = completedPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
   const refundedAmount = refundedPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  const completedAdmissionPayments = completedPayments.filter((p: any) => String(p?.invoice_number || '').startsWith('ADM-'));
+  const completedFixedDepositPayments = completedPayments.filter((p: any) => String(p?.invoice_number || '').startsWith('FDP-'));
+  const admissionPaidTotal = completedAdmissionPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  const fixedDepositPaidTotal = completedFixedDepositPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  const admissionPaid = admissionPaidTotal > 0;
+  const fixedDepositPaid = fixedDepositPaidTotal > 0;
+  const transferNote = String(student?.leaving_reason || '');
+  const hasTransferTrail = transferNote.toLowerCase().startsWith('transferred from ');
   const requiresInitialPayment = !!student?.requires_initial_payment && !student?.is_csv_imported;
 
   if (loading && !student) return (
@@ -183,7 +209,11 @@ export default function StudentProfilePage() {
 
   const handleWithdraw = async () => {
     if (!withdrawData.leaving_reason) {
-      toast.error("Please provide a reason for withdrawal.");
+      toast.error("Please provide transfer reason.");
+      return;
+    }
+    if (!withdrawData.target_branch_id) {
+      toast.error("Please select target branch.");
       return;
     }
     setWithdrawing(true);
@@ -192,10 +222,11 @@ export default function StudentProfilePage() {
         status: 'TRANSFERRED',
         ...withdrawData
       });
+      toast.success('Student transferred successfully.');
       setShowWithdrawModal(false);
       refetch();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Error processing withdrawal');
+      toast.error(err.response?.data?.detail || 'Error processing transfer');
     } finally {
       setWithdrawing(false);
     }
@@ -396,7 +427,7 @@ export default function StudentProfilePage() {
                   onClick={() => setShowWithdrawModal(true)}
                   className="flex items-center gap-2 bg-white text-rose-600 px-5 py-3.5 rounded-2xl text-sm font-black border-2 border-rose-50 hover:bg-rose-50 transition-all shadow-lg shadow-rose-100 uppercase tracking-widest"
                 >
-                  <LogOut size={16} /> Mark Left
+                  <LogOut size={16} /> Transferred
                 </button>
               </>
             )}
@@ -441,6 +472,21 @@ export default function StudentProfilePage() {
         <div className="lg:col-span-3 bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-50 p-8 min-h-[500px]">
           {activeTab === 'overview' && (
             <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
+              {hasTransferTrail && (
+                <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 flex gap-4">
+                  <div className="text-indigo-500 mt-1"><ArrowRightLeft size={24} /></div>
+                  <div>
+                    <h5 className="font-black text-indigo-900 mb-1">Branch Transfer History</h5>
+                    <p className="text-sm text-indigo-800 font-medium leading-relaxed">{transferNote}</p>
+                    {student?.leaving_date && (
+                      <p className="text-xs text-indigo-700 mt-2 font-bold uppercase tracking-widest">
+                        Transfer date: {student.leaving_date}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <SectionHeader title="Personal Details" icon={User} />
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -494,6 +540,16 @@ export default function StudentProfilePage() {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
               <SectionHeader title="Academic Year History" icon={History} />
               <p className="text-sm text-slate-400 -mt-4">Complete track record of this student's enrollment across academic years.</p>
+
+              {hasTransferTrail && (
+                <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 flex items-start gap-3">
+                  <ArrowRightLeft className="text-indigo-500 mt-0.5" size={18} />
+                  <div>
+                    <p className="text-xs font-black text-indigo-800 uppercase tracking-widest mb-1">Branch transfer trail</p>
+                    <p className="text-sm font-semibold text-indigo-900">{transferNote}</p>
+                  </div>
+                </div>
+              )}
 
               {recordsLoading ? (
                 <div className="p-12 text-center">
@@ -758,6 +814,39 @@ export default function StudentProfilePage() {
                 </div>
               </div>
 
+              <div className="bg-slate-50/60 border border-slate-100 rounded-[2rem] p-6 md:p-7">
+                <h4 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-5">Initial Payment Status</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Admission Fee</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                        admissionPaid ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                      }`}>
+                        {admissionPaid ? 'Paid' : 'Not Paid'}
+                      </span>
+                      <span className="text-sm font-black text-slate-900">
+                        ₹{admissionPaidTotal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fixed Deposit</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                        fixedDepositPaid ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {fixedDepositPaid ? 'Paid' : 'Not Paid'}
+                      </span>
+                      <span className="text-sm font-black text-slate-900">
+                        ₹{fixedDepositPaidTotal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Transactions Ledger */}
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -936,7 +1025,7 @@ export default function StudentProfilePage() {
       <Modal
         isOpen={showWithdrawModal}
         onClose={() => !withdrawing && setShowWithdrawModal(false)}
-        title="Withdraw Student"
+        title="Transfer Student"
         maxWidth="lg"
       >
         <div className="p-8">
@@ -945,14 +1034,30 @@ export default function StudentProfilePage() {
               <LogOut size={28} />
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Withdraw Student</h3>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Process "Left" procedure</p>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Transfer Student</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Branch to branch transfer</p>
             </div>
           </div>
 
           <div className="space-y-6 mb-10">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Withdrawal Date</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Target Branch</label>
+              <select
+                value={withdrawData.target_branch_id}
+                onChange={e => setWithdrawData({ ...withdrawData, target_branch_id: e.target.value })}
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all"
+              >
+                <option value="">Select target branch</option>
+                {tenantBranches
+                  .filter((b: any) => b.id !== student.branch)
+                  .map((b: any) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Transfer Date</label>
               <input 
                 type="date"
                 value={withdrawData.leaving_date}
@@ -962,9 +1067,9 @@ export default function StudentProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Reason for Leaving</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Reason for Transfer</label>
               <textarea 
-                placeholder="Mention the reason (e.g., Relocation, Financial...)"
+                placeholder="Mention the reason (e.g., Relocation to new branch)"
                 value={withdrawData.leaving_reason}
                 onChange={e => setWithdrawData({...withdrawData, leaving_reason: e.target.value})}
                 className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none min-h-[120px] transition-all"
@@ -974,8 +1079,7 @@ export default function StudentProfilePage() {
             <div className="bg-rose-50 p-4 rounded-2xl flex gap-3 text-rose-700">
               <AlertCircle size={20} className="shrink-0" />
               <p className="text-xs font-bold uppercase leading-relaxed tracking-tight">
-                Warning: This will change student status to "TRANSFERRED". 
-                The student will no longer appear in active class rolls.
+                Student moves to selected branch with same admission number. Existing due fees and payment history are preserved.
               </p>
             </div>
           </div>
@@ -993,7 +1097,7 @@ export default function StudentProfilePage() {
               disabled={withdrawing}
               className="flex-[2] bg-rose-600 text-white px-8 py-4 rounded-2xl text-sm font-black hover:bg-rose-700 shadow-xl shadow-rose-200 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
             >
-              {withdrawing ? 'Processing...' : 'Confirm Withdrawal'}
+              {withdrawing ? 'Processing...' : 'Confirm Transfer'}
             </button>
           </div>
         </div>

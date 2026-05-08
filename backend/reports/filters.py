@@ -31,6 +31,8 @@ class BaseReportFilter:
         self.status = request.query_params.get('status')
         self.source = request.query_params.get('source')
         self.payment_mode = request.query_params.get('payment_mode')
+        self.admission_payment = request.query_params.get('admission_payment')
+        self.fixed_deposit_payment = request.query_params.get('fixed_deposit_payment')
         self.vendor_id = request.query_params.get('vendor_id')
         self.expense_category_id = request.query_params.get('expense_category_id')
         _et = (request.query_params.get('expense_type') or '').strip()

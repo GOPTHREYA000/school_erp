@@ -19,6 +19,7 @@ export default function PayAdmissionPage() {
   const [saving, setSaving] = useState(false);
 
   const [amountPayingAdmission, setAmountPayingAdmission] = useState<number>(0);
+  const [fixedDeposit, setFixedDeposit] = useState<number>(0);
   const [tuitionPayment, setTuitionPayment] = useState<number>(0);
   const [paymentMode, setPaymentMode] = useState<string>('CASH');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -55,7 +56,7 @@ export default function PayAdmissionPage() {
     }
   }, [configuredAdmission, admissionPrefilled]);
 
-  const totalAmount = Number(amountPayingAdmission) + Number(tuitionPayment);
+  const totalAmount = Number(amountPayingAdmission) + Number(fixedDeposit) + Number(tuitionPayment);
 
   const handleSubmit = async () => {
     if (totalAmount <= 0) {
@@ -68,6 +69,7 @@ export default function PayAdmissionPage() {
       const res = await api.post('payments/initial-payment/', {
         student_id: studentId,
         admission_fee: amountPayingAdmission,
+        fixed_deposit: fixedDeposit,
         tuition_payment: tuitionPayment,
         payment_mode: paymentMode,
         reference_number: referenceNumber || undefined,
@@ -179,10 +181,6 @@ export default function PayAdmissionPage() {
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
                     School admission fee (reference: ₹{configuredAdmission.toLocaleString('en-IN')})
                   </label>
-                  <p className="text-xs text-gray-400">
-                    Set under Setup → Class &amp; Fees for this branch and academic year. You can change the amount
-                    collected now if the family pays less or more.
-                  </p>
                   <div className="relative">
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
                     <input
@@ -191,6 +189,23 @@ export default function PayAdmissionPage() {
                       step="0.01"
                       value={amountPayingAdmission || ''}
                       onChange={(e) => setAmountPayingAdmission(Number(e.target.value))}
+                      className="w-full pl-10 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-600 focus:bg-white rounded-2xl text-lg font-black outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                    Optional: fixed deposit
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={fixedDeposit || ''}
+                      onChange={(e) => setFixedDeposit(Number(e.target.value))}
                       className="w-full pl-10 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-600 focus:bg-white rounded-2xl text-lg font-black outline-none transition-all"
                     />
                   </div>
@@ -259,6 +274,10 @@ export default function PayAdmissionPage() {
                   <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Academic</span>
                   <span className="font-black">₹{Number(tuitionPayment).toLocaleString('en-IN')}</span>
                 </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Fixed Deposit</span>
+                  <span className="font-black">₹{Number(fixedDeposit).toLocaleString('en-IN')}</span>
+                </div>
               </div>
 
               <button
@@ -277,8 +296,8 @@ export default function PayAdmissionPage() {
             <div className="mt-6 flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
               <AlertCircle size={18} className="text-amber-500 shrink-0" />
               <p className="text-[10px] text-amber-800 font-semibold leading-relaxed">
-                Admission fee is posted to a separate invoice (ADM-). Academic fee payments reduce only the annual
-                school fee invoice — not the configured admission amount.
+                Admission fee is posted to an ADM invoice and fixed deposit to an FDP invoice. Academic fee payments
+                reduce only the annual school fee invoice.
               </p>
             </div>
           </div>

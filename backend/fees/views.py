@@ -644,6 +644,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 student=student,
                 admission_fee=data['admission_fee'],
                 tuition_payment=data['tuition_payment'],
+                fixed_deposit=data.get('fixed_deposit', 0),
                 payment_mode=data['payment_mode'],
                 payment_date=data['payment_date'],
                 reference_number=data.get('reference_number'),

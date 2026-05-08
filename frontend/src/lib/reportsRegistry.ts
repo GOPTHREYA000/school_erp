@@ -21,6 +21,8 @@ export type ReportConfig = {
     showExpenseCategory?: boolean;
     showExpenseTypeSearch?: boolean;
     showVendorNameSearch?: boolean;
+    showAdmissionPaymentFilter?: boolean;
+    showFixedDepositPaymentFilter?: boolean;
   };
   /** Offer “Download PDF” (uses tenant document template + `?file=pdf`). */
   offerPdfDownload?: boolean;
@@ -128,15 +130,26 @@ export const reportsRegistry: ReportCategory[] = [
         id: 'students',
         categoryId: 'academics',
         title: 'Students List',
-        description: 'List of students by class and section',
+        description: 'Students list with admission fee and fixed deposit payment status',
         apiEndpoint: 'reports/academics/students-list/',
         exportKey: 'ACADEMICS_STUDENTS',
-        filters: { showDateRange: false, showClassSection: true, showAcademicYear: true },
+        filters: {
+          showDateRange: false,
+          showClassSection: true,
+          showAcademicYear: true,
+          showAdmissionPaymentFilter: true,
+          showFixedDepositPaymentFilter: true,
+        },
         // Backend .values(): id, admission_number, first_name, last_name, class_section__grade, class_section__section, status, gender, caste_category
         columns: [
           { key: 'admission_number', label: 'Admission No.' },
           { key: 'name', label: 'Student Name', render: (_v: any, row: any) => `${row.first_name || ''} ${row.last_name || ''}`.trim() || '-' },
           { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.class_section__grade || ''}-${row.class_section__section || ''}`.replace(/-$/, '') },
+          { key: 'admission_fee_paid', label: 'Admission Fee', render: (_v: any, row: any) => row.admission_fee_paid ? 'Paid' : 'Not paid' },
+          { key: 'fixed_deposit_paid', label: 'Fixed Deposit', render: (_v: any, row: any) => row.fixed_deposit_paid ? 'Paid' : 'Not paid' },
+          { key: 'admission_fee_collected', label: 'Admission Collected', render: (_v: any, row: any) => `₹${Number(row.admission_fee_collected || 0).toLocaleString('en-IN')}` },
+          { key: 'fixed_deposit_collected', label: 'FD Collected', render: (_v: any, row: any) => `₹${Number(row.fixed_deposit_collected || 0).toLocaleString('en-IN')}` },
+          { key: 'total_initial_income', label: 'Final Income', render: (_v: any, row: any) => `₹${Number(row.total_initial_income || 0).toLocaleString('en-IN')}` },
           { key: 'gender', label: 'Gender' },
           { key: 'status', label: 'Status' }
         ]

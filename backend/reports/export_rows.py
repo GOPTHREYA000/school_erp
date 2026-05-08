@@ -82,10 +82,13 @@ def build_export_rows(report_type: str, bundle: ExportFilterBundle) -> tuple[lis
         qs = AcademicsService.get_students(bundle).values(
             'id', 'admission_number', 'first_name', 'last_name',
             'class_section__grade', 'class_section__section', 'status', 'gender', 'caste_category',
+            'admission_fee_paid', 'fixed_deposit_paid',
+            'admission_fee_collected', 'fixed_deposit_collected', 'total_initial_income',
         )
         headers = [
             'Student ID', 'Admission number', 'First name', 'Last name', 'Grade', 'Section',
-            'Status', 'Gender', 'Caste category',
+            'Status', 'Gender', 'Caste category', 'Admission fee paid', 'Fixed deposit paid',
+            'Admission fee collected', 'Fixed deposit collected', 'Initial income total',
         ]
         rows = []
         for row in qs.iterator(chunk_size=500):
@@ -94,6 +97,11 @@ def build_export_rows(report_type: str, bundle: ExportFilterBundle) -> tuple[lis
                 _cell(row['last_name']), _cell(row['class_section__grade']),
                 _cell(row['class_section__section']), _cell(row['status']),
                 _cell(row['gender']), _cell(row['caste_category']),
+                'Yes' if row.get('admission_fee_paid') else 'No',
+                'Yes' if row.get('fixed_deposit_paid') else 'No',
+                _cell(row.get('admission_fee_collected')),
+                _cell(row.get('fixed_deposit_collected')),
+                _cell(row.get('total_initial_income')),
             ])
         return headers, rows
 

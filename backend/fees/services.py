@@ -272,6 +272,55 @@ def _create_admission_fee_invoice(student, amount: Decimal, user, payment_date):
     return invoice
 
 
+def _create_fixed_deposit_invoice(student, amount: Decimal, user, payment_date):
+    """Optional fixed deposit invoice posted during enrollment."""
+    from .models import DocumentSequence, FeeCategory
+
+    amount = Decimal(str(amount))
+    cat, _ = FeeCategory.objects.get_or_create(
+        branch=student.branch,
+        code='FIXED_DEPOSIT',
+        defaults={
+            'tenant': student.tenant,
+            'name': 'Fixed Deposit',
+            'description': 'Refundable fixed deposit',
+            'is_active': True,
+            'order': 1,
+        },
+    )
+    inv_no = DocumentSequence.get_next_sequence(
+        student.branch,
+        'INVOICE',
+        f'FDP-{student.branch.branch_code}-{student.academic_year.start_date.year}',
+    )
+    invoice = FeeInvoice.objects.create(
+        tenant=student.tenant,
+        branch=student.branch,
+        academic_year=student.academic_year,
+        student=student,
+        month=None,
+        invoice_number=inv_no,
+        due_date=payment_date,
+        gross_amount=amount,
+        concession_amount=Decimal('0.00'),
+        net_amount=amount,
+        outstanding_amount=amount,
+        paid_amount=Decimal('0.00'),
+        status='SENT',
+        generated_by='MANUAL',
+        created_by=user,
+    )
+    FeeInvoiceItem.objects.create(
+        invoice=invoice,
+        category=cat,
+        original_amount=amount,
+        concession=Decimal('0.00'),
+        final_amount=amount,
+        description='Fixed deposit',
+    )
+    return invoice
+
+
 def _academic_invoice_for_initial_tuition(student):
     """Outstanding academic fee invoice — excludes admission (ADM-) and transport (TRN-)."""
     qs = (
@@ -373,7 +422,13 @@ def _apply_payment_to_invoice(user, student, invoice, amount: Decimal, payment_m
         tenant=student.tenant,
         branch=student.branch,
         transaction_type='INCOME',
-        category='Admission Fee' if invoice.invoice_number.startswith('ADM-') else 'Fee Payment',
+        category=(
+            'Admission Fee'
+            if invoice.invoice_number.startswith('ADM-')
+            else 'Fixed Deposit'
+            if invoice.invoice_number.startswith('FDP-')
+            else 'Fee Payment'
+        ),
         reference_model='Payment',
         reference_id=payment.id,
         amount=amount_to_apply,
@@ -398,7 +453,7 @@ def _apply_payment_to_invoice(user, student, invoice, amount: Decimal, payment_m
     return payment
 
 
-def process_initial_payment(user, student, admission_fee, tuition_payment, payment_mode, payment_date, reference_number=None):
+def process_initial_payment(user, student, admission_fee, tuition_payment, fixed_deposit, payment_mode, payment_date, reference_number=None):
     """
     Enrollment payments: admission goes only to ADM-* invoice; tuition only to academic invoices.
     If an ADM-* invoice already exists and admission_fee is larger than its outstanding balance,
@@ -408,7 +463,8 @@ def process_initial_payment(user, student, admission_fee, tuition_payment, payme
 
     admission_fee = Decimal(str(admission_fee or 0))
     tuition_payment = Decimal(str(tuition_payment or 0))
-    total_paid = admission_fee + tuition_payment
+    fixed_deposit = Decimal(str(fixed_deposit or 0))
+    total_paid = admission_fee + tuition_payment + fixed_deposit
     if total_paid <= 0:
         return {'status': 'skipped', 'message': 'Amount is zero.', 'total_paid': 0.0, 'receipt_codes': []}
 
@@ -488,6 +544,37 @@ def process_initial_payment(user, student, admission_fee, tuition_payment, payme
                 total_applied += p2.amount
                 receipt_codes.append(p2.receipt_number)
                 payment_ids.append(str(p2.id))
+
+        if fixed_deposit > 0:
+            existing_fd = (
+                FeeInvoice.objects.filter(student=student, invoice_number__startswith='FDP-')
+                .exclude(status__in=['CANCELLED', 'WAIVED'])
+                .select_for_update()
+                .first()
+            )
+            if existing_fd:
+                fd_inv = existing_fd
+                if fd_inv.outstanding_amount <= 0:
+                    raise ValidationError('Fixed deposit invoice is already settled.')
+                pay_fd = min(fixed_deposit, fd_inv.outstanding_amount)
+            else:
+                fd_inv = _create_fixed_deposit_invoice(student, fixed_deposit, user, payment_date)
+                pay_fd = fixed_deposit
+
+            p3 = _apply_payment_to_invoice(
+                user,
+                student,
+                fd_inv,
+                pay_fd,
+                payment_mode,
+                payment_date,
+                reference_number,
+                f'Fixed deposit payment for {fd_inv.invoice_number}',
+            )
+            if p3:
+                total_applied += p3.amount
+                receipt_codes.append(p3.receipt_number)
+                payment_ids.append(str(p3.id))
 
     return {
         'status': 'success',

@@ -20,6 +20,8 @@ interface ReportFiltersProps {
   showExpenseTypeSearch?: boolean;
   /** Free-text / datalist: sent as `vendor_name` (vendor name contains). */
   showVendorNameSearch?: boolean;
+  showAdmissionPaymentFilter?: boolean;
+  showFixedDepositPaymentFilter?: boolean;
 }
 
 export default function ReportFilters({
@@ -36,6 +38,8 @@ export default function ReportFilters({
   showExpenseCategory = false,
   showExpenseTypeSearch = false,
   showVendorNameSearch = false,
+  showAdmissionPaymentFilter = false,
+  showFixedDepositPaymentFilter = false,
 }: ReportFiltersProps) {
   const { user } = useAuth();
   const { selectedBranch } = useBranch();
@@ -55,6 +59,8 @@ export default function ReportFilters({
     expense_category_id: '',
     expense_type: '',
     vendor_name: '',
+    admission_payment: '',
+    fixed_deposit_payment: '',
   });
 
   const [branches, setBranches] = useState<any[]>([]);
@@ -329,6 +335,36 @@ export default function ReportFilters({
               {['CASH', 'CHEQUE', 'UPI', 'BANK_TRANSFER', 'CARD'].map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
+            </select>
+          </div>
+        )}
+
+        {showAdmissionPaymentFilter && (
+          <div className="flex flex-col gap-1.5 min-w-[190px]">
+            <label className="text-xs font-semibold text-slate-500 uppercase">Admission Fee</label>
+            <select
+              className={selectClass}
+              value={filters.admission_payment}
+              onChange={(e) => handleChange('admission_payment', e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="PAID">Paid only</option>
+              <option value="UNPAID">Unpaid only</option>
+            </select>
+          </div>
+        )}
+
+        {showFixedDepositPaymentFilter && (
+          <div className="flex flex-col gap-1.5 min-w-[190px]">
+            <label className="text-xs font-semibold text-slate-500 uppercase">Fixed Deposit</label>
+            <select
+              className={selectClass}
+              value={filters.fixed_deposit_payment}
+              onChange={(e) => handleChange('fixed_deposit_payment', e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="PAID">Paid only</option>
+              <option value="UNPAID">Unpaid only</option>
             </select>
           </div>
         )}
