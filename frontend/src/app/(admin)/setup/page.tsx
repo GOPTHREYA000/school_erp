@@ -776,34 +776,45 @@ function ClassAndFeeSetup({ user }: { user: any }) {
     }
   };
 
-  // ─── Tuition/Class Fee Handler (uses fees/structures/ API) ───
+  const findClassFeeCategory = (allCategories: any[] | undefined, branchId: string) => {
+    if (!Array.isArray(allCategories)) return null;
+    return (
+      allCategories.find(
+        c => c.branch === branchId && (c.code === 'CLASS_FEE' || c.code === 'TUITION')
+      ) ||
+      allCategories.find(
+        c =>
+          c.branch === branchId &&
+          (c.name?.toLowerCase().includes('class fee') || c.name?.toLowerCase().includes('tuition'))
+      ) ||
+      null
+    );
+  };
+
+  // ─── Class Fee Handler (uses fees/structures/ API) ───
   const handleUpdateFee = async (
     grade: string,
-    catName: string,
     currentActualAmount: number,
     currentLockedAmount: number
   ) => {
-    const amount = prompt(`Enter actual ${catName} fee for Grade ${grade}:`, currentActualAmount.toString());
+    const amount = prompt(`Enter actual fee for Grade ${grade}:`, currentActualAmount.toString());
     if (amount === null) return;
     const lockedAmount = prompt(
-      `Enter locked ${catName} fee for Grade ${grade}:`,
+      `Enter locked fee for Grade ${grade}:`,
       currentLockedAmount.toString()
     );
     if (lockedAmount === null) return;
 
     try {
-      // Find or Auto-Create Category if missing
-      let cat = categories?.find(c => c.name.toLowerCase().includes(catName.toLowerCase()) && c.branch === selectedBranch);
+      // Find or Auto-Create Class Fee category if missing
+      let cat = findClassFeeCategory(categories, selectedBranch);
       
       if (!cat) {
-        let code = catName.toUpperCase().replace(/\s+/g, '_');
-        if (catName === 'Tuition') code = 'TUITION';
-
         const newCatRes = await api.post('fees/categories/', {
-          name: catName === 'Tuition' ? 'Tuition Fee' : catName,
-          code: code,
+          name: 'Class Fee',
+          code: 'CLASS_FEE',
           branch: selectedBranch,
-          description: `Automatically created ${catName} category`
+          description: 'Automatically created class fee category'
         });
         cat = newCatRes.data;
         await refetchCategories?.();
@@ -834,7 +845,7 @@ function ClassAndFeeSetup({ user }: { user: any }) {
           category: cat.id,
           amount,
           locked_amount: lockedAmount,
-          frequency: 'MONTHLY',
+          frequency: 'ANNUALLY',
         });
       }
       toast.success("Fee updated!");
@@ -963,8 +974,8 @@ function ClassAndFeeSetup({ user }: { user: any }) {
                   <tr className="bg-gray-50/50 border-b border-gray-100">
                     <th className="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Grade</th>
                     <th className="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Sections</th>
-                    <th className="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Actual Fee (Monthly)</th>
-                    <th className="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Locked Fee (Monthly)</th>
+                    <th className="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Actual Fee</th>
+                    <th className="px-6 py-4 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Locked Fee</th>
                     <th className="px-6 py-4 text-right text-xs font-black text-gray-400 uppercase tracking-widest">Actions</th>
                   </tr>
                 </thead>
@@ -979,9 +990,10 @@ function ClassAndFeeSetup({ user }: { user: any }) {
                 const gradeClasses = classes.filter(c => c.grade === grade);
                 const structure = structures?.find(s => s.grade === grade);
                 
-                const tuitionItem = structure?.items?.find((i: any) => 
-                  categories?.find(c => c.id === i.category)?.name.toLowerCase().includes('tuition')
-                );
+                const classFeeCategory = findClassFeeCategory(categories, selectedBranch);
+                const classFeeItem = classFeeCategory
+                  ? structure?.items?.find((i: any) => i.category === classFeeCategory.id)
+                  : structure?.items?.[0];
 
                 return (
                   <tr key={grade} className="hover:bg-gray-50/50 transition-colors">
@@ -999,16 +1011,15 @@ function ClassAndFeeSetup({ user }: { user: any }) {
                       </div>
                     </td>
                     <td className="px-6 py-4 font-bold text-gray-900">
-                      {tuitionItem ? (
+                      {classFeeItem ? (
                         <div className="flex items-center gap-2">
-                          <span>₹{Number(tuitionItem.amount).toLocaleString('en-IN')}</span>
+                          <span>₹{Number(classFeeItem.amount).toLocaleString('en-IN')}</span>
                           <button
                             onClick={() =>
                               handleUpdateFee(
                                 grade,
-                                'Tuition',
-                                Number(tuitionItem.amount || 0),
-                                Number(tuitionItem.locked_amount ?? tuitionItem.amount ?? 0)
+                                Number(classFeeItem.amount || 0),
+                                Number(classFeeItem.locked_amount ?? classFeeItem.amount ?? 0)
                               )
                             }
                             className="text-blue-600 text-xs hover:underline"
@@ -1018,15 +1029,15 @@ function ClassAndFeeSetup({ user }: { user: any }) {
                         </div>
                       ) : (
                         <button
-                          onClick={() => handleUpdateFee(grade, 'Tuition', 0, 0)}
+                          onClick={() => handleUpdateFee(grade, 0, 0)}
                           className="text-blue-600 hover:underline"
                         >
-                          Set Tuition
+                          Set Fees
                         </button>
                       )}
                     </td>
                     <td className="px-6 py-4 font-bold text-gray-900">
-                      {tuitionItem ? `₹${Number(tuitionItem.locked_amount ?? tuitionItem.amount).toLocaleString('en-IN')}` : '-'}
+                      {classFeeItem ? `₹${Number(classFeeItem.locked_amount ?? classFeeItem.amount).toLocaleString('en-IN')}` : '-'}
                     </td>
                     <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
                       <button onClick={() => handleEditGrade(grade)} title="Rename Grade" className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
@@ -1049,7 +1060,7 @@ function ClassAndFeeSetup({ user }: { user: any }) {
         <div>
           <h4 className="font-bold text-yellow-900">Unified Configuration</h4>
           <p className="text-sm text-yellow-800 mt-1 leading-relaxed">
-            Fees defined here apply to all sections within the grade. Default categories (Tuition, Transport) are mandatory for every branch.
+            Fees defined here apply to all sections within the grade. Configure actual fee and locked fee per class for approval routing.
           </p>
         </div>
       </div>

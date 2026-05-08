@@ -396,19 +396,23 @@ def build_export_rows(report_type: str, bundle: ExportFilterBundle) -> tuple[lis
     if report_type == 'PAYMENTS_CONCESSIONS':
         qs = PaymentsService.get_concessions(bundle).values(
             'student__admission_number', 'student__first_name', 'student__last_name',
-            'concession__name', 'status', 'valid_from', 'valid_until', 'notes',
+            'student__class_section__grade', 'student__class_section__section',
+            'gross_amount', 'net_amount', 'concession_amount', 'concession_percent',
         )
         headers = [
             'Admission number', 'Student first name', 'Student last name',
-            'Concession', 'Status', 'Valid from', 'Valid until', 'Notes',
+            'Class', 'Actual fee', 'Given fee', 'Concession amount', 'Concession percent',
         ]
         rows = []
         for row in qs.iterator(chunk_size=500):
+            grade = _cell(row['student__class_section__grade'])
+            section = _cell(row['student__class_section__section'])
+            class_name = f"{grade}-{section}".strip('-')
             rows.append([
                 _cell(row['student__admission_number']), _cell(row['student__first_name']),
-                _cell(row['student__last_name']), _cell(row['concession__name']),
-                _cell(row['status']), _cell(row['valid_from']), _cell(row['valid_until']),
-                _cell(row['notes']),
+                _cell(row['student__last_name']), _cell(class_name),
+                _cell(row['gross_amount']), _cell(row['net_amount']),
+                _cell(row['concession_amount']), _cell(row['concession_percent']),
             ])
         return headers, rows
 
