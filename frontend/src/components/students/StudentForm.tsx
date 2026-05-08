@@ -64,6 +64,7 @@ interface StudentFormData {
   roll_number: string | number;
   offered_total: number;
   standard_total: number;
+  locked_total: number;
   reason: string;
   [key: string]: any; // Allow for extra backend fields
 }
@@ -115,7 +116,7 @@ const DEFAULT_FORM_DATA: StudentFormData = {
   roll_number: '',
 
   // Fees
-  offered_total: 0, standard_total: 0, reason: ''
+  offered_total: 0, standard_total: 0, locked_total: 0, reason: ''
 };
 
 export default function StudentForm({ 
@@ -136,6 +137,8 @@ export default function StudentForm({
   const [classes, setClasses] = useState<any[]>([]);
   const [feeStructure, setFeeStructure] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const approvalThreshold = Number(formData.locked_total || formData.standard_total || 0);
+  const needsApproval = !isEdit && Number(formData.offered_total || 0) < approvalThreshold;
 
   useEffect(() => {
     api.get('auth/me/').then(res => {
@@ -199,22 +202,31 @@ export default function StudentForm({
             const structure = list[0];
             setFeeStructure(structure);
             if (structure) {
-              const total = (structure.items || []).reduce((acc: number, item: any) => acc + Number(item.amount), 0);
-              setFormData(prev => ({ ...prev, standard_total: total, offered_total: total }));
+              const actualTotal = (structure.items || []).reduce((acc: number, item: any) => acc + Number(item.amount), 0);
+              const lockedTotal = (structure.items || []).reduce(
+                (acc: number, item: any) => acc + Number(item.locked_amount ?? item.amount),
+                0
+              );
+              setFormData(prev => ({
+                ...prev,
+                standard_total: actualTotal,
+                locked_total: lockedTotal,
+                offered_total: actualTotal,
+              }));
             } else {
-              setFormData(prev => ({ ...prev, standard_total: 0, offered_total: 0 }));
+              setFormData(prev => ({ ...prev, standard_total: 0, locked_total: 0, offered_total: 0 }));
             }
           })
           .catch(err => {
             toast.error('Failed to load fee structure for this class');
             setFeeStructure(null);
-            setFormData(prev => ({ ...prev, standard_total: 0, offered_total: 0 }));
+            setFormData(prev => ({ ...prev, standard_total: 0, locked_total: 0, offered_total: 0 }));
           });
       }
     } else if (!isEdit) {
       // Clear if selection is partial
       setFeeStructure(null);
-      setFormData(prev => ({ ...prev, standard_total: 0, offered_total: 0 }));
+      setFormData(prev => ({ ...prev, standard_total: 0, locked_total: 0, offered_total: 0 }));
     }
   }, [formData.class_section, classes, isEdit, formData.branch, formData.academic_year]);
 
@@ -673,14 +685,14 @@ export default function StudentForm({
                       />
                     </div>
                   </div>
-                  {!isEdit && formData.offered_total < formData.standard_total && (
+                  {needsApproval && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-blue-50/50 text-blue-600 rounded-xl border border-blue-100/50 text-[10px] font-bold uppercase tracking-tight">
-                      <span>⚠️ Reduction requires admin approval</span>
+                      <span>⚠️ Reduction below locked total requires admin approval</span>
                     </div>
                   )}
                 </div>
 
-                {!isEdit && formData.offered_total < formData.standard_total && (
+                {needsApproval && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for Reduction <span className="text-red-500">*</span></label>
                     <textarea 
@@ -699,8 +711,12 @@ export default function StudentForm({
                   <div className="space-y-6">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                       <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Standard Total</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Actual Total</p>
                         <p className="text-xl font-black text-slate-900 leading-none">₹{formData.standard_total.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Locked Total</p>
+                        <p className="text-sm font-bold text-slate-700">₹{approvalThreshold.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Items</p>
