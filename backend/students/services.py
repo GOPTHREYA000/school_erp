@@ -203,21 +203,31 @@ def _notify_fee_approval_reviewers(approval, routing, branch, tenant):
         )
 
 
+def _normalize_parent_phone(phone: str) -> str:
+    """Digits only, max length matches User.phone."""
+    return ''.join(c for c in (phone or '') if c.isdigit())[:15]
+
+
+def _placeholder_parent_email(tenant_id, phone_digits: str) -> str:
+    """Deterministic placeholder so User.email stays unique; upgraded when a real email is saved."""
+    tid = str(tenant_id).replace('-', '')
+    return f'parent.{tid}.{phone_digits}@parent.local'
+
+
 def link_parent_accounts_to_student(
     student, father_info, mother_info, tenant, branch, *, strict_parent_email=True,
 ):
     """Create or reuse parent User rows and link to the student.
 
-    - No synthetic or random emails: every parent account uses a real address from the form/CSV.
-    - When ``strict_parent_email`` is True (default for admin enroll), father/mother email is
-      required whenever name or phone is provided, so parents can sign in with email **or** phone
-      (see ``CustomTokenObtainPairSerializer``).
-    - CSV import passes ``strict_parent_email=False`` and skips creating a parent row if email
-      is missing (student record is still created).
+    - Parents can sign in with **email or phone** (``CustomTokenObtainPairSerializer``).
+    - When email is missing but phone (and contact intent) is present and
+      ``strict_parent_email`` is False, a stable placeholder ``...@parent.local`` email is used;
+      if a real email is added later (e.g. student profile update), it replaces the placeholder.
+    - When ``strict_parent_email`` is True, a real email is required whenever name or phone
+      is provided (legacy strict enroll flows).
     """
     from django.contrib.auth.base_user import BaseUserManager
     from django.contrib.auth.hashers import make_password
-    from rest_framework.exceptions import ValidationError
 
     from accounts.models import User
     from .models import ParentStudentRelation
@@ -249,18 +259,38 @@ def link_parent_accounts_to_student(
         },
     ]
 
+    parent_qs_base = User.objects.filter(tenant=tenant, role='PARENT')
+
     for p in parents_data:
-        phone = (p['phone'] or '').strip()
-        email = norm_email(p.get('email'))
+        phone_raw = (p['phone'] or '').strip()
+        phone_digits = _normalize_parent_phone(phone_raw)
+        email_real = norm_email(p.get('email'))
         first_name = (p['first_name'] or '').strip()
         fk = p['field_key']
         role_label = 'Father' if p['role_type'] == 'FATHER' else 'Mother'
 
-        if not phone and not email and not first_name:
+        if not phone_digits and not email_real and not first_name:
             continue
 
-        has_contact_intent = bool(phone or first_name)
-        if has_contact_intent and not email:
+        has_contact_intent = bool(phone_raw or first_name)
+
+        target_email = email_real
+        if not target_email:
+            if not phone_digits:
+                if has_contact_intent and strict_parent_email:
+                    raise ValidationError({
+                        f'{fk}_email': (
+                            f'{role_label} email is required for parent sign-in '
+                            '(parents can log in with this email or mobile number).'
+                        ),
+                    })
+                if has_contact_intent:
+                    logger.warning(
+                        'Skipping %s parent link for student %s: missing email and phone',
+                        role_label,
+                        student.pk,
+                    )
+                continue
             if strict_parent_email:
                 raise ValidationError({
                     f'{fk}_email': (
@@ -268,34 +298,24 @@ def link_parent_accounts_to_student(
                         '(parents can log in with this email or mobile number).'
                     ),
                 })
-            logger.warning(
-                'Skipping %s parent link for student %s: missing email',
-                role_label,
-                student.pk,
-            )
-            continue
-
-        if not email:
-            continue
+            target_email = _placeholder_parent_email(tenant.id, phone_digits)
 
         parent_user = None
-        if phone:
-            parent_user = User.objects.filter(
-                phone=phone, tenant=tenant, role='PARENT',
-            ).first()
+        if phone_digits:
+            parent_user = parent_qs_base.filter(phone=phone_digits).first()
+            if not parent_user and phone_raw:
+                parent_user = parent_qs_base.filter(phone=phone_raw).first()
         if not parent_user:
-            parent_user = User.objects.filter(
-                email=email, tenant=tenant, role='PARENT',
-            ).first()
+            parent_user = parent_qs_base.filter(email=target_email).first()
 
         if parent_user:
-            if email and parent_user.email != email:
+            if target_email and parent_user.email.lower() != target_email.lower():
                 if parent_user.email.endswith('@parent.local'):
-                    if User.objects.filter(email=email).exclude(pk=parent_user.pk).exists():
+                    if User.objects.filter(email=target_email).exclude(pk=parent_user.pk).exists():
                         raise ValidationError({
                             f'{fk}_email': f'This {role_label.lower()} email is already in use.',
                         })
-                    parent_user.email = email
+                    parent_user.email = target_email
                     parent_user.save(update_fields=['email'])
                 else:
                     raise ValidationError({
@@ -304,8 +324,9 @@ def link_parent_accounts_to_student(
                             'Use that email or update the phone number.'
                         ),
                     })
-            if phone and not parent_user.phone:
-                parent_user.phone = phone
+            store_phone = phone_digits or phone_raw
+            if store_phone and parent_user.phone != store_phone:
+                parent_user.phone = store_phone
                 parent_user.save(update_fields=['phone'])
             if first_name and not parent_user.first_name:
                 parent_user.first_name = first_name
@@ -316,25 +337,26 @@ def link_parent_accounts_to_student(
                 student.pk,
             )
         else:
-            existing = User.objects.filter(email=email).first()
+            existing = User.objects.filter(email=target_email).first()
             if existing:
                 if existing.role != 'PARENT' or existing.tenant_id != tenant.id:
                     raise ValidationError({
                         f'{fk}_email': f'{role_label} email is already registered.',
                     })
                 parent_user = existing
-                if phone and not parent_user.phone:
-                    parent_user.phone = phone
+                store_phone = phone_digits or phone_raw
+                if store_phone and parent_user.phone != store_phone:
+                    parent_user.phone = store_phone
                     parent_user.save(update_fields=['phone'])
                 if first_name and not parent_user.first_name:
                     parent_user.first_name = first_name
                     parent_user.save(update_fields=['first_name'])
             else:
                 parent_user = User(
-                    email=email,
-                    first_name=first_name or '',
+                    email=target_email,
+                    first_name=first_name or 'Parent',
                     last_name='',
-                    phone=phone or '',
+                    phone=(phone_digits or phone_raw or ''),
                     role='PARENT',
                     tenant=tenant,
                     branch=branch,

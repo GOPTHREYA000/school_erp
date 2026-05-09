@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import serializers
 from .models import User, AuditLog
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -12,7 +13,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             user = User.objects.filter(email=credentials).first()
             if not user:
                 # 2. Try resolving via phone number fallback (must be unambiguous)
-                phone_qs = User.objects.filter(phone=credentials)
+                cred = str(credentials).strip()
+                digits = ''.join(c for c in cred if c.isdigit())
+                phone_filter = Q(phone=cred)
+                if digits:
+                    phone_filter |= Q(phone=digits)
+                phone_qs = User.objects.filter(phone_filter)
                 if phone_qs.count() > 1:
                     raise serializers.ValidationError(
                         {'non_field_errors': ['Multiple accounts use this phone number. Sign in with your email address.']}
