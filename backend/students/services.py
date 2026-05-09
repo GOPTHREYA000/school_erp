@@ -309,7 +309,16 @@ def link_parent_accounts_to_student(
             parent_user = parent_qs_base.filter(email=target_email).first()
 
         if parent_user:
-            if target_email and parent_user.email.lower() != target_email.lower():
+            # Placeholder target_email is only for *creating* new users. If we matched an
+            # existing parent by phone and the form left email blank, reuse that account
+            # (e.g. they already have f@gmail.com) — do not treat placeholder vs real as conflict.
+            email_mismatch = (
+                target_email
+                and parent_user.email.lower() != target_email.lower()
+            )
+            if email_mismatch and not email_real:
+                pass
+            elif email_mismatch:
                 if parent_user.email.endswith('@parent.local'):
                     if User.objects.filter(email=target_email).exclude(pk=parent_user.pk).exists():
                         raise ValidationError({
