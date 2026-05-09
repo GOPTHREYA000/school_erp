@@ -242,6 +242,9 @@ export default function StudentsPage() {
         onClose={() => setShowImport(false)}
         onSuccess={() => refetch()}
         branchId={selectedBranch}
+        requireExplicitBranch={['SUPER_ADMIN', 'OWNER', 'CHIEF_ACCOUNTANT', 'ZONAL_ADMIN'].includes(
+          user?.role
+        )}
       />
 
       {/* Centered Modal for Enrollment */}

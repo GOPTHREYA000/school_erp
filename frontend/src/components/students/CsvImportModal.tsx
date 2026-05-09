@@ -7,7 +7,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** From branch context; may be empty when backend should use the logged-in user's branch. */
   branchId: string;
+  /** Roles that see the header branch selector must pick a concrete branch (not "All Branches"). */
+  requireExplicitBranch?: boolean;
 }
 
 type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
@@ -22,7 +25,13 @@ interface JobData {
   errors: string[];
 }
 
-export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }: Props) {
+export default function CsvImportModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  branchId,
+  requireExplicitBranch = false,
+}: Props) {
   const [academicYears, setAcademicYears] = useState<any[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [ayId, setAyId] = useState<string>('');
@@ -39,8 +48,8 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
         const raw = res.data?.data ?? res.data?.results ?? res.data;
         const years = Array.isArray(raw) ? raw : [];
         setAcademicYears(years);
-        const current = years.find((ay: any) => ay.is_current === true);
-        if (current) setAyId(current.id);
+        const active = years.find((ay: any) => ay.is_active === true);
+        if (active) setAyId(active.id);
       } catch (e) {
         console.error('Failed to fetch academic years:', e);
         toast.error('Could not load academic years.');
@@ -103,20 +112,22 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
 
   const handleUpload = async () => {
     if (!file) return toast.error("Please select a file.");
-    if (!ayId) return toast.error("Please select an academic year.");
+    if (requireExplicitBranch && !String(branchId || '').trim()) {
+      return toast.error('Select a branch in the header (not "All Branches") before importing.');
+    }
 
     setUploading(true);
     setJobData(null);
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('branch_id', branchId);
-    formData.append('academic_year_id', ayId);
+    const b = String(branchId || '').trim();
+    if (b) formData.append('branch_id', b);
+    if (String(ayId || '').trim()) formData.append('academic_year_id', ayId);
 
     try {
-      const res = await api.post('students/import-csv/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      // Do not set Content-Type manually — the browser/axios must add the multipart boundary.
+      const res = await api.post('students/import-csv/', formData);
       const data = res.data;
 
       if (data.success && data.job_id) {
@@ -229,7 +240,7 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
 
           <div className="flex gap-4 items-end">
             <div className="flex-1">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5 block">Target Academic Year (Optional)</label>
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1.5 block">Target Academic Year</label>
               <select
                 value={ayId}
                 onChange={e => setAyId(e.target.value)}
@@ -240,7 +251,7 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
                 {academicYears.map((ay: any) => (
                   <option key={ay.id} value={ay.id}>
                     {ay.name || ay.display_name || `${ay.start_date?.substring(0, 4)}-${ay.end_date?.substring(0, 4)}`}
-                    {ay.is_current ? ' (Current)' : ''}
+                    {ay.is_active ? ' (Active)' : ''}
                   </option>
                 ))}
               </select>
@@ -408,9 +419,19 @@ export default function CsvImportModal({ isOpen, onClose, onSuccess, branchId }:
           </button>
           <button
             onClick={handleUpload}
-            disabled={!file || !ayId || uploading || !!isProcessing || isCompleted}
+            disabled={
+              !file ||
+              (requireExplicitBranch && !String(branchId || '').trim()) ||
+              uploading ||
+              !!isProcessing ||
+              isCompleted
+            }
             className={`px-6 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 ${
-              file && ayId && !uploading && !isProcessing && !isCompleted
+              file &&
+              (!requireExplicitBranch || !!String(branchId || '').trim()) &&
+              !uploading &&
+              !isProcessing &&
+              !isCompleted
                 ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
             }`}
