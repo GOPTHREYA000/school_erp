@@ -427,10 +427,10 @@ class StudentViewSet(viewsets.ModelViewSet):
             if role in ['PRINCIPAL', 'BRANCH_ADMIN'] and user.branch:
                 branch = user.branch
 
-        if not serializer.validated_data.get('admission_number'):
-            ay = serializer.validated_data.get('academic_year')
-            if branch and ay:
-                serializer.validated_data['admission_number'] = Student.generate_admission_number(branch, ay)
+        ay = serializer.validated_data.get('academic_year')
+        if branch and ay:
+            # Always generate on create so tenant format/prefix is consistently applied.
+            serializer.validated_data['admission_number'] = Student.generate_admission_number(branch, ay)
 
         if not serializer.validated_data.get('roll_number'):
             class_section = serializer.validated_data.get('class_section')

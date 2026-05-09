@@ -683,10 +683,10 @@ export default function StudentForm({
                 className="w-full px-4 py-2.5 border border-gray-100 bg-gray-50/50 rounded-xl text-sm font-bold focus:border-blue-500 outline-none" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Admission No. {(!isEdit && "(Optional)")}</label>
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Admission No.</label>
               <input 
-                placeholder={isEdit ? "" : "Auto-generated if empty"} 
-                readOnly={isEdit}
+                placeholder={isEdit ? "" : "Auto-generated"} 
+                readOnly={true}
                 value={formData.admission_number} onChange={e => setFormData(prev => ({...prev, admission_number: e.target.value}))}
                 className="w-full px-4 py-2.5 border border-gray-100 bg-gray-50/50 rounded-xl text-sm font-mono focus:border-blue-500 outline-none" />
             </div>
