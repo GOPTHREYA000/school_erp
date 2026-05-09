@@ -55,7 +55,11 @@ def create_student_fees(student, offered_total, standard_total_input, reason, re
         student=student,
         academic_year=ay,
         month='ANNUAL',
-    ).exclude(invoice_number__startswith='ADM-').exclude(invoice_number__startswith='TRN-').exists():
+    ).exclude(invoice_number__startswith='ADM-').exclude(
+        invoice_number__startswith='TRN-',
+    ).exclude(
+        status='CANCELLED',
+    ).exists():
         raise ValidationError(
             'Academic fee for this academic year is already set for this student.'
         )

@@ -34,7 +34,7 @@ from .serializers import (
     PaymentSerializer, InvoiceGenerateSerializer, OfflinePaymentSerializer,
     StudentFeeItemSerializer, FeeApprovalRequestSerializer, InitialPaymentSerializer,
 )
-from .services import process_initial_payment
+from .services import process_initial_payment, cleanup_after_fee_approval_rejection
 
 
 class IsFeeApprovalReviewer(permissions.BasePermission):
@@ -195,53 +195,23 @@ class FeeApprovalRequestViewSet(viewsets.ModelViewSet):
         approval.save()
 
         student = approval.student
+        cleanup = cleanup_after_fee_approval_rejection(
+            student,
+            request.user,
+            remarks=approval.admin_remarks or '',
+        )
+        refund_total = cleanup['refund_total']
+        reversed_receipts = cleanup['reversed_receipts']
+
         if student.status == 'PENDING_APPROVAL':
             student.status = 'INACTIVE'
             student.save(update_fields=['status'])
-
-        # Reverse already-collected payments so cashbook/collection totals are corrected.
-        completed = Payment.objects.select_for_update().filter(student=student, status='COMPLETED')
-        refund_total = Decimal('0.00')
-        reversed_receipts = []
-        from expenses.models import TransactionLog
-
-        for payment in completed:
-            invoice = FeeInvoice.objects.select_for_update().filter(id=payment.invoice_id).first()
-            if invoice:
-                invoice.paid_amount = max(invoice.paid_amount - payment.amount, Decimal('0.00'))
-                invoice.outstanding_amount = invoice.net_amount - invoice.paid_amount
-                if invoice.paid_amount > 0:
-                    invoice.status = 'PARTIALLY_PAID'
-                else:
-                    invoice.status = 'SENT'
-                invoice.save(update_fields=['paid_amount', 'outstanding_amount', 'status'])
-
-            payment.status = 'REFUNDED'
-            payment.save(update_fields=['status'])
-            refund_total += payment.amount
-            if payment.receipt_number:
-                reversed_receipts.append(payment.receipt_number)
-
-            TransactionLog.objects.create(
-                tenant=payment.tenant,
-                branch=payment.branch,
-                transaction_type='INCOME',
-                category='Fee Reversal',
-                reference_model='Payment',
-                reference_id=payment.id,
-                amount=-payment.amount,
-                description=(
-                    f"Auto-reversal after fee concession rejection for "
-                    f"{student.admission_number} ({payment.receipt_number or payment.id})"
-                ),
-                transaction_date=timezone.now().date(),
-            )
 
         return Response({
             'success': True,
             'message': (
                 f"Fee reduction rejected. Refund required: ₹{float(refund_total):.2f}"
-                if refund_total > 0 else 'Fee reduction rejected.'
+                if refund_total > 0 else 'Fee reduction rejected. Academic fee request cancelled.'
             ),
             'data': {
                 'refund_total': float(refund_total),

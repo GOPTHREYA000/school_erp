@@ -66,6 +66,14 @@ class ReportingViewSet(viewsets.ViewSet):
             return qs.filter(branch__zone_id__in=zone_ids)
         return qs
 
+    def _billable_fee_invoices(self, qs):
+        """Exclude cancelled / inactive-student invoices from operational dashboards."""
+        return qs.filter(student__status='ACTIVE').exclude(status='CANCELLED')
+
+    def _billable_payments(self, qs):
+        """Payments that should affect branch revenue metrics."""
+        return qs.filter(invoice__student__status='ACTIVE').exclude(invoice__status='CANCELLED')
+
     # ─── Finance Summary (Charts) ──────────────────────────────
     @action(detail=False, methods=['get'], url_path='finance/summary')
     def finance_summary(self, request):
@@ -114,6 +122,7 @@ class ReportingViewSet(viewsets.ViewSet):
         qs = self._filter_fee_invoice_qs(qs, branch_id, zone_ids)
         if ay_id:
             qs = qs.filter(academic_year_id=ay_id)
+        qs = self._billable_fee_invoices(qs)
 
         stats = qs.aggregate(
             total_gross=Sum('gross_amount'),
@@ -160,6 +169,7 @@ class ReportingViewSet(viewsets.ViewSet):
         today_payments = self._filter_payment_qs(today_payments, branch_id, zone_ids)
         if ay_id:
             today_payments = today_payments.filter(invoice__academic_year_id=ay_id)
+        today_payments = self._billable_payments(today_payments)
         today_collection = today_payments.aggregate(total=Sum('amount'))['total'] or 0
 
         # Revenue received to date (completed payments only — source of truth for cash-in)
@@ -167,6 +177,7 @@ class ReportingViewSet(viewsets.ViewSet):
         revenue_qs = self._filter_payment_qs(revenue_qs, branch_id, zone_ids)
         if ay_id:
             revenue_qs = revenue_qs.filter(invoice__academic_year_id=ay_id)
+        revenue_qs = self._billable_payments(revenue_qs)
         revenue_collected = revenue_qs.aggregate(total=Sum('amount'))['total'] or 0
         academic_revenue_collected = revenue_qs.exclude(
             invoice__invoice_number__startswith='ADM-'
@@ -210,6 +221,7 @@ class ReportingViewSet(viewsets.ViewSet):
             qs = qs.filter(branch_id=branch_id)
         if ay_id:
             qs = qs.filter(academic_year_id=ay_id)
+        qs = self._billable_fee_invoices(qs)
 
         # Optimized: use .values() to avoid Python-level serialization loop
         data = []
@@ -328,11 +340,13 @@ class ReportingViewSet(viewsets.ViewSet):
         inv_qs = self._filter_fee_invoice_qs(inv_qs, branch_id, zone_ids)
         if ay_id:
             inv_qs = inv_qs.filter(academic_year_id=ay_id)
+        inv_qs = self._billable_fee_invoices(inv_qs)
 
         pay_qs = Payment.objects.filter(tenant=request.user.tenant, status='COMPLETED')
         pay_qs = self._filter_payment_qs(pay_qs, branch_id, zone_ids)
         if ay_id:
             pay_qs = pay_qs.filter(invoice__academic_year_id=ay_id)
+        pay_qs = self._billable_payments(pay_qs)
 
         collected_rows = pay_qs.values('branch_id', 'branch__name').annotate(
             collected=Sum('amount')
@@ -477,16 +491,16 @@ class ReportingViewSet(viewsets.ViewSet):
         
         today = timezone.now().date()
         qs = FeeInvoice.objects.filter(
-            tenant=request.user.tenant, 
+            tenant=request.user.tenant,
             outstanding_amount__gt=0,
-            due_date__lt=today
-        ).exclude(status='CANCELLED')
-        
+            due_date__lt=today,
+        )
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
         if ay_id:
             qs = qs.filter(academic_year_id=ay_id)
-            
+        qs = self._billable_fee_invoices(qs)
+
         aging = qs.annotate(
             days_overdue=ExpressionWrapper(today - F('due_date'), output_field=models.DurationField())
         )

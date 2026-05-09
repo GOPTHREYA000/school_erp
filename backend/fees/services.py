@@ -582,3 +582,97 @@ def process_initial_payment(user, student, admission_fee, tuition_payment, fixed
         'receipt_codes': receipt_codes,
         'payment_ids': payment_ids,
     }
+
+
+def cleanup_after_fee_approval_rejection(student, reviewer_user, remarks=''):
+    """
+    When a fee reduction request is rejected for a pending admission: reverse collections
+    tied to the academic annual invoice only, cancel that invoice, and remove promised
+    StudentFeeItem rows so dashboards stop counting dues and re-enrollment can recreate fees.
+
+    Does not cancel ADM-/TRN- invoices (admission / transport).
+    """
+    from django.utils import timezone
+    from expenses.models import TransactionLog
+
+    refund_total = Decimal('0.00')
+    reversed_receipts = []
+    reason = (remarks or '').strip() or 'Fee reduction / admission rejected'
+
+    if not student.academic_year_id:
+        return {'refund_total': refund_total, 'reversed_receipts': reversed_receipts}
+
+    academic_invs = FeeInvoice.objects.select_for_update().filter(
+        student=student,
+        academic_year_id=student.academic_year_id,
+        month='ANNUAL',
+    ).exclude(
+        invoice_number__startswith='ADM-',
+    ).exclude(
+        invoice_number__startswith='TRN-',
+    ).exclude(
+        status='CANCELLED',
+    )
+    inv_ids = list(academic_invs.values_list('id', flat=True))
+    if not inv_ids:
+        StudentFeeItem.objects.filter(
+            student=student,
+            academic_year_id=student.academic_year_id,
+        ).delete()
+        return {'refund_total': refund_total, 'reversed_receipts': reversed_receipts}
+
+    completed = Payment.objects.select_for_update().filter(
+        invoice_id__in=inv_ids,
+        status='COMPLETED',
+    )
+    for payment in completed:
+        invoice = FeeInvoice.objects.select_for_update().filter(id=payment.invoice_id).first()
+        if invoice:
+            invoice.paid_amount = max(invoice.paid_amount - payment.amount, Decimal('0.00'))
+            invoice.outstanding_amount = invoice.net_amount - invoice.paid_amount
+            if invoice.paid_amount > 0:
+                invoice.status = 'PARTIALLY_PAID'
+            else:
+                invoice.status = 'SENT'
+            invoice.save(update_fields=['paid_amount', 'outstanding_amount', 'status'])
+
+        payment.status = 'REFUNDED'
+        payment.save(update_fields=['status'])
+        refund_total += payment.amount
+        if payment.receipt_number:
+            reversed_receipts.append(payment.receipt_number)
+
+        TransactionLog.objects.create(
+            tenant=payment.tenant,
+            branch=payment.branch,
+            transaction_type='INCOME',
+            category='Fee Reversal',
+            reference_model='Payment',
+            reference_id=payment.id,
+            amount=-payment.amount,
+            description=(
+                f"Auto-reversal after fee concession rejection for "
+                f"{student.admission_number} ({payment.receipt_number or payment.id})"
+            ),
+            transaction_date=timezone.now().date(),
+        )
+
+    Payment.objects.filter(invoice_id__in=inv_ids, status='PENDING').update(status='FAILED')
+
+    for inv in FeeInvoice.objects.select_for_update().filter(id__in=inv_ids):
+        inv.status = 'CANCELLED'
+        inv.outstanding_amount = Decimal('0.00')
+        inv.paid_amount = Decimal('0.00')
+        inv.cancellation_reason = reason[:2000] if len(reason) > 2000 else reason
+        inv.cancelled_by = reviewer_user
+        inv.save(update_fields=[
+            'status', 'outstanding_amount', 'paid_amount',
+            'cancellation_reason', 'cancelled_by', 'updated_at',
+        ])
+
+    StudentFeeItem.objects.filter(
+        student=student,
+        academic_year_id=student.academic_year_id,
+    ).delete()
+
+    return {'refund_total': refund_total, 'reversed_receipts': reversed_receipts}
