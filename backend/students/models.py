@@ -299,6 +299,10 @@ class Student(models.Model):
     enrollment_date = models.DateField(auto_now_add=True)
     leaving_date = models.DateField(null=True, blank=True)
     leaving_reason = models.TextField(blank=True, null=True)
+    admission_fee_marked_paid_earlier = models.BooleanField(default=False)
+    fixed_deposit_marked_paid_earlier = models.BooleanField(default=False)
+    admission_fee_marked_paid_at = models.DateTimeField(null=True, blank=True)
+    fixed_deposit_marked_paid_at = models.DateTimeField(null=True, blank=True)
     # Source
     application = models.ForeignKey(AdmissionApplication, on_delete=models.SET_NULL, null=True, blank=True, related_name='enrolled_student')
     # Audit

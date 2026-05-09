@@ -69,6 +69,11 @@ interface StudentFormData {
   [key: string]: any; // Allow for extra backend fields
 }
 
+/** Aadhaar is 12 digits; keep as string and strip non-digits so mobile keyboards / paste never truncate oddly. */
+function digitsOnlyAadhaar(raw: string, maxLen = 12): string {
+  return String(raw ?? '').replace(/\D/g, '').slice(0, maxLen);
+}
+
 interface StudentFormProps {
   initialData?: Partial<StudentFormData>;
   onSubmit: (data: StudentFormData) => Promise<void>;
@@ -244,6 +249,13 @@ export default function StudentForm({
     if (!isEdit && activeTab !== 'fees') return;
     if (isEdit && activeTab !== 'academic') return;
 
+    if (!isEdit && activeTab === 'fees') {
+      const ok = window.confirm(
+        'Submit this admission? Fees and student details will be saved and enrollment will proceed.',
+      );
+      if (!ok) return;
+    }
+
     if (requireParentEmails) {
       const hasFather = !!(formData.father_name?.trim() || formData.father_phone?.trim());
       const hasMother = !!(formData.mother_name?.trim() || formData.mother_phone?.trim());
@@ -365,9 +377,20 @@ export default function StudentForm({
               </div>
               <div className="lg:col-span-2 space-y-1.5">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Aadhaar Card Number</label>
-                <input placeholder="12 digit number" maxLength={12} value={formData.aadhar_number}
-                  onChange={e => setFormData(prev => ({...prev, aadhar_number: e.target.value}))}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                <input
+                  placeholder="12 digit number"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={12}
+                  value={formData.aadhar_number}
+                  onChange={e =>
+                    setFormData(prev => ({
+                      ...prev,
+                      aadhar_number: digitsOnlyAadhaar(e.target.value),
+                    }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                />
               </div>
               <div className="lg:col-span-2 space-y-1.5">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Identification Mark 1</label>
@@ -421,8 +444,19 @@ export default function StudentForm({
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Aadhaar Number</label>
-                  <input maxLength={12} value={formData.father_aadhaar} onChange={e => setFormData(prev => ({...prev, father_aadhaar: e.target.value}))}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+                  <input
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={12}
+                    value={formData.father_aadhaar}
+                    onChange={e =>
+                      setFormData(prev => ({
+                        ...prev,
+                        father_aadhaar: digitsOnlyAadhaar(e.target.value),
+                      }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
+                  />
                 </div>
               </div>
             </div>
@@ -450,6 +484,22 @@ export default function StudentForm({
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Qualification</label>
                   <input value={formData.mother_qualification} onChange={e => setFormData(prev => ({...prev, mother_qualification: e.target.value}))}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-pink-500" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-tight">Aadhaar Number</label>
+                  <input
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={12}
+                    value={formData.mother_aadhaar}
+                    onChange={e =>
+                      setFormData(prev => ({
+                        ...prev,
+                        mother_aadhaar: digitsOnlyAadhaar(e.target.value),
+                      }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-pink-500"
+                  />
                 </div>
               </div>
             </div>

@@ -38,6 +38,7 @@ export default function StudentProfilePage() {
   const [dropoutData, setDropoutData] = useState({ reason: '', stop_future_fees: true });
   const [droppingOut, setDroppingOut] = useState(false);
   const [reinstating, setReinstating] = useState(false);
+  const [markingInitialStatus, setMarkingInitialStatus] = useState<'ADMISSION_FEE' | 'FIXED_DEPOSIT' | null>(null);
   const { data: academicRecords, loading: recordsLoading } = useApi<any[]>(`/academic-records/?student_id=${id}`);
 
   const [promotedFeeStandard, setPromotedFeeStandard] = useState(0);
@@ -155,11 +156,14 @@ export default function StudentProfilePage() {
   const completedFixedDepositPayments = completedPayments.filter((p: any) => String(p?.invoice_number || '').startsWith('FDP-'));
   const admissionPaidTotal = completedAdmissionPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
   const fixedDepositPaidTotal = completedFixedDepositPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-  const admissionPaid = admissionPaidTotal > 0;
-  const fixedDepositPaid = fixedDepositPaidTotal > 0;
+  const admissionMarkedEarlier = !!student?.admission_fee_marked_paid_earlier;
+  const fixedDepositMarkedEarlier = !!student?.fixed_deposit_marked_paid_earlier;
+  const admissionPaid = admissionPaidTotal > 0 || admissionMarkedEarlier;
+  const fixedDepositPaid = fixedDepositPaidTotal > 0 || fixedDepositMarkedEarlier;
   const transferNote = String(student?.leaving_reason || '');
   const hasTransferTrail = transferNote.toLowerCase().startsWith('transferred from ');
   const requiresInitialPayment = !!student?.requires_initial_payment && !student?.is_csv_imported;
+  const canManageInitialPaymentStatus = user?.role === 'ACCOUNTANT' || user?.role === 'SUPER_ADMIN';
 
   if (loading && !student) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
@@ -274,6 +278,23 @@ export default function StudentProfilePage() {
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to reinstate.');
     } finally { setReinstating(false); }
+  };
+
+  const markInitialPaymentAsEarlier = async (target: 'ADMISSION_FEE' | 'FIXED_DEPOSIT') => {
+    if (!canManageInitialPaymentStatus) return;
+    setMarkingInitialStatus(target);
+    try {
+      await api.post(`/students/${id}/mark-initial-payment-status/`, {
+        target,
+        paid_earlier: true,
+      });
+      toast.success(`${target === 'ADMISSION_FEE' ? 'Admission fee' : 'Fixed deposit'} marked as collected earlier.`);
+      refetch();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to update payment status.');
+    } finally {
+      setMarkingInitialStatus(null);
+    }
   };
 
   const downloadReceipt = async (paymentId: string, receiptNumber: string) => {
@@ -829,6 +850,26 @@ export default function StudentProfilePage() {
                         ₹{admissionPaidTotal.toLocaleString('en-IN')}
                       </span>
                     </div>
+                    {admissionMarkedEarlier && (
+                      <p className="mt-2 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Marked as collected earlier</p>
+                    )}
+                    {canManageInitialPaymentStatus && !admissionPaid && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={() => router.push(`/students/${id}/pay-admission`)}
+                          className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest"
+                        >
+                          Pay now
+                        </button>
+                        <button
+                          onClick={() => markInitialPaymentAsEarlier('ADMISSION_FEE')}
+                          disabled={markingInitialStatus === 'ADMISSION_FEE'}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                        >
+                          {markingInitialStatus === 'ADMISSION_FEE' ? 'Saving...' : 'Mark old paid'}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-white rounded-2xl border border-slate-100 p-4">
@@ -843,6 +884,26 @@ export default function StudentProfilePage() {
                         ₹{fixedDepositPaidTotal.toLocaleString('en-IN')}
                       </span>
                     </div>
+                    {fixedDepositMarkedEarlier && (
+                      <p className="mt-2 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Marked as collected earlier</p>
+                    )}
+                    {canManageInitialPaymentStatus && !fixedDepositPaid && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={() => router.push(`/students/${id}/pay-admission`)}
+                          className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest"
+                        >
+                          Pay now
+                        </button>
+                        <button
+                          onClick={() => markInitialPaymentAsEarlier('FIXED_DEPOSIT')}
+                          disabled={markingInitialStatus === 'FIXED_DEPOSIT'}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                        >
+                          {markingInitialStatus === 'FIXED_DEPOSIT' ? 'Saving...' : 'Mark old paid'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -21,6 +21,7 @@ from accounts.permissions import (
     IsBranchAdminOrAbove,
     normalize_role,
     can_access_domain,
+    role_in,
 )
 from accounts.utils import log_audit_action
 from .models import (
@@ -454,7 +455,10 @@ class StudentViewSet(viewsets.ModelViewSet):
             # Create/Link parent accounts
             father_info = {'phone': student.father_phone, 'email': student.father_email, 'name': student.father_name}
             mother_info = {'phone': student.mother_phone, 'email': student.mother_email, 'name': student.mother_name}
-            link_parent_accounts_to_student(student, father_info, mother_info, tenant, branch)
+            link_parent_accounts_to_student(
+                student, father_info, mother_info, tenant, branch,
+                strict_parent_email=False,
+            )
         except Exception as e:
             logger.error(f"Error creating student: {str(e)}")
             raise e
@@ -539,6 +543,43 @@ class StudentViewSet(viewsets.ModelViewSet):
                     student.leaving_date = request.data.get('leaving_date', timezone.now().date())
                     student.leaving_reason = request.data.get('leaving_reason', '')
                 student.save()
+        return Response({'success': True, 'data': StudentSerializer(student).data})
+
+    @action(detail=True, methods=['post'], url_path='mark-initial-payment-status')
+    def mark_initial_payment_status(self, request, pk=None):
+        student = self.get_object()
+        if not role_in(request.user, {'ACCOUNTANT', 'SUPER_ADMIN'}):
+            return Response(
+                {'detail': 'Only branch accountant or super admin can change this status.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        target = (request.data.get('target') or '').strip().upper()
+        paid_earlier = bool(request.data.get('paid_earlier', True))
+        if target not in {'ADMISSION_FEE', 'FIXED_DEPOSIT'}:
+            return Response({'detail': 'target must be ADMISSION_FEE or FIXED_DEPOSIT.'}, status=400)
+
+        now = timezone.now()
+        if target == 'ADMISSION_FEE':
+            student.admission_fee_marked_paid_earlier = paid_earlier
+            student.admission_fee_marked_paid_at = now if paid_earlier else None
+        else:
+            student.fixed_deposit_marked_paid_earlier = paid_earlier
+            student.fixed_deposit_marked_paid_at = now if paid_earlier else None
+        student.save(update_fields=[
+            'admission_fee_marked_paid_earlier', 'admission_fee_marked_paid_at',
+            'fixed_deposit_marked_paid_earlier', 'fixed_deposit_marked_paid_at',
+            'updated_at',
+        ])
+
+        log_audit_action(
+            user=request.user,
+            action='MARK_INITIAL_PAYMENT_STATUS',
+            model_name='Student',
+            record_id=student.id,
+            details={'target': target, 'paid_earlier': paid_earlier},
+            tenant=student.tenant,
+        )
         return Response({'success': True, 'data': StudentSerializer(student).data})
 
     @action(detail=True, methods=['post'], url_path='setup-promoted-year-fees')

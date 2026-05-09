@@ -53,6 +53,11 @@ export default function StudentsPage() {
       const payload = { ...formData };
       delete payload.branch_name;
       delete payload.class_section_display;
+      for (const key of ['aadhar_number', 'father_aadhaar', 'mother_aadhaar'] as const) {
+        if (typeof payload[key] === 'string') {
+          payload[key] = payload[key].replace(/\D/g, '').slice(0, 12);
+        }
+      }
       // Clean integer fields — DRF IntegerField rejects '' (needs null or a number)
       if (payload.roll_number === '' || payload.roll_number === undefined) {
         payload.roll_number = null;
@@ -256,7 +261,12 @@ export default function StudentsPage() {
                 <p className="text-sm text-blue-700 opacity-80 mt-0.5">All data entered here automatically links to the selected branch and initiates the financial lifecycle.</p>
              </div>
           </div>
-          <StudentForm onSubmit={handleEnroll} onCancel={() => setShowDrawer(false)} />
+          <StudentForm
+            onSubmit={handleEnroll}
+            onCancel={() => setShowDrawer(false)}
+            requireParentEmails={false}
+            submitLabel="Submit"
+          />
         </div>
       </Modal>
 

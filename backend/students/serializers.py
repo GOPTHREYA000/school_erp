@@ -195,7 +195,9 @@ class StudentSerializer(serializers.ModelSerializer):
             Q(invoice__invoice_number__startswith='ADM-') |
             (~Q(invoice__invoice_number__startswith='ADM-') & ~Q(invoice__invoice_number__startswith='TRN-'))
         ).exists()
-        return not has_initial_payment
+        if has_initial_payment:
+            return False
+        return not (obj.admission_fee_marked_paid_earlier or obj.fixed_deposit_marked_paid_earlier)
 
     def get_needs_promoted_class_fee_setup(self, obj):
         from students.services import student_needs_promoted_year_fee_setup
