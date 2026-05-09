@@ -123,6 +123,9 @@ export default function AdminApprovalsQueue() {
     return `${days}d ago`;
   };
 
+  const formatRupee = (n: number | string | undefined) =>
+    `₹${Number(n ?? 0).toLocaleString('en-IN')}`;
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
       <div className="flex items-center gap-4">
@@ -199,14 +202,26 @@ export default function AdminApprovalsQueue() {
                       </span>
                     </div>
 
-                    <div className="mt-2 text-sm text-gray-600">
-                      {req.reason || (
-                        <span>
-                          Reduction of <span className="font-bold text-red-600">₹{Number(req.reduction_amount).toLocaleString('en-IN')}</span> requested
-                          {' '}(Standard: ₹{Number(req.standard_total).toLocaleString('en-IN')} → Offered: ₹{Number(req.offered_total).toLocaleString('en-IN')})
-                        </span>
-                      )}
+                    <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                      <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Locked fee</span>
+                        <span className="font-bold tabular-nums text-slate-900">{formatRupee(req.standard_total)}</span>
+                      </div>
+                      <div className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/80 px-3 py-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Agreed fee</span>
+                        <span className="font-bold tabular-nums text-indigo-900">{formatRupee(req.offered_total)}</span>
+                      </div>
+                      <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Discount</span>
+                        <span className="font-bold tabular-nums text-amber-900">{formatRupee(req.reduction_amount)}</span>
+                      </div>
                     </div>
+                    {req.reason?.trim() ? (
+                      <p className="mt-2 text-sm text-gray-600">
+                        <span className="font-semibold text-gray-700">Reason: </span>
+                        {req.reason}
+                      </p>
+                    ) : null}
 
                     <div className="mt-2 flex items-center gap-4 text-xs text-gray-400">
                       <span className="flex items-center gap-1">

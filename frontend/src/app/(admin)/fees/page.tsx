@@ -190,9 +190,11 @@ export default function FeesPage() {
                            <h4 className="font-bold text-slate-900">{req.student_name}</h4>
                            <p className="text-[10px] font-mono text-slate-400 uppercase">{req.admission_number}</p>
                         </div>
-                        <div className="text-right">
-                           <p className="text-sm font-black text-emerald-600">Offered: ₹{Number(req.offered_total).toLocaleString('en-IN')}</p>
-                           <p className="text-[10px] text-slate-400 line-through">Standard: ₹{Number(req.standard_total).toLocaleString('en-IN')}</p>
+                        <div className="text-right space-y-0.5">
+                           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Agreed fee</p>
+                           <p className="text-sm font-black text-emerald-600 tabular-nums">₹{Number(req.offered_total).toLocaleString('en-IN')}</p>
+                           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 pt-1">Locked fee</p>
+                           <p className="text-xs text-slate-500 tabular-nums line-through">₹{Number(req.standard_total).toLocaleString('en-IN')}</p>
                         </div>
                      </div>
                      <div className="bg-slate-50 p-2 rounded-lg text-xs italic text-slate-600 mb-4 border-l-2 border-blue-400">
