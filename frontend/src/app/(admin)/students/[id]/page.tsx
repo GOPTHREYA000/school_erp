@@ -41,6 +41,10 @@ export default function StudentProfilePage() {
   const [droppingOut, setDroppingOut] = useState(false);
   const [reinstating, setReinstating] = useState(false);
   const [markingInitialStatus, setMarkingInitialStatus] = useState<'ADMISSION_FEE' | 'FIXED_DEPOSIT' | null>(null);
+  const [confirmInitialStatusChange, setConfirmInitialStatusChange] = useState<{
+    target: 'ADMISSION_FEE' | 'FIXED_DEPOSIT';
+    paidEarlier: boolean;
+  } | null>(null);
   const { data: academicRecords, loading: recordsLoading } = useApi<any[]>(`/academic-records/?student_id=${id}`);
 
   const [promotedFeeStandard, setPromotedFeeStandard] = useState(0);
@@ -286,20 +290,28 @@ export default function StudentProfilePage() {
     } finally { setReinstating(false); }
   };
 
-  const markInitialPaymentAsEarlier = async (target: 'ADMISSION_FEE' | 'FIXED_DEPOSIT') => {
+  const updateInitialPaymentStatus = async (
+    target: 'ADMISSION_FEE' | 'FIXED_DEPOSIT',
+    paidEarlier: boolean
+  ) => {
     if (!canManageInitialPaymentStatus) return;
     setMarkingInitialStatus(target);
     try {
       await api.post(`/students/${id}/mark-initial-payment-status/`, {
         target,
-        paid_earlier: true,
+        paid_earlier: paidEarlier,
       });
-      toast.success(`${target === 'ADMISSION_FEE' ? 'Admission fee' : 'Caution fee'} marked as collected earlier.`);
+      toast.success(
+        paidEarlier
+          ? `${target === 'ADMISSION_FEE' ? 'Admission fee' : 'Caution fee'} marked as collected earlier.`
+          : `${target === 'ADMISSION_FEE' ? 'Admission fee' : 'Caution fee'} mark removed.`
+      );
       refetch();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Failed to update payment status.');
     } finally {
       setMarkingInitialStatus(null);
+      setConfirmInitialStatusChange(null);
     }
   };
 
@@ -857,7 +869,18 @@ export default function StudentProfilePage() {
                       </span>
                     </div>
                     {admissionMarkedEarlier && (
-                      <p className="mt-2 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Marked as collected earlier</p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Marked as collected earlier</p>
+                        {canManageInitialPaymentStatus && (
+                          <button
+                            onClick={() => setConfirmInitialStatusChange({ target: 'ADMISSION_FEE', paidEarlier: false })}
+                            disabled={markingInitialStatus === 'ADMISSION_FEE'}
+                            className="text-[10px] font-black text-amber-700 uppercase tracking-widest hover:text-amber-800 disabled:opacity-50"
+                          >
+                            Edit status
+                          </button>
+                        )}
+                      </div>
                     )}
                     {canManageInitialPaymentStatus && !admissionPaid && (
                       <div className="mt-3 flex gap-2">
@@ -868,12 +891,34 @@ export default function StudentProfilePage() {
                           {admissionPartiallyPaid ? 'Extra Payment' : 'Pay now'}
                         </button>
                         <button
-                          onClick={() => markInitialPaymentAsEarlier('ADMISSION_FEE')}
+                          onClick={() => setConfirmInitialStatusChange({ target: 'ADMISSION_FEE', paidEarlier: true })}
                           disabled={markingInitialStatus === 'ADMISSION_FEE'}
                           className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
                         >
                           {markingInitialStatus === 'ADMISSION_FEE' ? 'Saving...' : 'Mark old paid'}
                         </button>
+                      </div>
+                    )}
+                    {confirmInitialStatusChange?.target === 'ADMISSION_FEE' && (
+                      <div className="mt-3 p-2 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                          {confirmInitialStatusChange.paidEarlier ? 'Confirm mark old paid?' : 'Confirm remove old-paid mark?'}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setConfirmInitialStatusChange(null)}
+                            className="px-2 py-1 rounded-lg bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => updateInitialPaymentStatus('ADMISSION_FEE', confirmInitialStatusChange.paidEarlier)}
+                            disabled={markingInitialStatus === 'ADMISSION_FEE'}
+                            className="px-2 py-1 rounded-lg bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                          >
+                            {markingInitialStatus === 'ADMISSION_FEE' ? 'Saving...' : 'Confirm'}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -891,7 +936,18 @@ export default function StudentProfilePage() {
                       </span>
                     </div>
                     {fixedDepositMarkedEarlier && (
-                      <p className="mt-2 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Marked as collected earlier</p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Marked as collected earlier</p>
+                        {canManageInitialPaymentStatus && (
+                          <button
+                            onClick={() => setConfirmInitialStatusChange({ target: 'FIXED_DEPOSIT', paidEarlier: false })}
+                            disabled={markingInitialStatus === 'FIXED_DEPOSIT'}
+                            className="text-[10px] font-black text-amber-700 uppercase tracking-widest hover:text-amber-800 disabled:opacity-50"
+                          >
+                            Edit status
+                          </button>
+                        )}
+                      </div>
                     )}
                     {canManageInitialPaymentStatus && !fixedDepositPaid && (
                       <div className="mt-3 flex gap-2">
@@ -902,12 +958,34 @@ export default function StudentProfilePage() {
                           {fixedDepositPartiallyPaid ? 'Extra Payment' : 'Pay now'}
                         </button>
                         <button
-                          onClick={() => markInitialPaymentAsEarlier('FIXED_DEPOSIT')}
+                          onClick={() => setConfirmInitialStatusChange({ target: 'FIXED_DEPOSIT', paidEarlier: true })}
                           disabled={markingInitialStatus === 'FIXED_DEPOSIT'}
                           className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
                         >
                           {markingInitialStatus === 'FIXED_DEPOSIT' ? 'Saving...' : 'Mark old paid'}
                         </button>
+                      </div>
+                    )}
+                    {confirmInitialStatusChange?.target === 'FIXED_DEPOSIT' && (
+                      <div className="mt-3 p-2 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                          {confirmInitialStatusChange.paidEarlier ? 'Confirm mark old paid?' : 'Confirm remove old-paid mark?'}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setConfirmInitialStatusChange(null)}
+                            className="px-2 py-1 rounded-lg bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => updateInitialPaymentStatus('FIXED_DEPOSIT', confirmInitialStatusChange.paidEarlier)}
+                            disabled={markingInitialStatus === 'FIXED_DEPOSIT'}
+                            className="px-2 py-1 rounded-lg bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                          >
+                            {markingInitialStatus === 'FIXED_DEPOSIT' ? 'Saving...' : 'Confirm'}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
