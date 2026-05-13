@@ -72,15 +72,15 @@ def applicant_fee_totals(qs):
 
 
 def student_list_totals(qs):
-    """Roll up collected amounts; avoid Sum(total_initial_income) on a combined annotation (fragile on some DB backends)."""
+    """Roll up collected amounts; use distinct aggregate aliases (Django+PG bug when alias matches annotation name)."""
     a = qs.aggregate(
-        admission_fee_collected=Sum('admission_fee_collected'),
-        fixed_deposit_collected=Sum('fixed_deposit_collected'),
-        special_fee_collected=Sum('special_fee_collected'),
+        _sum_adm=Sum('admission_fee_collected'),
+        _sum_fd=Sum('fixed_deposit_collected'),
+        _sum_spf=Sum('special_fee_collected'),
     )
-    ad = a['admission_fee_collected'] or Decimal('0')
-    fd = a['fixed_deposit_collected'] or Decimal('0')
-    sp = a['special_fee_collected'] or Decimal('0')
+    ad = a['_sum_adm'] or Decimal('0')
+    fd = a['_sum_fd'] or Decimal('0')
+    sp = a['_sum_spf'] or Decimal('0')
     ti = ad + fd + sp
     return {
         'total_initial_income': _s(ti),

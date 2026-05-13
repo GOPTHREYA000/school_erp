@@ -1,7 +1,7 @@
 from collections import defaultdict
 from decimal import Decimal
 
-from django.db.models import Count, DecimalField, Exists, OuterRef, Q, Subquery, Sum, Value
+from django.db.models import Count, DecimalField, Exists, OuterRef, Q, Subquery, Sum, Value, UUIDField
 from django.db.models.functions import Coalesce
 
 from academics.models import ExamResult, ExamTerm
@@ -34,19 +34,33 @@ class AcademicsService:
             .annotate(total=Sum('amount'))
             .values('total')[:1]
         )
-        latest_spf_invoice = FeeInvoice.objects.filter(
-            student_id=OuterRef('pk'),
-            academic_year_id=OuterRef('academic_year_id'),
-            invoice_number__startswith='SPF-',
-        ).exclude(status__in=['CANCELLED', 'WAIVED']).order_by('-created_at')
-
-        special_fee_net_subquery = Subquery(latest_spf_invoice.values('net_amount')[:1])
-        special_fee_outstanding_subquery = Subquery(latest_spf_invoice.values('outstanding_amount')[:1])
         special_fee_amount_subquery = (
             completed_payments.filter(invoice__invoice_number__startswith='SPF-')
             .values('student_id')
             .annotate(total=Sum('amount'))
             .values('total')[:1]
+        )
+
+        spf_latest_id_sq = Subquery(
+            FeeInvoice.objects.filter(
+                student_id=OuterRef('pk'),
+                academic_year_id=OuterRef('academic_year_id'),
+                invoice_number__startswith='SPF-',
+            )
+            .exclude(status__in=['CANCELLED', 'WAIVED'])
+            .order_by('-created_at')
+            .values('id')[:1],
+            output_field=UUIDField(null=True),
+        )
+        spf_net_sq = Subquery(
+            FeeInvoice.objects.filter(id=OuterRef('_spf_latest_id'))
+            .values('net_amount')[:1],
+            output_field=DecimalField(max_digits=10, decimal_places=2),
+        )
+        spf_outstanding_sq = Subquery(
+            FeeInvoice.objects.filter(id=OuterRef('_spf_latest_id'))
+            .values('outstanding_amount')[:1],
+            output_field=DecimalField(max_digits=10, decimal_places=2),
         )
 
         qs = qs.annotate(
@@ -62,22 +76,23 @@ class AcademicsService:
                 Value(Decimal('0.00')),
                 output_field=DecimalField(max_digits=10, decimal_places=2),
             ),
-            special_fee_net=Coalesce(
-                Subquery(special_fee_net_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
-                Value(Decimal('0.00')),
-                output_field=DecimalField(max_digits=10, decimal_places=2),
-            ),
-            special_fee_outstanding=Coalesce(
-                Subquery(special_fee_outstanding_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
-                Value(Decimal('0.00')),
-                output_field=DecimalField(max_digits=10, decimal_places=2),
-            ),
+            _spf_latest_id=spf_latest_id_sq,
             special_fee_collected=Coalesce(
                 Subquery(special_fee_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
                 Value(Decimal('0.00')),
                 output_field=DecimalField(max_digits=10, decimal_places=2),
             ),
         ).annotate(
+            special_fee_net=Coalesce(
+                spf_net_sq,
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
+            special_fee_outstanding=Coalesce(
+                spf_outstanding_sq,
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
             total_initial_income=Coalesce(
                 Subquery(admission_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
                 Value(Decimal('0.00')),
@@ -90,7 +105,7 @@ class AcademicsService:
                 Subquery(special_fee_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
                 Value(Decimal('0.00')),
                 output_field=DecimalField(max_digits=10, decimal_places=2),
-            )
+            ),
         )
         
         if filters.class_id:
