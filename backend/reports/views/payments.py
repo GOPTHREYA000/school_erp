@@ -11,6 +11,12 @@ from ..summary import (
     expense_amount_total,
     fee_invoice_totals,
     fees_paid_grand_total,
+    footer_amount_column,
+    footer_concession_columns,
+    footer_fee_balance_amount_columns,
+    footer_mismatch_amount_columns,
+    footer_outstanding_column,
+    footer_student_detailed_balance_columns,
     income_statement_total,
     mismatch_totals,
     payment_amount_total,
@@ -34,7 +40,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_fee_balance_amount_columns(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='daily-collections')
     def daily_collections(self, request):
@@ -47,7 +55,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='receipts')
     def receipts(self, request):
@@ -60,8 +70,10 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
-        
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
+
     @action(detail=False, methods=['get'], url_path='deleted-receipts')
     def deleted_receipts(self, request):
         filters = BaseReportFilter(request, request.user)
@@ -73,21 +85,29 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='mismatch-detection')
     def mismatch_detection(self, request):
         filters = BaseReportFilter(request, request.user)
         data = PaymentsService.get_mismatch_detection(filters)
         summary = mismatch_totals(data)
-        return ReportPagination().get_unpaginated_response(data, summary=summary)
+        return ReportPagination().get_unpaginated_response(
+            data, summary=summary, footer_totals=footer_mismatch_amount_columns(data)
+        )
 
     @action(detail=False, methods=['get'], url_path='income-statement')
     def income_statement(self, request):
         filters = BaseReportFilter(request, request.user)
         data = list(PaymentsService.get_income_statement(filters))
         summary = income_statement_total(data)
-        return ReportPagination().get_unpaginated_response(data, summary=summary)
+        return ReportPagination().get_unpaginated_response(
+            data,
+            summary=summary,
+            footer_totals={'total': summary['total_amount']},
+        )
 
     @action(detail=False, methods=['get'], url_path='financial-dashboard')
     def financial_dashboard(self, request):
@@ -107,7 +127,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='fee-balances-teachers')
     def fee_balances_teachers(self, request):
@@ -122,7 +144,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_outstanding_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='other-income')
     def other_income(self, request):
@@ -135,7 +159,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='deleted-other-income')
     def deleted_other_income(self, request):
@@ -148,7 +174,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='cheques')
     def cheques(self, request):
@@ -161,7 +189,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='concessions')
     def concessions(self, request):
@@ -175,14 +205,20 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_concession_columns(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='fees-paid')
     def fees_paid(self, request):
         filters = BaseReportFilter(request, request.user)
         data = list(PaymentsService.get_fees_paid_by_mode(filters))
         summary = fees_paid_grand_total(data)
-        return ReportPagination().get_unpaginated_response(data, summary=summary)
+        return ReportPagination().get_unpaginated_response(
+            data,
+            summary=summary,
+            footer_totals={'total': summary['total_amount']},
+        )
 
     @action(detail=False, methods=['get'], url_path='bank-transactions')
     def bank_transactions(self, request):
@@ -195,7 +231,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='bus-expenses')
     def bus_expenses(self, request):
@@ -208,7 +246,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='fee-balances-no-concession')
     def fee_balances_no_concession(self, request):
@@ -223,7 +263,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_outstanding_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='all-receipts')
     def all_receipts(self, request):
@@ -236,14 +278,18 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='all-receipts-with-mismatch')
     def all_receipts_with_mismatch(self, request):
         filters = BaseReportFilter(request, request.user)
         data = PaymentsService.get_mismatch_detection(filters)
         summary = mismatch_totals(data)
-        return ReportPagination().get_unpaginated_response(data, summary=summary)
+        return ReportPagination().get_unpaginated_response(
+            data, summary=summary, footer_totals=footer_mismatch_amount_columns(data)
+        )
 
     @action(detail=False, methods=['get'], url_path='all-income-expenses')
     def all_income_expenses(self, request):
@@ -256,7 +302,9 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         )
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(
+            page, summary=summary, footer_totals=footer_amount_column(qs)
+        )
 
     @action(detail=False, methods=['get'], url_path='student-detailed-balances')
     def student_detailed_balances(self, request):
@@ -264,6 +312,7 @@ class PaymentsReportViewSet(viewsets.ViewSet):
         base = PaymentsService.get_student_balance_base_invoices(filters)
         summary = fee_invoice_totals(base)
         data = PaymentsService.get_student_balance_summary(filters)
+        footer_totals = footer_student_detailed_balance_columns(data)
         paginator = ReportPagination()
         page = paginator.paginate_queryset(data, request, view=self)
-        return paginator.get_paginated_response(page, summary=summary)
+        return paginator.get_paginated_response(page, summary=summary, footer_totals=footer_totals)

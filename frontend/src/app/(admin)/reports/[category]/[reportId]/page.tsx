@@ -28,6 +28,16 @@ function normalizeSummary(raw: unknown): Record<string, string> | null {
   return out;
 }
 
+function normalizeFooterTotals(raw: unknown): Record<string, string> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v === null || v === undefined) continue;
+    out[k] = typeof v === 'string' ? v : String(v);
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 export default function DynamicReportPage({ params }: { params: Promise<{ category: string; reportId: string }> }) {
   const unwrappedParams = use(params);
   const { category, reportId } = unwrappedParams;
@@ -45,6 +55,7 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
     totalCount: 0
   });
   const [summary, setSummary] = useState<Record<string, string> | null>(null);
+  const [footerTotals, setFooterTotals] = useState<Record<string, string> | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const summaryCards = getSummaryCardsForExportKey(config.exportKey);
 
@@ -52,6 +63,7 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
     const activeFilters = overrideFilters ?? filters ?? {};
     setFetchStatus({ state: 'loading' });
     setSummary(null);
+    setFooterTotals(null);
     const startTime = Date.now();
 
     try {
@@ -67,6 +79,7 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
         const results = Array.isArray(d) ? d : (d.results ?? []);
         setData(results);
         setSummary(normalizeSummary(d.summary));
+        setFooterTotals(normalizeFooterTotals(d.footer_totals));
 
         if (d.current_page) {
           setPagination({
@@ -96,6 +109,7 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
       } else {
         setData([]);
         setSummary(null);
+        setFooterTotals(null);
         setFetchStatus({
           state: 'success',
           message: 'Query executed successfully — no data returned',
@@ -107,6 +121,7 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
       console.error('Report fetch error:', e);
       setData([]);
       setSummary(null);
+      setFooterTotals(null);
 
       const status = e?.response?.status;
       const serverMessage = e?.response?.data?.detail 
@@ -298,6 +313,7 @@ export default function DynamicReportPage({ params }: { params: Promise<{ catego
             columns={config.columns} 
             data={data} 
             loading={fetchStatus.state === 'loading'}
+            footerTotals={footerTotals}
             pagination={pagination}
             onPageChange={(page: number) => fetchReport(page)}
           />

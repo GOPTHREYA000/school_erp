@@ -321,11 +321,62 @@ def _create_fixed_deposit_invoice(student, amount: Decimal, user, payment_date):
     return invoice
 
 
+def _create_special_fee_invoice(student, amount: Decimal, user, payment_date):
+    """Optional special fee invoice (SPF-*); not part of annual academic fee structure."""
+    from .models import DocumentSequence, FeeCategory
+
+    amount = Decimal(str(amount))
+    cat, _ = FeeCategory.objects.get_or_create(
+        branch=student.branch,
+        code='SPECIAL_FEE',
+        defaults={
+            'tenant': student.tenant,
+            'name': 'Special Fee',
+            'description': 'One-time special fee',
+            'is_active': True,
+            'order': 2,
+        },
+    )
+    inv_no = DocumentSequence.get_next_sequence(
+        student.branch,
+        'INVOICE',
+        f'SPF-{student.branch.branch_code}-{student.academic_year.start_date.year}',
+    )
+    invoice = FeeInvoice.objects.create(
+        tenant=student.tenant,
+        branch=student.branch,
+        academic_year=student.academic_year,
+        student=student,
+        month=None,
+        invoice_number=inv_no,
+        due_date=payment_date,
+        gross_amount=amount,
+        concession_amount=Decimal('0.00'),
+        net_amount=amount,
+        outstanding_amount=amount,
+        paid_amount=Decimal('0.00'),
+        status='SENT',
+        generated_by='MANUAL',
+        created_by=user,
+    )
+    FeeInvoiceItem.objects.create(
+        invoice=invoice,
+        category=cat,
+        original_amount=amount,
+        concession=Decimal('0.00'),
+        final_amount=amount,
+        description='Special fee',
+    )
+    return invoice
+
+
 def _academic_invoice_for_initial_tuition(student):
-    """Outstanding academic fee invoice — excludes admission (ADM-) and transport (TRN-)."""
+    """Outstanding academic fee invoice — excludes admission (ADM-), caution (FDP-), special (SPF-), transport (TRN-)."""
     qs = (
         FeeInvoice.objects.filter(student=student, outstanding_amount__gt=0)
         .exclude(invoice_number__startswith='ADM-')
+        .exclude(invoice_number__startswith='FDP-')
+        .exclude(invoice_number__startswith='SPF-')
         .exclude(invoice_number__startswith='TRN-')
         .select_for_update()
         .order_by('created_at')
@@ -430,6 +481,8 @@ def _apply_payment_to_invoice(user, student, invoice, amount: Decimal, payment_m
             if invoice.invoice_number.startswith('ADM-')
             else 'Fixed Deposit'
             if invoice.invoice_number.startswith('FDP-')
+            else 'Special Fee'
+            if invoice.invoice_number.startswith('SPF-')
             else 'Fee Payment'
         ),
         reference_model='Payment',
@@ -456,7 +509,17 @@ def _apply_payment_to_invoice(user, student, invoice, amount: Decimal, payment_m
     return payment
 
 
-def process_initial_payment(user, student, admission_fee, tuition_payment, fixed_deposit, payment_mode, payment_date, reference_number=None):
+def process_initial_payment(
+    user,
+    student,
+    admission_fee,
+    tuition_payment,
+    fixed_deposit,
+    payment_mode,
+    payment_date,
+    reference_number=None,
+    special_fee=None,
+):
     """
     Enrollment payments: admission goes only to ADM-* invoice; tuition only to academic invoices.
     If an ADM-* invoice already exists and admission_fee is larger than its outstanding balance,
@@ -467,7 +530,8 @@ def process_initial_payment(user, student, admission_fee, tuition_payment, fixed
     admission_fee = Decimal(str(admission_fee or 0))
     tuition_payment = Decimal(str(tuition_payment or 0))
     fixed_deposit = Decimal(str(fixed_deposit or 0))
-    total_paid = admission_fee + tuition_payment + fixed_deposit
+    special_fee = Decimal(str(special_fee or 0))
+    total_paid = admission_fee + tuition_payment + fixed_deposit + special_fee
     if total_paid <= 0:
         return {'status': 'skipped', 'message': 'Amount is zero.', 'total_paid': 0.0, 'receipt_codes': []}
 
@@ -578,6 +642,37 @@ def process_initial_payment(user, student, admission_fee, tuition_payment, fixed
                 total_applied += p3.amount
                 receipt_codes.append(p3.receipt_number)
                 payment_ids.append(str(p3.id))
+
+        if special_fee > 0:
+            existing_spf = (
+                FeeInvoice.objects.filter(student=student, invoice_number__startswith='SPF-')
+                .exclude(status__in=['CANCELLED', 'WAIVED'])
+                .select_for_update()
+                .first()
+            )
+            if existing_spf:
+                spf_inv = existing_spf
+                if spf_inv.outstanding_amount <= 0:
+                    raise ValidationError('Special fee invoice is already settled.')
+                pay_spf = min(special_fee, spf_inv.outstanding_amount)
+            else:
+                spf_inv = _create_special_fee_invoice(student, special_fee, user, payment_date)
+                pay_spf = special_fee
+
+            p4 = _apply_payment_to_invoice(
+                user,
+                student,
+                spf_inv,
+                pay_spf,
+                payment_mode,
+                payment_date,
+                reference_number,
+                f'Special fee payment for {spf_inv.invoice_number}',
+            )
+            if p4:
+                total_applied += p4.amount
+                receipt_codes.append(p4.receipt_number)
+                payment_ids.append(str(p4.id))
 
     return {
         'status': 'success',

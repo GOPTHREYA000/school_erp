@@ -76,6 +76,7 @@ def student_list_totals(qs):
         total_initial_income=Sum('total_initial_income'),
         admission_fee_collected=Sum('admission_fee_collected'),
         fixed_deposit_collected=Sum('fixed_deposit_collected'),
+        special_fee_collected=Sum('special_fee_collected'),
     )
     return {k: _s(a[k]) for k in a}
 
@@ -119,3 +120,61 @@ def year_transition_rollups(rows):
         'dropout', 'graduated', 'transferred',
     ]
     return {k: str(sum(int(r.get(k) or 0) for r in rows)) for k in keys}
+
+
+# --- Table footer row totals (full filtered queryset / full row list, not current page) ---
+
+
+def footer_fee_balance_amount_columns(qs):
+    """Keys align with fee balance report columns: net, paid, balance."""
+    a = qs.aggregate(
+        net_amount=Sum('net_amount'),
+        paid_amount=Sum('paid_amount'),
+        outstanding_amount=Sum('outstanding_amount'),
+    )
+    return {k: _s(a[k]) for k in a}
+
+
+def footer_outstanding_column(qs):
+    a = qs.aggregate(outstanding_amount=Sum('outstanding_amount'))
+    return {k: _s(a[k]) for k in a}
+
+
+def footer_amount_column(qs, field='amount'):
+    return {field: _s(qs.aggregate(t=Sum(field))['t'])}
+
+
+def footer_concession_columns(qs):
+    a = qs.aggregate(
+        gross_amount=Sum('gross_amount'),
+        net_amount=Sum('net_amount'),
+        concession_amount=Sum('concession_amount'),
+    )
+    g = a['gross_amount'] or Decimal('0')
+    c = a['concession_amount'] or Decimal('0')
+    pct = (c / g * Decimal('100')) if g else Decimal('0')
+    return {
+        'gross_amount': _s(a['gross_amount']),
+        'net_amount': _s(a['net_amount']),
+        'concession_amount': _s(a['concession_amount']),
+        'concession_percent': _s(pct),
+    }
+
+
+def footer_student_detailed_balance_columns(student_summary_qs):
+    a = student_summary_qs.aggregate(
+        total_net=Sum('total_net'),
+        total_paid=Sum('total_paid'),
+        total_outstanding=Sum('total_outstanding'),
+    )
+    return {k: _s(a[k]) for k in a}
+
+
+def footer_mismatch_amount_columns(rows):
+    if not rows:
+        return {}
+    return {
+        'invoice_paid': _s(sum(Decimal(str(r.get('invoice_paid') or 0)) for r in rows)),
+        'payment_sum': _s(sum(Decimal(str(r.get('payment_sum') or 0)) for r in rows)),
+        'delta': _s(sum(Decimal(str(r.get('delta') or 0)) for r in rows)),
+    }

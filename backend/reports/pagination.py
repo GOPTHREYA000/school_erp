@@ -6,7 +6,7 @@ class ReportPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 500
 
-    def get_paginated_response(self, data, summary=None):
+    def get_paginated_response(self, data, summary=None, footer_totals=None):
         payload = {
             'count': self.page.paginator.count,
             'total_pages': self.page.paginator.num_pages,
@@ -18,10 +18,12 @@ class ReportPagination(PageNumberPagination):
         }
         if summary is not None:
             payload['summary'] = summary
+        if footer_totals is not None:
+            payload['footer_totals'] = footer_totals
         return Response({'success': True, 'data': payload})
 
     @staticmethod
-    def get_unpaginated_response(data, summary=None):
+    def get_unpaginated_response(data, summary=None, footer_totals=None):
         """For aggregate/summary endpoints where pagination isn't meaningful."""
         payload = {
             'count': len(data),
@@ -34,4 +36,6 @@ class ReportPagination(PageNumberPagination):
         }
         if summary is not None:
             payload['summary'] = summary
+        if footer_totals is not None:
+            payload['footer_totals'] = footer_totals
         return Response({'success': True, 'data': payload})

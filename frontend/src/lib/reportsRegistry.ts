@@ -23,6 +23,7 @@ export type ReportConfig = {
     showVendorNameSearch?: boolean;
     showAdmissionPaymentFilter?: boolean;
     showFixedDepositPaymentFilter?: boolean;
+    showSpecialFeePaymentFilter?: boolean;
   };
   /** Offer “Download PDF” (uses tenant document template + `?file=pdf`). */
   offerPdfDownload?: boolean;
@@ -130,7 +131,7 @@ export const reportsRegistry: ReportCategory[] = [
         id: 'students',
         categoryId: 'academics',
         title: 'Students List',
-        description: 'Students list with admission fee and caution fee payment status',
+        description: 'Students list with admission, caution, and special fee status and amounts',
         apiEndpoint: 'reports/academics/students-list/',
         exportKey: 'ACADEMICS_STUDENTS',
         filters: {
@@ -139,6 +140,7 @@ export const reportsRegistry: ReportCategory[] = [
           showAcademicYear: true,
           showAdmissionPaymentFilter: true,
           showFixedDepositPaymentFilter: true,
+          showSpecialFeePaymentFilter: true,
         },
         // Backend .values(): id, admission_number, first_name, last_name, class_section__grade, class_section__section, status, gender, caste_category
         columns: [
@@ -147,9 +149,23 @@ export const reportsRegistry: ReportCategory[] = [
           { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.class_section__grade || ''}-${row.class_section__section || ''}`.replace(/-$/, '') },
           { key: 'admission_fee_paid', label: 'Admission Fee', render: (_v: any, row: any) => row.admission_fee_paid ? 'Paid' : 'Not paid' },
           { key: 'fixed_deposit_paid', label: 'Caution Fee', render: (_v: any, row: any) => row.fixed_deposit_paid ? 'Paid' : 'Not paid' },
+          {
+            key: 'special_fee_status',
+            label: 'Special Fee',
+            render: (_v: any, row: any) => {
+              const net = Number(row.special_fee_net || 0);
+              const out = Number(row.special_fee_outstanding || 0);
+              if (net <= 0) return 'Not invoiced';
+              if (out <= 0) return 'Paid';
+              const col = Number(row.special_fee_collected || 0);
+              return col > 0 ? 'Partial' : 'Unpaid';
+            },
+          },
           { key: 'admission_fee_collected', label: 'Admission Collected', render: (_v: any, row: any) => `₹${Number(row.admission_fee_collected || 0).toLocaleString('en-IN')}` },
-          { key: 'fixed_deposit_collected', label: 'FD Collected', render: (_v: any, row: any) => `₹${Number(row.fixed_deposit_collected || 0).toLocaleString('en-IN')}` },
-          { key: 'total_initial_income', label: 'Final Income', render: (_v: any, row: any) => `₹${Number(row.total_initial_income || 0).toLocaleString('en-IN')}` },
+          { key: 'fixed_deposit_collected', label: 'Caution Collected', render: (_v: any, row: any) => `₹${Number(row.fixed_deposit_collected || 0).toLocaleString('en-IN')}` },
+          { key: 'special_fee_collected', label: 'Special Collected', render: (_v: any, row: any) => `₹${Number(row.special_fee_collected || 0).toLocaleString('en-IN')}` },
+          { key: 'special_fee_outstanding', label: 'Special Balance', render: (_v: any, row: any) => `₹${Number(row.special_fee_outstanding || 0).toLocaleString('en-IN')}` },
+          { key: 'total_initial_income', label: 'Initial Income', render: (_v: any, row: any) => `₹${Number(row.total_initial_income || 0).toLocaleString('en-IN')}` },
           { key: 'gender', label: 'Gender' },
           { key: 'status', label: 'Status' }
         ]

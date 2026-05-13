@@ -60,6 +60,7 @@ class AcademicsReportViewSet(viewsets.ViewSet):
             'status', 'gender', 'caste_category',
             'admission_fee_paid', 'fixed_deposit_paid',
             'admission_fee_collected', 'fixed_deposit_collected',
+            'special_fee_net', 'special_fee_collected', 'special_fee_outstanding',
             'total_initial_income',
         )
         

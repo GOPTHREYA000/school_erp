@@ -179,14 +179,29 @@ class ReportingViewSet(viewsets.ViewSet):
             revenue_qs = revenue_qs.filter(invoice__academic_year_id=ay_id)
         revenue_qs = self._billable_payments(revenue_qs)
         revenue_collected = revenue_qs.aggregate(total=Sum('amount'))['total'] or 0
-        academic_revenue_collected = revenue_qs.exclude(
+        # Card "Academic revenue received": admission + special fee + academic tuition + transport (when collected).
+        # Excludes caution deposit (FDP-) only. When branch_id is omitted,
+        # SUPER_ADMIN / CHIEF_ACCOUNTANT scope is entire tenant (all branches).
+        admission_rev = revenue_qs.filter(
+            invoice__invoice_number__startswith='ADM-'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        special_rev = revenue_qs.filter(
+            invoice__invoice_number__startswith='SPF-'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        transport_rev = revenue_qs.filter(
+            invoice__invoice_number__startswith='TRN-'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        academic_core_rev = revenue_qs.exclude(
             invoice__invoice_number__startswith='ADM-'
         ).exclude(
             invoice__invoice_number__startswith='TRN-'
-        ).aggregate(total=Sum('amount'))['total'] or 0
-        transport_revenue_collected = revenue_qs.filter(
-            invoice__invoice_number__startswith='TRN-'
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        ).exclude(
+            invoice__invoice_number__startswith='FDP-'
+        ).exclude(
+            invoice__invoice_number__startswith='SPF-'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        academic_revenue_collected = admission_rev + special_rev + academic_core_rev + transport_rev
+        transport_revenue_collected = transport_rev
 
         return Response({
             'success': True,
@@ -195,6 +210,9 @@ class ReportingViewSet(viewsets.ViewSet):
                 'total_paid': float(stats['total_paid'] or 0),
                 'revenue_collected': float(revenue_collected),
                 'academic_revenue_collected': float(academic_revenue_collected),
+                'admission_revenue_collected': float(admission_rev),
+                'special_fee_revenue_collected': float(special_rev),
+                'academic_tuition_revenue_collected': float(academic_core_rev),
                 'transport_revenue_collected': float(transport_revenue_collected),
                 'today_collection': float(today_collection),
                 'total_outstanding': float(stats['total_outstanding'] or 0),

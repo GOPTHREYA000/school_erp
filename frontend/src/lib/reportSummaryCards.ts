@@ -76,9 +76,10 @@ export const reportSummaryCardsByExportKey: Record<string, SummaryCardConfig[]> 
   ADMIT_COUNTS_BY_MONTH: [{ key: 'total_applications', label: 'Total applications', format: 'number' }],
 
   ACADEMICS_STUDENTS: [
-    { key: 'total_initial_income', label: 'Total initial income (ADM+FD)', format: 'inr' },
+    { key: 'total_initial_income', label: 'Total initial income (ADM+FD+SPF)', format: 'inr' },
     { key: 'admission_fee_collected', label: 'Admission fees collected', format: 'inr' },
     { key: 'fixed_deposit_collected', label: 'Caution fees collected', format: 'inr' },
+    { key: 'special_fee_collected', label: 'Special fees collected', format: 'inr' },
   ],
   ACADEMICS_STRENGTH: [{ key: 'total_students', label: 'Total students', format: 'number' }],
   ACADEMICS_YEAR_TRANSITION: [

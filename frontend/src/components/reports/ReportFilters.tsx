@@ -22,6 +22,7 @@ interface ReportFiltersProps {
   showVendorNameSearch?: boolean;
   showAdmissionPaymentFilter?: boolean;
   showFixedDepositPaymentFilter?: boolean;
+  showSpecialFeePaymentFilter?: boolean;
 }
 
 export default function ReportFilters({
@@ -40,6 +41,7 @@ export default function ReportFilters({
   showVendorNameSearch = false,
   showAdmissionPaymentFilter = false,
   showFixedDepositPaymentFilter = false,
+  showSpecialFeePaymentFilter = false,
 }: ReportFiltersProps) {
   const { user } = useAuth();
   const { selectedBranch } = useBranch();
@@ -61,6 +63,7 @@ export default function ReportFilters({
     vendor_name: '',
     admission_payment: '',
     fixed_deposit_payment: '',
+    special_fee_payment: '',
   });
 
   const [branches, setBranches] = useState<any[]>([]);
@@ -365,6 +368,23 @@ export default function ReportFilters({
               <option value="">All</option>
               <option value="PAID">Paid only</option>
               <option value="UNPAID">Unpaid only</option>
+            </select>
+          </div>
+        )}
+
+        {showSpecialFeePaymentFilter && (
+          <div className="flex flex-col gap-1.5 min-w-[200px]">
+            <label className="text-xs font-semibold text-slate-500 uppercase">Special Fee</label>
+            <select
+              className={selectClass}
+              value={filters.special_fee_payment}
+              onChange={(e) => handleChange('special_fee_payment', e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="PAID">Paid (settled)</option>
+              <option value="PARTIAL">Partial</option>
+              <option value="UNPAID">Unpaid (invoiced)</option>
+              <option value="NOT_INVOICED">Not invoiced</option>
             </select>
           </div>
         )}

@@ -625,6 +625,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 payment_mode=data['payment_mode'],
                 payment_date=data['payment_date'],
                 reference_number=data.get('reference_number'),
+                special_fee=data.get('special_fee', 0),
             )
         except DRFValidationError as e:
             return Response({'detail': e.detail}, status=status.HTTP_400_BAD_REQUEST)

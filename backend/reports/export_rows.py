@@ -83,12 +83,16 @@ def build_export_rows(report_type: str, bundle: ExportFilterBundle) -> tuple[lis
             'id', 'admission_number', 'first_name', 'last_name',
             'class_section__grade', 'class_section__section', 'status', 'gender', 'caste_category',
             'admission_fee_paid', 'fixed_deposit_paid',
-            'admission_fee_collected', 'fixed_deposit_collected', 'total_initial_income',
+            'admission_fee_collected', 'fixed_deposit_collected',
+            'special_fee_net', 'special_fee_collected', 'special_fee_outstanding',
+            'total_initial_income',
         )
         headers = [
             'Student ID', 'Admission number', 'First name', 'Last name', 'Grade', 'Section',
-            'Status', 'Gender', 'Caste category', 'Admission fee paid', 'Fixed deposit paid',
-            'Admission fee collected', 'Fixed deposit collected', 'Initial income total',
+            'Status', 'Gender', 'Caste category', 'Admission fee paid', 'Caution fee paid',
+            'Admission fee collected', 'Caution fee collected',
+            'Special fee (invoice total)', 'Special fee collected', 'Special fee balance',
+            'Initial income total',
         ]
         rows = []
         for row in qs.iterator(chunk_size=500):
@@ -101,6 +105,9 @@ def build_export_rows(report_type: str, bundle: ExportFilterBundle) -> tuple[lis
                 'Yes' if row.get('fixed_deposit_paid') else 'No',
                 _cell(row.get('admission_fee_collected')),
                 _cell(row.get('fixed_deposit_collected')),
+                _cell(row.get('special_fee_net')),
+                _cell(row.get('special_fee_collected')),
+                _cell(row.get('special_fee_outstanding')),
                 _cell(row.get('total_initial_income')),
             ])
         return headers, rows

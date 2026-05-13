@@ -36,6 +36,7 @@ class ExportFilterBundle:
         exam_id: Optional[str] = None,
         admission_payment: Optional[str] = None,
         fixed_deposit_payment: Optional[str] = None,
+        special_fee_payment: Optional[str] = None,
     ):
         self.user = SimpleNamespace(tenant=tenant)
         self.branch_id = branch_id or None
@@ -76,6 +77,9 @@ class ExportFilterBundle:
         self.fixed_deposit_payment = fixed_deposit_payment or None
         if self.fixed_deposit_payment == '':
             self.fixed_deposit_payment = None
+        self.special_fee_payment = special_fee_payment or None
+        if self.special_fee_payment == '':
+            self.special_fee_payment = None
 
     @classmethod
     def from_job(cls, job) -> 'ExportFilterBundle':
@@ -112,4 +116,5 @@ class ExportFilterBundle:
             exam_id=raw.get('exam_id') or raw.get('examId'),
             admission_payment=raw.get('admission_payment'),
             fixed_deposit_payment=raw.get('fixed_deposit_payment'),
+            special_fee_payment=raw.get('special_fee_payment'),
         )

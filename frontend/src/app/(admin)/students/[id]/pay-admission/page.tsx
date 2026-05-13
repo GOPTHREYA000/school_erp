@@ -21,6 +21,7 @@ export default function PayAdmissionPage() {
 
   const [amountPayingAdmission, setAmountPayingAdmission] = useState<number>(0);
   const [fixedDeposit, setFixedDeposit] = useState<number>(0);
+  const [specialFee, setSpecialFee] = useState<number>(0);
   const [tuitionPayment, setTuitionPayment] = useState<number>(0);
   const [paymentMode, setPaymentMode] = useState<string>('CASH');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -57,11 +58,11 @@ export default function PayAdmissionPage() {
     }
   }, [configuredAdmission, admissionPrefilled]);
 
-  const totalAmount = Number(amountPayingAdmission) + Number(fixedDeposit) + Number(tuitionPayment);
+  const totalAmount = Number(amountPayingAdmission) + Number(fixedDeposit) + Number(specialFee) + Number(tuitionPayment);
 
   const handleSubmit = async () => {
     if (totalAmount <= 0) {
-      toast.error('Enter at least one payment amount (admission and/or academic fee).');
+      toast.error('Enter at least one payment amount (admission, caution, special, and/or academic fee).');
       return;
     }
 
@@ -71,6 +72,7 @@ export default function PayAdmissionPage() {
         student_id: studentId,
         admission_fee: amountPayingAdmission,
         fixed_deposit: fixedDeposit,
+        special_fee: specialFee,
         tuition_payment: tuitionPayment,
         payment_mode: paymentMode,
         reference_number: referenceNumber || undefined,
@@ -188,7 +190,9 @@ export default function PayAdmissionPage() {
             <p className="text-2xl font-black text-slate-900 tracking-tighter">
               ₹{Number(student.fee_stats?.total_fee || student.proposed_fee || 0).toLocaleString('en-IN')}
             </p>
-            <p className="text-[10px] text-slate-400 mt-1 font-medium">Admission fee is separate and not included above.</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-medium">
+              Admission, caution, and special fees are separate and not included above.
+            </p>
           </div>
         </div>
 
@@ -227,6 +231,23 @@ export default function PayAdmissionPage() {
                       step="0.01"
                       value={fixedDeposit || ''}
                       onChange={(e) => setFixedDeposit(Number(e.target.value))}
+                      className="w-full pl-10 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-600 focus:bg-white rounded-2xl text-lg font-black outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                    Optional: special fee
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={specialFee || ''}
+                      onChange={(e) => setSpecialFee(Number(e.target.value))}
                       className="w-full pl-10 pr-4 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-600 focus:bg-white rounded-2xl text-lg font-black outline-none transition-all"
                     />
                   </div>
@@ -299,6 +320,10 @@ export default function PayAdmissionPage() {
                   <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Caution Fee</span>
                   <span className="font-black">₹{Number(fixedDeposit).toLocaleString('en-IN')}</span>
                 </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Special Fee</span>
+                  <span className="font-black">₹{Number(specialFee).toLocaleString('en-IN')}</span>
+                </div>
               </div>
 
               <button
@@ -317,8 +342,8 @@ export default function PayAdmissionPage() {
             <div className="mt-6 flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
               <AlertCircle size={18} className="text-amber-500 shrink-0" />
               <p className="text-[10px] text-amber-800 font-semibold leading-relaxed">
-                Admission fee is posted to an ADM invoice and caution fee to an FDP invoice. Academic fee payments
-                reduce only the annual school fee invoice.
+                Admission fee is posted to an ADM invoice, caution fee to an FDP invoice, and special fee to an SPF invoice.
+                Academic fee payments reduce only the annual school fee invoice.
               </p>
             </div>
           </div>

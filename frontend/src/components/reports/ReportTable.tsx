@@ -11,6 +11,8 @@ interface ReportTableProps {
   columns: Column[];
   data: any[];
   loading: boolean;
+  /** Grand totals for numeric columns (full filtered set, not only current page). Keys match row field names / column keys. */
+  footerTotals?: Record<string, string> | null;
   pagination?: {
     currentPage: number;
     totalPages: number;
@@ -20,7 +22,24 @@ interface ReportTableProps {
   onPageChange?: (page: number) => void;
 }
 
-export default function ReportTable({ columns, data, loading, pagination, onPageChange }: ReportTableProps) {
+function buildFooterRowForRender(footerTotals: Record<string, string>): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(footerTotals)) {
+    if (v === '' || v === null || v === undefined) continue;
+    const n = parseFloat(String(v));
+    row[k] = Number.isFinite(n) ? n : v;
+  }
+  return row;
+}
+
+export default function ReportTable({ columns, data, loading, pagination, onPageChange, footerTotals }: ReportTableProps) {
+  const showFooter =
+    !loading &&
+    data.length > 0 &&
+    footerTotals &&
+    Object.keys(footerTotals).length > 0;
+  const footerRow = showFooter ? buildFooterRowForRender(footerTotals) : null;
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
       <div className="overflow-x-auto">
@@ -64,6 +83,29 @@ export default function ReportTable({ columns, data, loading, pagination, onPage
               ))
             )}
           </tbody>
+          {showFooter && footerRow && (
+            <tfoot>
+              <tr className="bg-slate-50 border-t-2 border-slate-200 text-slate-800">
+                {columns.map((col, idx) => {
+                  const raw = footerTotals![col.key];
+                  const hasVal = raw !== undefined && raw !== null && String(raw).trim() !== '';
+                  const cell =
+                    idx === 0
+                      ? 'Total'
+                      : hasVal
+                        ? col.render
+                          ? col.render(footerRow[col.key] as never, footerRow as never)
+                          : raw
+                        : '—';
+                  return (
+                    <td key={col.key} className="px-6 py-4 font-semibold whitespace-nowrap">
+                      {cell}
+                    </td>
+                  );
+                })}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 

@@ -164,8 +164,15 @@ export default function StudentProfilePage() {
   const fixedDepositPaidTotal = fixedDepositInvoices.reduce((sum: number, inv: any) => sum + Number(inv.paid_amount || 0), 0);
   const admissionOutstandingTotal = admissionInvoices.reduce((sum: number, inv: any) => sum + Number(inv.outstanding_amount || 0), 0);
   const fixedDepositOutstandingTotal = fixedDepositInvoices.reduce((sum: number, inv: any) => sum + Number(inv.outstanding_amount || 0), 0);
+  const specialFeeInvoices = (student?.invoices || []).filter((inv: any) => String(inv?.invoice_number || '').startsWith('SPF-'));
+  const specialFeePaidTotal = specialFeeInvoices.reduce((sum: number, inv: any) => sum + Number(inv.paid_amount || 0), 0);
+  const specialFeeOutstandingTotal = specialFeeInvoices.reduce((sum: number, inv: any) => sum + Number(inv.outstanding_amount || 0), 0);
+  const specialFeeNetTotal = specialFeeInvoices.reduce((sum: number, inv: any) => sum + Number(inv.net_amount || 0), 0);
   const admissionPartiallyPaid = admissionPaidTotal > 0 && admissionOutstandingTotal > 0;
   const fixedDepositPartiallyPaid = fixedDepositPaidTotal > 0 && fixedDepositOutstandingTotal > 0;
+  const specialFeePartiallyPaid = specialFeePaidTotal > 0 && specialFeeOutstandingTotal > 0;
+  const specialFeeFullyPaid = specialFeeInvoices.length > 0 && specialFeeOutstandingTotal <= 0;
+  const specialFeeStatusLabel = specialFeeFullyPaid ? 'Paid' : specialFeePartiallyPaid ? 'Partial' : 'Not Paid';
   const admissionMarkedEarlier = !!student?.admission_fee_marked_paid_earlier;
   const fixedDepositMarkedEarlier = !!student?.fixed_deposit_marked_paid_earlier;
   const admissionPaid = (admissionInvoices.length > 0 && admissionOutstandingTotal <= 0) || admissionMarkedEarlier;
@@ -855,7 +862,7 @@ export default function StudentProfilePage() {
 
               <div className="bg-slate-50/60 border border-slate-100 rounded-[2rem] p-6 md:p-7">
                 <h4 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-5">Initial Payment Status</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white rounded-2xl border border-slate-100 p-4">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Admission Fee</p>
                     <div className="flex items-center justify-between gap-3">
@@ -986,6 +993,45 @@ export default function StudentProfilePage() {
                             {markingInitialStatus === 'FIXED_DEPOSIT' ? 'Saving...' : 'Confirm'}
                           </button>
                         </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Special Fee</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                        specialFeeFullyPaid
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : specialFeePartiallyPaid
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {specialFeeStatusLabel}
+                      </span>
+                      <span className="text-sm font-black text-slate-900">
+                        ₹{specialFeePaidTotal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    {specialFeeNetTotal > 0 && (
+                      <p className="mt-2 text-[10px] font-semibold text-slate-500">
+                        Invoice total ₹{specialFeeNetTotal.toLocaleString('en-IN')}
+                        {specialFeeOutstandingTotal > 0 ? (
+                          <span className="text-amber-700">
+                            {' '}· Balance ₹{specialFeeOutstandingTotal.toLocaleString('en-IN')}
+                          </span>
+                        ) : null}
+                      </p>
+                    )}
+                    {canManageInitialPaymentStatus && !specialFeeFullyPaid && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => push(`/students/${id}/pay-admission`)}
+                          className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest"
+                        >
+                          {specialFeePartiallyPaid ? 'Extra payment' : 'Pay now'}
+                        </button>
                       </div>
                     )}
                   </div>

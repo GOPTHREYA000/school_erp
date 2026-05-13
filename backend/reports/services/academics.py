@@ -6,7 +6,7 @@ from django.db.models.functions import Coalesce
 
 from academics.models import ExamResult, ExamTerm
 from attendance.models import AttendanceRecord
-from fees.models import Payment
+from fees.models import FeeInvoice, Payment
 from reports.services.base import BaseReportService
 from students.models import ParentStudentRelation, Student, StudentAcademicRecord
 from tenants.models import AcademicYear, Branch
@@ -34,6 +34,21 @@ class AcademicsService:
             .annotate(total=Sum('amount'))
             .values('total')[:1]
         )
+        latest_spf_invoice = FeeInvoice.objects.filter(
+            student_id=OuterRef('pk'),
+            academic_year_id=OuterRef('academic_year_id'),
+            invoice_number__startswith='SPF-',
+        ).exclude(status__in=['CANCELLED', 'WAIVED']).order_by('-created_at')
+
+        special_fee_net_subquery = Subquery(latest_spf_invoice.values('net_amount')[:1])
+        special_fee_outstanding_subquery = Subquery(latest_spf_invoice.values('outstanding_amount')[:1])
+        special_fee_amount_subquery = (
+            completed_payments.filter(invoice__invoice_number__startswith='SPF-')
+            .values('student_id')
+            .annotate(total=Sum('amount'))
+            .values('total')[:1]
+        )
+
         qs = qs.annotate(
             admission_fee_paid=Exists(admission_paid_exists),
             fixed_deposit_paid=Exists(fixed_deposit_paid_exists),
@@ -47,6 +62,21 @@ class AcademicsService:
                 Value(Decimal('0.00')),
                 output_field=DecimalField(max_digits=10, decimal_places=2),
             ),
+            special_fee_net=Coalesce(
+                Subquery(special_fee_net_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
+            special_fee_outstanding=Coalesce(
+                Subquery(special_fee_outstanding_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
+            special_fee_collected=Coalesce(
+                Subquery(special_fee_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
         ).annotate(
             total_initial_income=Coalesce(
                 Subquery(admission_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
@@ -54,6 +84,10 @@ class AcademicsService:
                 output_field=DecimalField(max_digits=10, decimal_places=2),
             ) + Coalesce(
                 Subquery(fixed_deposit_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
+                Value(Decimal('0.00')),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ) + Coalesce(
+                Subquery(special_fee_amount_subquery, output_field=DecimalField(max_digits=10, decimal_places=2)),
                 Value(Decimal('0.00')),
                 output_field=DecimalField(max_digits=10, decimal_places=2),
             )
@@ -73,7 +107,15 @@ class AcademicsService:
             qs = qs.filter(fixed_deposit_paid=True)
         elif filters.fixed_deposit_payment == 'UNPAID':
             qs = qs.filter(fixed_deposit_paid=False)
-            
+        if getattr(filters, 'special_fee_payment', None) == 'PAID':
+            qs = qs.filter(special_fee_net__gt=0, special_fee_outstanding__lte=0)
+        elif getattr(filters, 'special_fee_payment', None) == 'UNPAID':
+            qs = qs.filter(special_fee_net__gt=0, special_fee_collected__lte=0)
+        elif getattr(filters, 'special_fee_payment', None) == 'PARTIAL':
+            qs = qs.filter(special_fee_outstanding__gt=0, special_fee_collected__gt=0)
+        elif getattr(filters, 'special_fee_payment', None) == 'NOT_INVOICED':
+            qs = qs.filter(special_fee_net__lte=0)
+
         return qs.order_by('class_section__grade', 'class_section__section', 'first_name')
 
     @staticmethod
