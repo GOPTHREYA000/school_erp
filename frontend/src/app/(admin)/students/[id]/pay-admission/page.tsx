@@ -217,7 +217,7 @@ export default function PayAdmissionPage() {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                    Fixed deposit
+                    Caution fee
                   </label>
                   <div className="relative">
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
@@ -296,7 +296,7 @@ export default function PayAdmissionPage() {
                   <span className="font-black">₹{Number(tuitionPayment).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Fixed Deposit</span>
+                  <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Caution Fee</span>
                   <span className="font-black">₹{Number(fixedDeposit).toLocaleString('en-IN')}</span>
                 </div>
               </div>
@@ -317,7 +317,7 @@ export default function PayAdmissionPage() {
             <div className="mt-6 flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
               <AlertCircle size={18} className="text-amber-500 shrink-0" />
               <p className="text-[10px] text-amber-800 font-semibold leading-relaxed">
-                Admission fee is posted to an ADM invoice and fixed deposit to an FDP invoice. Academic fee payments
+                Admission fee is posted to an ADM invoice and caution fee to an FDP invoice. Academic fee payments
                 reduce only the annual school fee invoice.
               </p>
             </div>

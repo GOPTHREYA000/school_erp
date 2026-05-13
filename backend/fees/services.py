@@ -394,7 +394,10 @@ def _apply_payment_to_invoice(user, student, invoice, amount: Decimal, payment_m
     receipt_number = DocumentSequence.get_next_sequence(
         student.branch,
         'RECEIPT',
-        prefix=f"RCP-{payment_date.strftime('%Y%m')}",
+        # Keep receipt numbers globally unique across branches.
+        # Payment.receipt_number has a global unique constraint, so
+        # the branch code must be part of the sequence prefix.
+        prefix=f"RCP-{student.branch.branch_code}-{payment_date.strftime('%Y%m')}",
     )
     payment = Payment.objects.create(
         tenant=student.tenant,

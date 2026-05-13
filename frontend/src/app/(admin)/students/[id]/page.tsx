@@ -294,7 +294,7 @@ export default function StudentProfilePage() {
         target,
         paid_earlier: true,
       });
-      toast.success(`${target === 'ADMISSION_FEE' ? 'Admission fee' : 'Fixed deposit'} marked as collected earlier.`);
+      toast.success(`${target === 'ADMISSION_FEE' ? 'Admission fee' : 'Caution fee'} marked as collected earlier.`);
       refetch();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Failed to update payment status.');
@@ -879,7 +879,7 @@ export default function StudentProfilePage() {
                   </div>
 
                   <div className="bg-white rounded-2xl border border-slate-100 p-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fixed Deposit</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Caution Fee</p>
                     <div className="flex items-center justify-between gap-3">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                         fixedDepositPaid ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'

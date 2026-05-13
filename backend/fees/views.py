@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
 from django.db import transaction, models
+from django.db import IntegrityError
 from django.db.models import Sum, Q, F, ExpressionWrapper
 from decimal import Decimal
 
@@ -627,6 +628,17 @@ class PaymentViewSet(viewsets.ModelViewSet):
             )
         except DRFValidationError as e:
             return Response({'detail': e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
+            logger.exception('Initial payment integrity error for student %s by user %s', student.id, request.user.id)
+            return Response(
+                {
+                    'detail': (
+                        'Initial payment failed due to a duplicate receipt/invoice number. '
+                        'Please retry once; contact support if it repeats.'
+                    )
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         except Exception:
             logger.exception('Initial payment failed for student %s by user %s', student.id, request.user.id)
             return Response(

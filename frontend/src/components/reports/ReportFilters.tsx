@@ -356,7 +356,7 @@ export default function ReportFilters({
 
         {showFixedDepositPaymentFilter && (
           <div className="flex flex-col gap-1.5 min-w-[190px]">
-            <label className="text-xs font-semibold text-slate-500 uppercase">Fixed Deposit</label>
+            <label className="text-xs font-semibold text-slate-500 uppercase">Caution Fee</label>
             <select
               className={selectClass}
               value={filters.fixed_deposit_payment}

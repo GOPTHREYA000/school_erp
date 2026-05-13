@@ -130,7 +130,7 @@ export const reportsRegistry: ReportCategory[] = [
         id: 'students',
         categoryId: 'academics',
         title: 'Students List',
-        description: 'Students list with admission fee and fixed deposit payment status',
+        description: 'Students list with admission fee and caution fee payment status',
         apiEndpoint: 'reports/academics/students-list/',
         exportKey: 'ACADEMICS_STUDENTS',
         filters: {
@@ -146,7 +146,7 @@ export const reportsRegistry: ReportCategory[] = [
           { key: 'name', label: 'Student Name', render: (_v: any, row: any) => `${row.first_name || ''} ${row.last_name || ''}`.trim() || '-' },
           { key: 'class', label: 'Class', render: (_v: any, row: any) => `${row.class_section__grade || ''}-${row.class_section__section || ''}`.replace(/-$/, '') },
           { key: 'admission_fee_paid', label: 'Admission Fee', render: (_v: any, row: any) => row.admission_fee_paid ? 'Paid' : 'Not paid' },
-          { key: 'fixed_deposit_paid', label: 'Fixed Deposit', render: (_v: any, row: any) => row.fixed_deposit_paid ? 'Paid' : 'Not paid' },
+          { key: 'fixed_deposit_paid', label: 'Caution Fee', render: (_v: any, row: any) => row.fixed_deposit_paid ? 'Paid' : 'Not paid' },
           { key: 'admission_fee_collected', label: 'Admission Collected', render: (_v: any, row: any) => `₹${Number(row.admission_fee_collected || 0).toLocaleString('en-IN')}` },
           { key: 'fixed_deposit_collected', label: 'FD Collected', render: (_v: any, row: any) => `₹${Number(row.fixed_deposit_collected || 0).toLocaleString('en-IN')}` },
           { key: 'total_initial_income', label: 'Final Income', render: (_v: any, row: any) => `₹${Number(row.total_initial_income || 0).toLocaleString('en-IN')}` },
