@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthProvider';
 
 interface BranchContextType {
   selectedBranch: string;
@@ -10,18 +11,24 @@ interface BranchContextType {
 const BranchContext = createContext<BranchContextType | undefined>(undefined);
 
 export function BranchProvider({ children }: { children: React.ReactNode }) {
-  const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const { user } = useAuth();
+  const [localBranch, setLocalBranch] = useState<string>('');
 
   // Load from local storage on mount
   useEffect(() => {
     const saved = localStorage.getItem('selectedBranch');
-    if (saved) setSelectedBranch(saved);
+    if (saved) setLocalBranch(saved);
   }, []);
 
   const handleSetBranch = (id: string) => {
-    setSelectedBranch(id);
+    setLocalBranch(id);
     localStorage.setItem('selectedBranch', id);
   };
+
+  const hasGlobalSelector = ['SUPER_ADMIN'].includes(user?.role || '');
+  const selectedBranch = (!hasGlobalSelector && (user?.branch_id || user?.branch)) 
+    ? (user?.branch_id || user?.branch || '') 
+    : localBranch;
 
   return (
     <BranchContext.Provider value={{ selectedBranch, setSelectedBranch: handleSetBranch }}>

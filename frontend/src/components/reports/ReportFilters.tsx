@@ -182,10 +182,10 @@ export default function ReportFilters({
   return (
     <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 mb-6">
       <div className="flex flex-wrap gap-4 items-end">
-        {['SUPER_ADMIN', 'OWNER', 'CHIEF_ACCOUNTANT', 'ZONAL_ADMIN'].includes(user?.role || '') && (
+        {user?.role === 'SUPER_ADMIN' && (
           <div className="flex flex-col gap-1.5 min-w-[150px]">
             <label className="text-xs font-semibold text-slate-500 uppercase">Branch</label>
-            <select 
+            <select
               className={selectClass}
               value={filters.branch_id}
               onChange={(e) => handleChange('branch_id', e.target.value)}
@@ -201,7 +201,7 @@ export default function ReportFilters({
         {(showAcademicYear || showExam) && (
           <div className="flex flex-col gap-1.5 min-w-[150px]">
             <label className="text-xs font-semibold text-slate-500 uppercase">Academic Year</label>
-            <select 
+            <select
               className={selectClass}
               value={filters.academic_year_id}
               onChange={(e) => handleChange('academic_year_id', e.target.value)}
@@ -234,8 +234,8 @@ export default function ReportFilters({
           <div className="flex gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-500 uppercase">Start Date</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 className={selectClass}
                 value={filters.startDate}
                 onChange={(e) => handleChange('startDate', e.target.value)}
@@ -243,8 +243,8 @@ export default function ReportFilters({
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-500 uppercase">End Date</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 className={selectClass}
                 value={filters.endDate}
                 onChange={(e) => handleChange('endDate', e.target.value)}
@@ -256,7 +256,7 @@ export default function ReportFilters({
         {showClassSection && (
           <div className="flex flex-col gap-1.5 min-w-[150px]">
             <label className="text-xs font-semibold text-slate-500 uppercase">Class</label>
-            <select 
+            <select
               className={selectClass}
               value={filters.class_id}
               onChange={(e) => {
@@ -297,7 +297,7 @@ export default function ReportFilters({
         {showStatus && (
           <div className="flex flex-col gap-1.5 min-w-[150px]">
             <label className="text-xs font-semibold text-slate-500 uppercase">Status</label>
-            <select 
+            <select
               className={selectClass}
               value={filters.status}
               onChange={(e) => handleChange('status', e.target.value)}
@@ -313,7 +313,7 @@ export default function ReportFilters({
         {showAdSource && (
           <div className="flex flex-col gap-1.5 min-w-[150px]">
             <label className="text-xs font-semibold text-slate-500 uppercase">Source</label>
-            <select 
+            <select
               className={selectClass}
               value={filters.source}
               onChange={(e) => handleChange('source', e.target.value)}
@@ -329,7 +329,7 @@ export default function ReportFilters({
         {showPaymentMode && (
           <div className="flex flex-col gap-1.5 min-w-[150px]">
             <label className="text-xs font-semibold text-slate-500 uppercase">Payment Mode</label>
-            <select 
+            <select
               className={selectClass}
               value={filters.payment_mode}
               onChange={(e) => handleChange('payment_mode', e.target.value)}
@@ -392,7 +392,7 @@ export default function ReportFilters({
         {showExpenseCategory && (
           <div className="flex flex-col gap-1.5 min-w-[150px]">
             <label className="text-xs font-semibold text-slate-500 uppercase">Exp. Category</label>
-            <select 
+            <select
               className={selectClass}
               value={filters.expense_category_id}
               onChange={(e) => handleChange('expense_category_id', e.target.value)}
@@ -410,7 +410,7 @@ export default function ReportFilters({
         {showVendor && (
           <div className="flex flex-col gap-1.5 min-w-[150px]">
             <label className="text-xs font-semibold text-slate-500 uppercase">Vendor</label>
-            <select 
+            <select
               className={selectClass}
               value={filters.vendor_id}
               onChange={(e) => handleChange('vendor_id', e.target.value)}
