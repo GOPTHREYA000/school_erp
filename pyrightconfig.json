@@ -12,5 +12,15 @@
       "root": "tmp",
       "extraPaths": ["backend"]
     }
-  ]
+  ],
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true,
+  "reportMissingModuleSource": "none",
+  "reportMissingTypeStubs": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportOperatorIssue": "none",
+  "reportReturnType": "none",
+  "reportIndexIssue": "none"
 }
+

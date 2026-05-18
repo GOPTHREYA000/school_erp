@@ -524,6 +524,30 @@ class StudentViewSet(viewsets.ModelViewSet):
                 )
                 student.save()
 
+                # ── Migrate outstanding dues to new branch ─────────────────
+                # Re-assign unpaid/partially-paid invoices
+                from fees.models import FeeInvoice, FeeCarryForward, Payment
+                outstanding_invoices = FeeInvoice.objects.filter(
+                    student=student,
+                    status__in=['SENT', 'PARTIALLY_PAID', 'OVERDUE', 'DRAFT'],
+                )
+                invoice_ids = list(outstanding_invoices.values_list('id', flat=True))
+                outstanding_invoices.update(branch=target_branch)
+
+                # Re-assign carry-forwards not yet settled
+                FeeCarryForward.objects.filter(
+                    student=student,
+                    status__in=['PENDING', 'PARTIALLY_PAID'],
+                ).update(branch=target_branch)
+
+                # Re-assign payments linked to those invoices
+                if invoice_ids:
+                    Payment.objects.filter(
+                        student=student,
+                        invoice_id__in=invoice_ids,
+                    ).update(branch=target_branch)
+                # ─────────────────────────────────────────────────────────
+
                 log_audit_action(
                     user=request.user,
                     action='TRANSFER_STUDENT_BRANCH',
@@ -534,6 +558,7 @@ class StudentViewSet(viewsets.ModelViewSet):
                         'from_branch': old_branch_name,
                         'to_branch': target_branch.name,
                         'reason': transfer_reason,
+                        'invoices_migrated': len(invoice_ids),
                     },
                     tenant=student.tenant,
                 )
@@ -544,6 +569,7 @@ class StudentViewSet(viewsets.ModelViewSet):
                     student.leaving_reason = request.data.get('leaving_reason', '')
                 student.save()
         return Response({'success': True, 'data': StudentSerializer(student).data})
+
 
     @action(detail=True, methods=['post'], url_path='mark-initial-payment-status')
     def mark_initial_payment_status(self, request, pk=None):

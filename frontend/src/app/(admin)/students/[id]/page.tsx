@@ -111,7 +111,7 @@ export default function StudentProfilePage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await api.get('/tenants/branches/');
+        const res = await api.get('/tenants/branches/?for_transfer=true');
         const raw = res.data?.data ?? res.data?.results ?? res.data;
         const list = Array.isArray(raw) ? raw : [];
         if (!cancelled) setTenantBranches(list);
@@ -121,6 +121,7 @@ export default function StudentProfilePage() {
     })();
     return () => { cancelled = true; };
   }, [showWithdrawModal]);
+
 
   const handleConfirmPromotedYearFees = async () => {
     if (!promotedFeeStructure) {

@@ -82,7 +82,11 @@ class BranchViewSet(viewsets.ModelViewSet):
             zone_ids = list(user.zone_accesses.values_list('zone_id', flat=True))
             qs = Branch.objects.filter(tenant=user.tenant, zone_id__in=zone_ids)
         elif role in ['PRINCIPAL', 'BRANCH_ADMIN', 'TEACHER', 'ACCOUNTANT', 'STUDENT', 'PARENT']:
-            if user.branch:
+            for_transfer = self.request.query_params.get('for_transfer') == 'true'
+            if for_transfer and role in ['PRINCIPAL', 'BRANCH_ADMIN', 'ACCOUNTANT'] and user.tenant:
+                # Allow branch-scoped staff to see all branches when initiating a student transfer
+                qs = Branch.objects.filter(tenant=user.tenant)
+            elif user.branch:
                 qs = Branch.objects.filter(id=user.branch.id)
             elif user.tenant:
                 # Fallback if branch is not set but tenant is
@@ -93,6 +97,7 @@ class BranchViewSet(viewsets.ModelViewSet):
             qs = qs.filter(tenant_id=tenant_id)
             
         return qs
+
 
     def perform_create(self, serializer):
         tenant = self.request.user.tenant

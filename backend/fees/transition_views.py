@@ -580,7 +580,7 @@ class FeeStructureFinalizeViewSet(viewsets.GenericViewSet):
 
 class StudentDropoutViewSet(viewsets.GenericViewSet):
     """Endpoint for managing student dropouts."""
-    permission_classes = [IsAuthenticated, IsBranchAdminOrAbove]
+    permission_classes = [IsAuthenticated, IsAccountantOrAbove]
 
     @action(detail=True, methods=['post'], url_path='dropout')
     def mark_dropout(self, request, pk=None):
